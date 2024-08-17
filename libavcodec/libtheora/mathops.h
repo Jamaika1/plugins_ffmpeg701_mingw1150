@@ -73,7 +73,7 @@ int oc_ilog64(ogg_int64_t _v);
 #  define OC_ILOG_32(_v)   (oc_ilog32(_v))
 # endif
 
-# if defined(CLZ64)
+# if defined(OC_CLZ64)
 /**
  * OC_ILOGNZ_64 - Integer binary logarithm of a non-zero 64-bit value.
  * @_v: A non-zero 64-bit value.
@@ -82,7 +82,7 @@ int oc_ilog64(ogg_int64_t _v);
  *  complement notation with all of the leading zeros stripped.
  * If _v is zero, the return value is undefined; use OC_ILOG_64() instead.
  */
-#  define OC_ILOGNZ_64(_v) (CLZ64_OFFS-CLZ64(_v))
+#  define OC_ILOGNZ_64(_v) (OC_CLZ64_OFFS-OC_CLZ64(_v))
 /**
  * OC_ILOG_64 - Integer binary logarithm of a 64-bit value.
  * @_v: A 64-bit value.
