@@ -743,7 +743,7 @@ int oc_enc_update_rc_state(oc_enc_ctx *_enc,
   buf_delta=_enc->rc.bits_per_frame*(1+_enc->dup_count);
   if(_bits<=0){
     /*We didn't code any blocks in this frame.*/
-    log_scale=OC_Q57(-64);
+    log_scale=OCM_Q57(-64);
     _bits=0;
   }
   else{
