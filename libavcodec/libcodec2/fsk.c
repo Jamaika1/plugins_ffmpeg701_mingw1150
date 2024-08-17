@@ -168,7 +168,7 @@ struct FSK *fsk_create_core(int Fs, int Rs, int M, int P, int Nsym, int f1_tx,
   assert(fsk->f_dc != NULL);
   for (i = 0; i < M * fsk->Nmem; i++) fsk->f_dc[i] = comp0();
 
-  fsk->fft_cfg = kiss_fft_alloc(Ndft, 0, NULL, NULL);
+  fsk->fft_cfg = codec2_kiss_fft_alloc(Ndft, 0, NULL, NULL);
   assert(fsk->fft_cfg != NULL);
   fsk->Sf = (float *)malloc(sizeof(float) * fsk->Ndft);
   assert(fsk->Sf != NULL);
@@ -469,12 +469,12 @@ void fsk_demod_freq_est(struct FSK *fsk, COMP fsk_in[], float *freqs, int M) {
   float hann;
   float max;
   int imax;
-  kiss_fft_cfg fft_cfg = fsk->fft_cfg;
+  codec2_kiss_fft_cfg fft_cfg = fsk->fft_cfg;
   int freqi[M];
   int st, en, f_zero;
 
-  kiss_fft_cpx *fftin = (kiss_fft_cpx *)malloc(sizeof(kiss_fft_cpx) * Ndft);
-  kiss_fft_cpx *fftout = (kiss_fft_cpx *)malloc(sizeof(kiss_fft_cpx) * Ndft);
+  codec2_kiss_fft_cpx *fftin = (codec2_kiss_fft_cpx *)malloc(sizeof(codec2_kiss_fft_cpx) * Ndft);
+  codec2_kiss_fft_cpx *fftout = (codec2_kiss_fft_cpx *)malloc(sizeof(codec2_kiss_fft_cpx) * Ndft);
 
   st = (fsk->est_min * Ndft) / Fs + Ndft / 2;
   if (st < 0) st = 0;
@@ -503,10 +503,10 @@ void fsk_demod_freq_est(struct FSK *fsk, COMP fsk_in[], float *freqs, int M) {
     }
 
     /* Do the FFT */
-    kiss_fft(fft_cfg, fftin, fftout);
+    codec2_kiss_fft(fft_cfg, fftin, fftout);
 
     /* FFT shift to put DC bin at Ndft/2 */
-    kiss_fft_cpx tmp;
+    codec2_kiss_fft_cpx tmp;
     for (i = 0; i < Ndft / 2; i++) {
       tmp = fftout[i];
       fftout[i] = fftout[i + Ndft / 2];

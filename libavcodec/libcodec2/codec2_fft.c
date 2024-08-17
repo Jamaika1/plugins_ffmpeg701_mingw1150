@@ -73,7 +73,7 @@ codec2_fft_cfg codec2_fft_alloc(int nfft, int inverse_fft, void* mem,
                                 size_t* lenmem) {
   codec2_fft_cfg retval;
 #ifdef USE_KISS_FFT
-  retval = kiss_fft_alloc(nfft, inverse_fft, mem, lenmem);
+  retval = codec2_kiss_fft_alloc(nfft, inverse_fft, mem, lenmem);
 #else
   retval = MALLOC(sizeof(codec2_fft_struct));
   retval->inverse = inverse_fft;
@@ -102,7 +102,7 @@ codec2_fftr_cfg codec2_fftr_alloc(int nfft, int inverse_fft, void* mem,
                                   size_t* lenmem) {
   codec2_fftr_cfg retval;
 #ifdef USE_KISS_FFT
-  retval = kiss_fftr_alloc(nfft, inverse_fft, mem, lenmem);
+  retval = codec2_kiss_fftr_alloc(nfft, inverse_fft, mem, lenmem);
 #else
   retval = MALLOC(sizeof(codec2_fftr_struct));
   retval->inverse = inverse_fft;
@@ -121,7 +121,7 @@ void codec2_fftr_free(codec2_fftr_cfg cfg) {
 #endif
 }
 
-// there is a little overhead for inplace kiss_fft but this is
+// there is a little overhead for inplace codec2_kiss_fft but this is
 // on the powerful platforms like the Raspberry or even x86 PC based ones
 // not noticeable
 // the reduced usage of RAM and increased performance on STM32 platforms
@@ -129,15 +129,15 @@ void codec2_fftr_free(codec2_fftr_cfg cfg) {
 void codec2_fft_inplace(codec2_fft_cfg cfg, codec2_fft_cpx* inout) {
 #ifdef USE_KISS_FFT
   // decide whether to use the local stack based buffer for in
-  // or to allow kiss_fft to allocate RAM
+  // or to allow codec2_kiss_fft to allocate RAM
   // second part is just to play safe since first method
   // is much faster and uses less RAM
   if (cfg->nfft <= 512) {
-    kiss_fft_cpx in[512];
-    memcpy(in, inout, cfg->nfft * sizeof(kiss_fft_cpx));
-    kiss_fft(cfg, in, (kiss_fft_cpx*)inout);
+    codec2_kiss_fft_cpx in[512];
+    memcpy(in, inout, cfg->nfft * sizeof(codec2_kiss_fft_cpx));
+    codec2_kiss_fft(cfg, in, (codec2_kiss_fft_cpx*)inout);
   } else {
-    kiss_fft(cfg, (kiss_fft_cpx*)inout, (kiss_fft_cpx*)inout);
+    codec2_kiss_fft(cfg, (codec2_kiss_fft_cpx*)inout, (codec2_kiss_fft_cpx*)inout);
   }
 #else
   arm_cfft_f32(cfg->instance, (float*)inout, cfg->inverse, 1);

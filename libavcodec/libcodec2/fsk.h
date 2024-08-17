@@ -77,7 +77,7 @@ struct FSK {
   COMP phi_c[MODE_M_MAX]; /* phase of each demod local oscillator */
   COMP *f_dc;             /* down converted samples               */
 
-  kiss_fft_cfg fft_cfg; /* Config for KISS FFT, used in freq est */
+  codec2_kiss_fft_cfg fft_cfg; /* Config for KISS FFT, used in freq est */
   float norm_rx_timing; /* Normalized RX timing */
 
   /*  Parameters used by mod */
