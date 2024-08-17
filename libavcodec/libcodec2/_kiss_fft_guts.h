@@ -28,9 +28,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /* kiss_fft.h
-   defines kiss_fft_scalar as either short or a float type
+   defines codec2_kiss_fft_scalar as either short or a float type
    and defines
-   typedef struct { kiss_fft_scalar r; kiss_fft_scalar i; }kiss_fft_cpx; */
+   typedef struct { codec2_kiss_fft_scalar r; codec2_kiss_fft_scalar i; }codec2_kiss_fft_cpx; */
 #include <limits.h>
 
 #include "kiss_fft.h"
@@ -41,11 +41,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  4*4*4*2
  */
 
-struct kiss_fft_state {
+struct codec2_kiss_fft_state {
   int nfft;
   int inverse;
   int factors[2 * MAXFACTORS];
-  kiss_fft_cpx twiddles[1];
+  codec2_kiss_fft_cpx twiddles[1];
 };
 
 /*
@@ -81,7 +81,7 @@ struct kiss_fft_state {
 #endif
 
 #define smul(a, b) ((SAMPPROD)(a) * (b))
-#define sround(x) (kiss_fft_scalar)(((x) + (1 << (FRACBITS - 1))) >> FRACBITS)
+#define sround(x) (codec2_kiss_fft_scalar)(((x) + (1 << (FRACBITS - 1))) >> FRACBITS)
 
 #define S_MUL(a, b) sround(smul(a, b))
 
@@ -164,8 +164,8 @@ struct kiss_fft_state {
 #define KISS_FFT_SIN(phase) _mm_set1_ps(sinf(phase))
 #define HALF_OF(x) ((x)*_mm_set1_ps(.5))
 #else
-#define KISS_FFT_COS(phase) (kiss_fft_scalar) cosf(phase)
-#define KISS_FFT_SIN(phase) (kiss_fft_scalar) sinf(phase)
+#define KISS_FFT_COS(phase) (codec2_kiss_fft_scalar) cosf(phase)
+#define KISS_FFT_SIN(phase) (codec2_kiss_fft_scalar) sinf(phase)
 #define HALF_OF(x) ((x)*.5)
 #endif
 

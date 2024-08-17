@@ -29,9 +29,9 @@ typedef COMP codec2_fft_cpx;
 
 #ifdef USE_KISS_FFT
 #include "kiss_fft.h"
-typedef kiss_fftr_cfg codec2_fftr_cfg;
-typedef kiss_fft_cfg codec2_fft_cfg;
-typedef kiss_fft_scalar codec2_fft_scalar;
+typedef codec2_kiss_fftr_cfg codec2_fftr_cfg;
+typedef codec2_kiss_fft_cfg codec2_fft_cfg;
+typedef codec2_kiss_fft_scalar codec2_fft_scalar;
 #else
 typedef float32_t codec2_fft_scalar;
 typedef struct {
@@ -51,7 +51,7 @@ typedef codec2_fft_struct* codec2_fft_cfg;
 static inline void codec2_fftr(codec2_fftr_cfg cfg, codec2_fft_scalar* in,
                                codec2_fft_cpx* out) {
 #ifdef USE_KISS_FFT
-  kiss_fftr(cfg, in, (kiss_fft_cpx*)out);
+  codec2_kiss_fftr(cfg, in, (codec2_kiss_fft_cpx*)out);
 #else
   arm_rfft_fast_f32(cfg->instance, in, (float*)out, cfg->inverse);
   out->imag = 0;  // remove out[FFT_ENC/2]->real stored in out[0].imag
@@ -61,7 +61,7 @@ static inline void codec2_fftr(codec2_fftr_cfg cfg, codec2_fft_scalar* in,
 static inline void codec2_fftri(codec2_fftr_cfg cfg, codec2_fft_cpx* in,
                                 codec2_fft_scalar* out) {
 #ifdef USE_KISS_FFT
-  kiss_fftri(cfg, (kiss_fft_cpx*)in, out);
+  codec2_kiss_fftri(cfg, (codec2_kiss_fft_cpx*)in, out);
 #else
   arm_rfft_fast_f32(cfg->instance, (float*)in, out, cfg->inverse);
   // arm_scale_f32(out,cfg->instance->fftLenRFFT,out,cfg->instance->fftLenRFFT);
@@ -78,14 +78,14 @@ void codec2_fftr_free(codec2_fftr_cfg cfg);
 static inline void codec2_fft(codec2_fft_cfg cfg, codec2_fft_cpx* in,
                               codec2_fft_cpx* out) {
 #ifdef USE_KISS_FFT
-  kiss_fft(cfg, (kiss_fft_cpx*)in, (kiss_fft_cpx*)out);
+  codec2_kiss_fft(cfg, (codec2_kiss_fft_cpx*)in, (codec2_kiss_fft_cpx*)out);
 #else
   memcpy(out, in, cfg->instance->fftLen * 2 * sizeof(float));
   arm_cfft_f32(cfg->instance, (float*)out, cfg->inverse, 1);
   // TODO: this is not nice, but for now required to keep changes minimal
   // however, since main goal is to reduce the memory usage
   // we should convert to an in place interface
-  // on PC like platforms the overhead of using the "inplace" kiss_fft calls
+  // on PC like platforms the overhead of using the "inplace" codec2_kiss_fft calls
   // is neglectable compared to the gain in memory usage on STM32 platforms
   if (cfg->inverse) {
     arm_scale_f32((float*)out, cfg->instance->fftLen, (float*)out,

@@ -15,31 +15,31 @@ extern "C" {
 
  */
 
-typedef struct kiss_fftr_state *kiss_fftr_cfg;
+typedef struct codec2_kiss_fftr_state *codec2_kiss_fftr_cfg;
 
-kiss_fftr_cfg kiss_fftr_alloc(int nfft, int inverse_fft, void *mem,
-                              size_t *lenmem);
+codec2_kiss_fftr_cfg codec2_kiss_fftr_alloc(int nfft, int inverse_fft, void * mem,
+                                            size_t * lenmem);
 /*
  nfft must be even
 
  If you don't care to allocate space, use mem = lenmem = NULL
 */
 
-void kiss_fftr(kiss_fftr_cfg cfg, const kiss_fft_scalar *timedata,
-               kiss_fft_cpx *freqdata);
+void codec2_kiss_fftr(codec2_kiss_fftr_cfg cfg, const codec2_kiss_fft_scalar *timedata,
+                      codec2_kiss_fft_cpx *freqdata);
 /*
  input timedata has nfft scalar points
  output freqdata has nfft/2+1 complex points
 */
 
-void kiss_fftri(kiss_fftr_cfg cfg, const kiss_fft_cpx *freqdata,
-                kiss_fft_scalar *timedata);
+void codec2_kiss_fftri(codec2_kiss_fftr_cfg cfg, const codec2_kiss_fft_cpx *freqdata,
+                       codec2_kiss_fft_scalar *timedata);
 /*
  input freqdata has  nfft/2+1 complex points
  output timedata has nfft scalar points
 */
 
-#define kiss_fftr_free free
+#define codec2_kiss_fftr_free free
 
 #ifdef __cplusplus
 }

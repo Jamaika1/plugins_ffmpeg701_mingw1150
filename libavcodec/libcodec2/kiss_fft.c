@@ -33,11 +33,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  internal functions.
  */
 
-static void kf_bfly2(kiss_fft_cpx *Fout, const size_t fstride,
-                     const kiss_fft_cfg st, int m) {
-  kiss_fft_cpx *Fout2;
-  kiss_fft_cpx *tw1 = st->twiddles;
-  kiss_fft_cpx t;
+static void kf_bfly2(codec2_kiss_fft_cpx *Fout, const size_t fstride,
+                     const codec2_kiss_fft_cfg st, int m) {
+  codec2_kiss_fft_cpx *Fout2;
+  codec2_kiss_fft_cpx *tw1 = st->twiddles;
+  codec2_kiss_fft_cpx t;
   Fout2 = Fout + m;
   do {
     C_FIXDIV(*Fout, 2);
@@ -52,10 +52,10 @@ static void kf_bfly2(kiss_fft_cpx *Fout, const size_t fstride,
   } while (--m);
 }
 
-static void kf_bfly4(kiss_fft_cpx *Fout, const size_t fstride,
-                     const kiss_fft_cfg st, const size_t m) {
-  kiss_fft_cpx *tw1, *tw2, *tw3;
-  kiss_fft_cpx scratch[6];
+static void kf_bfly4(codec2_kiss_fft_cpx *Fout, const size_t fstride,
+                     const codec2_kiss_fft_cfg st, const size_t m) {
+  codec2_kiss_fft_cpx *tw1, *tw2, *tw3;
+  codec2_kiss_fft_cpx scratch[6];
   size_t k = m;
   const size_t m2 = 2 * m;
   const size_t m3 = 3 * m;
@@ -97,13 +97,13 @@ static void kf_bfly4(kiss_fft_cpx *Fout, const size_t fstride,
   } while (--k);
 }
 
-static void kf_bfly3(kiss_fft_cpx *Fout, const size_t fstride,
-                     const kiss_fft_cfg st, size_t m) {
+static void kf_bfly3(codec2_kiss_fft_cpx *Fout, const size_t fstride,
+                     const codec2_kiss_fft_cfg st, size_t m) {
   size_t k = m;
   const size_t m2 = 2 * m;
-  kiss_fft_cpx *tw1, *tw2;
-  kiss_fft_cpx scratch[5];
-  kiss_fft_cpx epi3;
+  codec2_kiss_fft_cpx *tw1, *tw2;
+  codec2_kiss_fft_cpx scratch[5];
+  codec2_kiss_fft_cpx epi3;
   epi3 = st->twiddles[fstride * m];
 
   tw1 = tw2 = st->twiddles;
@@ -138,14 +138,14 @@ static void kf_bfly3(kiss_fft_cpx *Fout, const size_t fstride,
   } while (--k);
 }
 
-static void kf_bfly5(kiss_fft_cpx *Fout, const size_t fstride,
-                     const kiss_fft_cfg st, int m) {
-  kiss_fft_cpx *Fout0, *Fout1, *Fout2, *Fout3, *Fout4;
+static void kf_bfly5(codec2_kiss_fft_cpx *Fout, const size_t fstride,
+                     const codec2_kiss_fft_cfg st, int m) {
+  codec2_kiss_fft_cpx *Fout0, *Fout1, *Fout2, *Fout3, *Fout4;
   int u;
-  kiss_fft_cpx scratch[13];
-  kiss_fft_cpx *twiddles = st->twiddles;
-  kiss_fft_cpx *tw;
-  kiss_fft_cpx ya, yb;
+  codec2_kiss_fft_cpx scratch[13];
+  codec2_kiss_fft_cpx *twiddles = st->twiddles;
+  codec2_kiss_fft_cpx *tw;
+  codec2_kiss_fft_cpx ya, yb;
   ya = twiddles[fstride * m];
   yb = twiddles[fstride * 2 * m];
 
@@ -207,15 +207,15 @@ static void kf_bfly5(kiss_fft_cpx *Fout, const size_t fstride,
 }
 
 /* perform the butterfly for one stage of a mixed radix FFT */
-static void kf_bfly_generic(kiss_fft_cpx *Fout, const size_t fstride,
-                            const kiss_fft_cfg st, int m, int p) {
+static void kf_bfly_generic(codec2_kiss_fft_cpx *Fout, const size_t fstride,
+                            const codec2_kiss_fft_cfg st, int m, int p) {
   int u, k, q1, q;
-  kiss_fft_cpx *twiddles = st->twiddles;
-  kiss_fft_cpx t;
+  codec2_kiss_fft_cpx *twiddles = st->twiddles;
+  codec2_kiss_fft_cpx t;
   int Norig = st->nfft;
 
-  kiss_fft_cpx *scratch =
-      (kiss_fft_cpx *)KISS_FFT_TMP_ALLOC(sizeof(kiss_fft_cpx) * p);
+  codec2_kiss_fft_cpx *scratch =
+      (codec2_kiss_fft_cpx *)KISS_FFT_TMP_ALLOC(sizeof(codec2_kiss_fft_cpx) * p);
 
   for (u = 0; u < m; ++u) {
     k = u;
@@ -241,13 +241,13 @@ static void kf_bfly_generic(kiss_fft_cpx *Fout, const size_t fstride,
   KISS_FFT_TMP_FREE(scratch);
 }
 
-static void kf_work(kiss_fft_cpx *Fout, const kiss_fft_cpx *f,
+static void kf_work(codec2_kiss_fft_cpx *Fout, const codec2_kiss_fft_cpx *f,
                     const size_t fstride, int in_stride, int *factors,
-                    const kiss_fft_cfg st) {
-  kiss_fft_cpx *Fout_beg = Fout;
+                    const codec2_kiss_fft_cfg st) {
+  codec2_kiss_fft_cpx *Fout_beg = Fout;
   const int p = *factors++; /* the radix  */
   const int m = *factors++; /* stage's fft length/p */
-  const kiss_fft_cpx *Fout_end = Fout + p * m;
+  const codec2_kiss_fft_cpx *Fout_end = Fout + p * m;
 
 #ifdef _OPENMP
   // use openmp extensions at the
@@ -357,18 +357,18 @@ static void kf_factor(int n, int *facbuf) {
  * User-callable function to allocate all necessary storage space for the fft.
  *
  * The return value is a contiguous block of memory, allocated with malloc.  As
- * such, It can be freed with free(), rather than a kiss_fft-specific function.
+ * such, It can be freed with free(), rather than a codec2_kiss_fft-specific function.
  * */
-kiss_fft_cfg kiss_fft_alloc(int nfft, int inverse_fft, void *mem,
+codec2_kiss_fft_cfg codec2_kiss_fft_alloc(int nfft, int inverse_fft, void *mem,
                             size_t *lenmem) {
-  kiss_fft_cfg st = NULL;
-  size_t memneeded = sizeof(struct kiss_fft_state) +
-                     sizeof(kiss_fft_cpx) * (nfft - 1); /* twiddle factors*/
+  codec2_kiss_fft_cfg st = NULL;
+  size_t memneeded = sizeof(struct codec2_kiss_fft_state) +
+                     sizeof(codec2_kiss_fft_cpx) * (nfft - 1); /* twiddle factors*/
 
   if (lenmem == NULL) {
-    st = (kiss_fft_cfg)KISS_FFT_MALLOC(memneeded);
+    st = (codec2_kiss_fft_cfg)KISS_FFT_MALLOC(memneeded);
   } else {
-    if (mem != NULL && *lenmem >= memneeded) st = (kiss_fft_cfg)mem;
+    if (mem != NULL && *lenmem >= memneeded) st = (codec2_kiss_fft_cfg)mem;
     *lenmem = memneeded;
   }
   if (st) {
@@ -389,30 +389,30 @@ kiss_fft_cfg kiss_fft_alloc(int nfft, int inverse_fft, void *mem,
   return st;
 }
 
-void kiss_fft_stride(kiss_fft_cfg st, const kiss_fft_cpx *fin,
-                     kiss_fft_cpx *fout, int in_stride) {
+void codec2_kiss_fft_stride(codec2_kiss_fft_cfg st, const codec2_kiss_fft_cpx *fin,
+                     codec2_kiss_fft_cpx *fout, int in_stride) {
   if (fin == fout) {
     // NOTE: this is not really an in-place FFT algorithm.
     // It just performs an out-of-place FFT into a temp buffer
-    kiss_fft_cpx *tmpbuf =
-        (kiss_fft_cpx *)KISS_FFT_TMP_ALLOC(sizeof(kiss_fft_cpx) * st->nfft);
+    codec2_kiss_fft_cpx *tmpbuf =
+        (codec2_kiss_fft_cpx *)KISS_FFT_TMP_ALLOC(sizeof(codec2_kiss_fft_cpx) * st->nfft);
     kf_work(tmpbuf, fin, 1, in_stride, st->factors, st);
-    memcpy(fout, tmpbuf, sizeof(kiss_fft_cpx) * st->nfft);
+    memcpy(fout, tmpbuf, sizeof(codec2_kiss_fft_cpx) * st->nfft);
     KISS_FFT_TMP_FREE(tmpbuf);
   } else {
     kf_work(fout, fin, 1, in_stride, st->factors, st);
   }
 }
 
-void kiss_fft(kiss_fft_cfg cfg, const kiss_fft_cpx *fin, kiss_fft_cpx *fout) {
-  kiss_fft_stride(cfg, fin, fout, 1);
+void codec2_kiss_fft(codec2_kiss_fft_cfg cfg, const codec2_kiss_fft_cpx *fin, codec2_kiss_fft_cpx *fout) {
+  codec2_kiss_fft_stride(cfg, fin, fout, 1);
 }
 
-void kiss_fft_cleanup(void) {
+void codec2_kiss_fft_cleanup(void) {
   // nothing needed any more
 }
 
-int kiss_fft_next_fast_size(int n) {
+int codec2_kiss_fft_next_fast_size(int n) {
   while (1) {
     int m = n;
     while ((m % 2) == 0) m /= 2;

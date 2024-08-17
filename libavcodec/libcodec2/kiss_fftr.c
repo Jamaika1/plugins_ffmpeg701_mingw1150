@@ -32,19 +32,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "_kiss_fft_guts.h"
 #include "assert.h"
 
-struct kiss_fftr_state {
-  kiss_fft_cfg substate;
-  kiss_fft_cpx *tmpbuf;
-  kiss_fft_cpx *super_twiddles;
+struct codec2_kiss_fftr_state {
+  codec2_kiss_fft_cfg substate;
+  codec2_kiss_fft_cpx *tmpbuf;
+  codec2_kiss_fft_cpx *super_twiddles;
 #ifdef USE_SIMD
   void *pad;
 #endif
 };
 
-kiss_fftr_cfg kiss_fftr_alloc(int nfft, int inverse_fft, void *mem,
+codec2_kiss_fftr_cfg codec2_kiss_fftr_alloc(int nfft, int inverse_fft, void *mem,
                               size_t *lenmem) {
   int i;
-  kiss_fftr_cfg st = NULL;
+  codec2_kiss_fftr_cfg st = NULL;
   size_t subsize, memneeded;
 
   if (nfft & 1) {
@@ -53,22 +53,22 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft, int inverse_fft, void *mem,
   }
   nfft >>= 1;
 
-  kiss_fft_alloc(nfft, inverse_fft, NULL, &subsize);
-  memneeded = sizeof(struct kiss_fftr_state) + subsize +
-              sizeof(kiss_fft_cpx) * (nfft * 3 / 2);
+  codec2_kiss_fft_alloc(nfft, inverse_fft, NULL, &subsize);
+  memneeded = sizeof(struct codec2_kiss_fftr_state) + subsize +
+              sizeof(codec2_kiss_fft_cpx) * (nfft * 3 / 2);
 
   if (lenmem == NULL) {
-    st = (kiss_fftr_cfg)KISS_FFT_MALLOC(memneeded);
+    st = (codec2_kiss_fftr_cfg)KISS_FFT_MALLOC(memneeded);
   } else {
-    if (*lenmem >= memneeded) st = (kiss_fftr_cfg)mem;
+    if (*lenmem >= memneeded) st = (codec2_kiss_fftr_cfg)mem;
     *lenmem = memneeded;
   }
   if (!st) return NULL;
 
-  st->substate = (kiss_fft_cfg)(st + 1); /*just beyond kiss_fftr_state struct */
-  st->tmpbuf = (kiss_fft_cpx *)(((char *)st->substate) + subsize);
+  st->substate = (codec2_kiss_fft_cfg)(st + 1); /*just beyond codec2_kiss_fftr_state struct */
+  st->tmpbuf = (codec2_kiss_fft_cpx *)(((char *)st->substate) + subsize);
   st->super_twiddles = st->tmpbuf + nfft;
-  kiss_fft_alloc(nfft, inverse_fft, st->substate, &subsize);
+  codec2_kiss_fft_alloc(nfft, inverse_fft, st->substate, &subsize);
 
   for (i = 0; i < nfft / 2; ++i) {
     float phase =
@@ -79,18 +79,18 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft, int inverse_fft, void *mem,
   return st;
 }
 
-void kiss_fftr(kiss_fftr_cfg st, const kiss_fft_scalar *timedata,
-               kiss_fft_cpx *freqdata) {
+void codec2_kiss_fftr(codec2_kiss_fftr_cfg st, const codec2_kiss_fft_scalar *timedata,
+               codec2_kiss_fft_cpx *freqdata) {
   /* input buffer timedata is stored row-wise */
   int k, ncfft;
-  kiss_fft_cpx fpnk, fpk, f1k, f2k, tw, tdc;
+  codec2_kiss_fft_cpx fpnk, fpk, f1k, f2k, tw, tdc;
 
   assert(st->substate->inverse == 0);
 
   ncfft = st->substate->nfft;
 
   /*perform the parallel fft of two real signals packed in real,imag*/
-  kiss_fft(st->substate, (const kiss_fft_cpx *)timedata, st->tmpbuf);
+  codec2_kiss_fft(st->substate, (const codec2_kiss_fft_cpx *)timedata, st->tmpbuf);
   /* The real part of the DC element of the frequency spectrum in st->tmpbuf
    * contains the sum of the even-numbered elements of the input time sequence
    * The imag part is the sum of the odd-numbered elements
@@ -132,8 +132,8 @@ void kiss_fftr(kiss_fftr_cfg st, const kiss_fft_scalar *timedata,
   }
 }
 
-void kiss_fftri(kiss_fftr_cfg st, const kiss_fft_cpx *freqdata,
-                kiss_fft_scalar *timedata) {
+void codec2_kiss_fftri(codec2_kiss_fftr_cfg st, const codec2_kiss_fft_cpx *freqdata,
+                codec2_kiss_fft_scalar *timedata) {
   /* input buffer timedata is stored row-wise */
   int k, ncfft;
 
@@ -146,7 +146,7 @@ void kiss_fftri(kiss_fftr_cfg st, const kiss_fft_cpx *freqdata,
   C_FIXDIV(st->tmpbuf[0], 2);
 
   for (k = 1; k <= ncfft / 2; ++k) {
-    kiss_fft_cpx fk, fnkc, fek, fok, tmp;
+    codec2_kiss_fft_cpx fk, fnkc, fek, fok, tmp;
     fk = freqdata[k];
     fnkc.r = freqdata[ncfft - k].r;
     fnkc.i = -freqdata[ncfft - k].i;
@@ -164,5 +164,5 @@ void kiss_fftri(kiss_fftr_cfg st, const kiss_fft_cpx *freqdata,
     st->tmpbuf[ncfft - k].i *= -1;
 #endif
   }
-  kiss_fft(st->substate, st->tmpbuf, (kiss_fft_cpx *)timedata);
+  codec2_kiss_fft(st->substate, st->tmpbuf, (codec2_kiss_fft_cpx *)timedata);
 }
