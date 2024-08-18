@@ -49,20 +49,20 @@ extern "C" {    // only need to export C interface if used by C++ source code
  * ===========================================================================
  */
 #ifdef DAVS2_EXPORTS
-#  ifdef __GNUC__                     /* for Linux  */
-#    if __GNUC__ >= 4
+#  if defined(__GNUC__) && !defined(_WIN32)  /* for Linux  */
+//#    if __GNUC__ >= 4
 #      define DAVS2_API __attribute__((visibility("default")))
-#    else
-#      define DAVS2_API __attribute__((dllexport))
-#    endif
-#  else                               /* for windows */
+//#    else
+//#      define DAVS2_API __attribute__((dllexport))
+//#    endif
+#  else                                      /* for windows */
 #    define DAVS2_API __declspec(dllexport)
 #  endif
 #else
-#  ifdef __GNUC__                     /* for Linux   */
-#    define DAVS2_API
-#  else                               /* for windows */
+#  ifdef _MSC_VER                            /* for windows */
 #    define DAVS2_API __declspec(dllimport)
+#  else                                      /* for Linux */
+#    define DAVS2_API
 #  endif
 #endif
 
@@ -138,7 +138,7 @@ typedef struct davs2_seq_info_t {
     uint32_t        bytes_per_sample;   /* bytes per sample */
     float           frame_rate;         /* frame rate */
     uint32_t        frame_rate_id;      /* frame rate code, mpeg12 [1...8] */
-} davs2_seq_info_t;  
+} davs2_seq_info_t;
 
 /* ---------------------------------------------------------------------------
  * packet of bitstream
