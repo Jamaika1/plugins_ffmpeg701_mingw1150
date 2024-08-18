@@ -515,6 +515,12 @@ void davs2_alf_init(uint32_t cpuid, ao_funcs_t *fh)
     /* init asm function handles */
 #if HAVE_MMX
 #if HIGH_BIT_DEPTH
+        if (cpuid & DAVS2_CPU_SSE4) {
+            fh->alf_block[0] = alf_filter_block_sse128_10bit;
+        }
+        if (cpuid & (DAVS2_CPU_AVX2)) {
+            fh->alf_block[0] = alf_filter_block_avx2_10bit;
+        }
 #else
     if (cpuid & DAVS2_CPU_SSE4) {
         fh->alf_block[0] = alf_filter_block_sse128;
