@@ -67,7 +67,7 @@ es_unit_alloc(int buf_size)
 {
     es_unit_t *es_unit = NULL;
     int bufsize = sizeof(es_unit_t) + buf_size;
-    
+
     bufsize = ((bufsize + 31) >> 5 ) << 5;
     es_unit = (es_unit_t *)davs2_malloc(bufsize);
 
@@ -153,7 +153,7 @@ es_unit_t *davs2_pack_es_unit(davs2_mgr_t *mgr, const uint8_t *data, int len, in
 
 /* ---------------------------------------------------------------------------
  */
-static void 
+static void
 destroy_all_lists(davs2_mgr_t *mgr)
 {
     es_unit_t *es_unit = NULL;
@@ -194,7 +194,7 @@ create_all_lists(davs2_mgr_t *mgr)
     es_unit_t *es_unit = NULL;
     int i;
 
-    if (xl_init(&mgr->packets_idle ) != 0 || 
+    if (xl_init(&mgr->packets_idle ) != 0 ||
         xl_init(&mgr->pic_recycle  ) != 0) {
         goto fail;
     }
@@ -229,7 +229,7 @@ void output_list_recycle_picture(davs2_mgr_t *mgr, davs2_outpic_t *pic)
 
 /* ---------------------------------------------------------------------------
  */
-static 
+static
 int has_new_output_frame(davs2_mgr_t *mgr, davs2_t *h)
 {
     // TODO: 待完善，确定当前图像解码完毕后是否应该等待输出
@@ -262,7 +262,7 @@ davs2_outpic_t *output_list_get_one_output_picture(davs2_mgr_t *mgr)
             mgr->outpics.num_output_pic--;
             break;
         } else {
-            /* TODO: 这里仍需要确认一下修改方式 
+            /* TODO: 这里仍需要确认一下修改方式
              * 如何保证输出顺序的有效性？需要在输出队列由多少帧时进行输出。
              */
             if (frame->i_poc > mgr->outpics.output) {
@@ -342,6 +342,13 @@ int decoder_get_output(davs2_mgr_t *mgr, davs2_seq_info_t *headerset, davs2_pict
     }
 
     mgr->num_frames_out++;
+
+#if CTRL_RECORD_INPUT_PTS
+    /* overwrite output pts */
+    pic->frame->i_pts = mgr->pts_queue.pts[mgr->pts_queue.tail];
+    mgr->pts_queue.tail++;
+    mgr->pts_queue.tail %= AVS2_COI_CYCLE;
+#endif
 
     /* copy out */
     davs2_write_a_frame(pic->pic, pic->frame);
@@ -449,8 +456,8 @@ davs2_decoder_open(davs2_param_t *param)
 
     /* output version information */
     if (param->info_level <= DAVS2_LOG_INFO) {
-        davs2_log(NULL, DAVS2_LOG_INFO, "davs2: %s.%d, %s",
-                  XVERSION_STR, BIT_DEPTH, XBUILD_TIME);
+        davs2_log(NULL, DAVS2_LOG_INFO, "davs2: %s 8/10bit",
+                  XVERSION_STR);
     }
 
 #if DAVS2_TRACE_API
@@ -502,6 +509,13 @@ davs2_decoder_open(davs2_param_t *param)
 
     /* init members that could not be zero */
     mgr->i_prev_coi       = -1;
+
+#if CTRL_RECORD_INPUT_PTS
+    /* init pts queue */
+    mgr->pts_queue.head = 0;
+    mgr->pts_queue.tail = 0;
+    memset(mgr->pts_queue.pts, 0, sizeof(mgr->pts_queue.pts));
+#endif
 
     /* output pictures */
     mgr->outpics.output   = -1;
@@ -566,7 +580,7 @@ davs2_decoder_open(davs2_param_t *param)
     /* initialize thread pool for AEC decoding and reconstruction */
     davs2_threadpool_init((davs2_threadpool_t **)&mgr->thread_pool, mgr->num_total_thread, NULL, NULL, 0);
 
-    davs2_log(mgr, DAVS2_LOG_INFO, "using %d thread(s): %d(frame/AEC)+%d(pool/REC), %d tasks", 
+    davs2_log(mgr, DAVS2_LOG_INFO, "using %d thread(s): %d(frame/AEC)+%d(pool/REC), %d tasks",
         mgr->num_total_thread, mgr->num_aec_thread, mgr->num_rec_thread, mgr->num_decoders);
 
     return mgr;
@@ -607,7 +621,7 @@ int decoder_decode_es_unit(davs2_mgr_t *mgr, es_unit_t *es_unit)
             davs2_thread_mutex_unlock(&mgr->mutex_aec);
             /* decode picture data */
             davs2_threadpool_run((davs2_threadpool_t *)mgr->thread_pool, decoder_decode_picture_data, h, 0, 0);
-        } else { 
+        } else {
             davs2_thread_mutex_unlock(&mgr->mutex_aec);
             /* task is free */
             task_unload_packet(h, es_unit);
@@ -660,6 +674,15 @@ davs2_decoder_send_packet(void *decoder, davs2_packet_t *packet)
         return DAVS2_ERROR;
     }
 
+#if CTRL_RECORD_INPUT_PTS
+    /* record input pts for picture package */
+    if (packet->data[3] == 0xB3 || packet->data[3] == 0xB6) {
+        mgr->pts_queue.pts[mgr->pts_queue.head] = packet->pts;
+        mgr->pts_queue.head++;
+        mgr->pts_queue.head %= AVS2_COI_CYCLE;
+    }
+#endif
+
     /* generate one es_unit for current byte-stream buffer */
     es_unit = davs2_pack_es_unit(mgr, packet->data, packet->len, packet->pts, packet->dts);
     if (es_unit == NULL && mgr->es_unit == NULL) {
@@ -677,7 +700,7 @@ davs2_decoder_send_packet(void *decoder, davs2_packet_t *packet)
 
 #if DAVS2_TRACE_API
     if (fp_trace_in) {
-        fprintf(fp_trace_in, "\t%8d\t%2d\t%4d\t%3d\t%3d\n", 
+        fprintf(fp_trace_in, "\t%8d\t%2d\t%4d\t%3d\t%3d\n",
                 packet->len, ret_type, out_frame->pic_order_count,
                 mgr->num_frames_in, mgr->num_frames_out);
         fflush(fp_trace_in);
