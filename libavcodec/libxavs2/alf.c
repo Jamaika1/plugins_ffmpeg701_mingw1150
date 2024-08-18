@@ -99,34 +99,34 @@ typedef struct dh_nc {
 } DhNc;
 
 typedef struct {
-    int64_t     m_autoCorr[NO_VAR_BINS][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];          // auto-correlation matrix
-    double      m_crossCorr[NO_VAR_BINS][ALF_MAX_NUM_COEF];          // cross-correlation
-    double      pixAcc[NO_VAR_BINS];
+    long long int m_autoCorr[NO_VAR_BINS][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];          // auto-correlation matrix
+    double        m_crossCorr[NO_VAR_BINS][ALF_MAX_NUM_COEF];          // cross-correlation
+    double        pixAcc[NO_VAR_BINS];
 } AlfCorrData;
 
 typedef struct {
-    double      m_cross_merged[NO_VAR_BINS][ALF_MAX_NUM_COEF];
-    int64_t     m_auto_merged[NO_VAR_BINS][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];
-    double      m_cross_temp[ALF_MAX_NUM_COEF];
-    double      m_pixAcc_merged[NO_VAR_BINS];
-    int64_t     m_auto_temp[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];
+    double        m_cross_merged[NO_VAR_BINS][ALF_MAX_NUM_COEF];
+    long long int m_auto_merged[NO_VAR_BINS][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];
+    double        m_cross_temp[ALF_MAX_NUM_COEF];
+    double        m_pixAcc_merged[NO_VAR_BINS];
+    long long int m_auto_temp[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];
 
-    int         m_coeffNoFilter[NO_VAR_BINS][ALF_MAX_NUM_COEF];
-    int         m_filterCoeffSym[NO_VAR_BINS][ALF_MAX_NUM_COEF];
-    int         m_varIndTab[NO_VAR_BINS];
+    int           m_coeffNoFilter[NO_VAR_BINS][ALF_MAX_NUM_COEF];
+    int           m_filterCoeffSym[NO_VAR_BINS][ALF_MAX_NUM_COEF];
+    int           m_varIndTab[NO_VAR_BINS];
 
-    AlfCorrData m_pic_corr[IMG_CMPNTS];
-    AlfCorrData     m_alfCorrMerged[IMG_CMPNTS];
-    AlfCorrData    *m_alfCorr[IMG_CMPNTS];
-    AlfCorrData    *m_alfNonSkippedCorr[IMG_CMPNTS];
-    AlfCorrData    *m_alfPrevCorr;
+    AlfCorrData   m_pic_corr[IMG_CMPNTS];
+    AlfCorrData   m_alfCorrMerged[IMG_CMPNTS];
+    AlfCorrData  *m_alfCorr[IMG_CMPNTS];
+    AlfCorrData  *m_alfNonSkippedCorr[IMG_CMPNTS];
+    AlfCorrData  *m_alfPrevCorr;
 
-    int         m_alfReDesignIteration;
-    uint32_t    m_uiBitIncrement;
+    int           m_alfReDesignIteration;
+    uint32_t      m_uiBitIncrement;
 
-    ALFParam    m_alfPictureParam[32][IMG_CMPNTS];
-    int        *m_numSlicesDataInOneLCU;
-    int8_t     *tab_lcu_region;
+    ALFParam      m_alfPictureParam[32][IMG_CMPNTS];
+    int          *m_numSlicesDataInOneLCU;
+    int8_t       *tab_lcu_region;
 } alf_ctx_t;
 
 /* -------------------------------------------------------------
@@ -233,7 +233,7 @@ void copyALFparam(ALFParam *dst, ALFParam *src, int componentID)
 static
 void calcCorrOneCompRegionLuma(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *org, int i_org, pel_t *rec, int i_rec,
                                int yPos, int xPos, int height, int width,
-                               int64_t m_autoCorr[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+                               long long int m_autoCorr[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                                double m_crossCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                                double *pixAcc,
                                int isLeftAvail, int isRightAvail, int isAboveAvail, int isBelowAvail)
@@ -253,7 +253,7 @@ void calcCorrOneCompRegionLuma(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *org, int i
     int ELocal[ALF_MAX_NUM_COEF];
     pel_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
     int i, j, k, l, yLocal, varInd;
-    int64_t(*E)[9];
+    long long int(*E)[9];
     double *yy;
 
     imgPad += startPosLuma * i_rec;
@@ -334,7 +334,7 @@ void calcCorrOneCompRegionLuma(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *org, int i
  */
 static
 void calcCorrOneCompRegionChma(xavs2_t *h, pel_t *org, int i_org, pel_t *rec, int i_rec, int yPos, int xPos, int height, int width,
-                               int64_t m_autoCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *m_crossCorr,
+                               long long int m_autoCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *m_crossCorr,
                                int isLeftAvail, int isRightAvail, int isAboveAvail, int isBelowAvail)
 {
     int xPosEnd = xPos + width;
@@ -451,7 +451,7 @@ void deriveBoundaryAvail(xavs2_t *h, int pic_x, int pic_y,
     int size_lcu = 1 << h->i_lcu_level;
     int mb_x, mb_y;
     //int pic_mb_width = h->i_width_in_mincu;
-    //cu_info_t *cuCurr, *cuLeft, *cuRight, *cuAbove, *cuBelow; 
+    //cu_info_t *cuCurr, *cuLeft, *cuRight, *cuAbove, *cuBelow;
 
     mb_x      = pic_x >> MIN_CU_SIZE_IN_BIT;
     mb_y      = pic_y >> MIN_CU_SIZE_IN_BIT;
@@ -524,7 +524,7 @@ void alf_get_statistics_lcu(xavs2_t *h, int lcu_x, int lcu_y,
     compIdx = IMG_V;
     alfCorr = &Enc_ALF->m_alfCorr[compIdx][ctu];
     reset_alfCorr(alfCorr, compIdx);
-    //V∑÷¡øµƒypos, xpos, height, widthÀƒ∏ˆ÷µ”ÎU∑÷¡ø“ª—˘£¨≤ª–Ë“™–ﬁ∏ƒ
+    //VÂàÜÈáèÁöÑypos, xpos, height, widthÂõõ‰∏™ÂÄº‰∏éUÂàÜÈáè‰∏ÄÊ†∑Ôºå‰∏çÈúÄË¶Å‰øÆÊîπ
     calcCorrOneCompRegionChma(h, p_org->planes[compIdx], p_org->i_stride[compIdx],
                               p_rec->planes[compIdx], p_rec->i_stride[compIdx],
                               ctuYPos >> formatShift, ctuXPos >> formatShift,
@@ -560,7 +560,7 @@ static
 void mergeFrom(AlfCorrData *dst, AlfCorrData *src, int *mergeTable, int doPixAccMerge, int componentID)
 {
     int numCoef = ALF_MAX_NUM_COEF;
-    int64_t (*srcE)[ALF_MAX_NUM_COEF], (*dstE)[ALF_MAX_NUM_COEF];
+    long long int (*srcE)[ALF_MAX_NUM_COEF], (*dstE)[ALF_MAX_NUM_COEF];
     double *srcy, *dsty;
     int maxFilterSetSize, j, i, varInd, filtIdx;
 
@@ -651,7 +651,7 @@ static uint32_t estimateALFBitrateInPicHeader(ALFParam *alfPicParam)
  */
 static
 long xFastFiltDistEstimation(alf_ctx_t *Enc_ALF,
-                             int64_t ppdE[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+                             long long int ppdE[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                              double *pdy, int *piCoeff, int iFiltLength)
 {
     //static memory
@@ -1209,7 +1209,7 @@ static void gnsBacksubstitution(double R[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], do
 
 /* ---------------------------------------------------------------------------
  */
-static int gnsCholeskyDec(int64_t inpMatr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double outMatr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int noEq)
+static int gnsCholeskyDec(long long int inpMatr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double outMatr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int noEq)
 {
     int i, j, k;        /* Looping Variables */
     double scale;       /* scaling factor for each row */
@@ -1245,7 +1245,7 @@ static int gnsCholeskyDec(int64_t inpMatr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], d
 
 /* ---------------------------------------------------------------------------
  */
-static int gnsSolveByChol(int64_t LHS[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *rhs, double *x, int noEq)
+static int gnsSolveByChol(long long int LHS[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *rhs, double *x, int noEq)
 {
     double aux[ALF_MAX_NUM_COEF];     /* Auxiliary vector */
     double U[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF];    /* Upper triangular Cholesky factor of LHS */
@@ -1291,7 +1291,7 @@ static int gnsSolveByChol(int64_t LHS[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], doubl
 
 /* ---------------------------------------------------------------------------
  */
-static double calculateErrorAbs(int64_t A[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *b, double y, int size)
+static double calculateErrorAbs(long long int A[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *b, double y, int size)
 {
     int i;
     double error, sum;
@@ -1311,7 +1311,7 @@ static double calculateErrorAbs(int64_t A[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], d
 /* ---------------------------------------------------------------------------
  */
 static
-double mergeFiltersGreedy(alf_ctx_t *Enc_ALF, double yGlobalSeq[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int64_t EGlobalSeq[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+double mergeFiltersGreedy(alf_ctx_t *Enc_ALF, double yGlobalSeq[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], long long int EGlobalSeq[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                           double *pixAccGlobalSeq, int intervalBest[NO_VAR_BINS][2], int sqrFiltLength, int noIntervals)
 {
     int first, ind, ind1, ind2, i, j, bestToMerge;
@@ -1465,7 +1465,7 @@ static double xfindBestCoeffCodMethod(int filterCoeffSymQuant[][ALF_MAX_NUM_COEF
 
 /* ---------------------------------------------------------------------------
  */
-static void add_A(int64_t Amerged[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int64_t A[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int start, int stop, int size)
+static void add_A(int64_t Amerged[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], long long int A[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int start, int stop, int size)
 {
     int i, j, ind;
 
@@ -1527,7 +1527,7 @@ static double calculateErrorCoeffProvided(int64_t A[ALF_MAX_NUM_COEF][ALF_MAX_NU
 
 /* ---------------------------------------------------------------------------
  */
-static double QuantizeIntegerFilterPP(double *filterCoeff, int *filterCoeffQuant, int64_t E[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *y, int sqrFiltLength)
+static double QuantizeIntegerFilterPP(double *filterCoeff, int *filterCoeffQuant, long long int E[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *y, int sqrFiltLength)
 {
     double error;
     int filterCoeffQuantMod[ALF_MAX_NUM_COEF];
@@ -1598,7 +1598,7 @@ static double QuantizeIntegerFilterPP(double *filterCoeff, int *filterCoeffQuant
 
 /* ---------------------------------------------------------------------------
  */
-static double findFilterCoeff(alf_ctx_t *Enc_ALF, int64_t EGlobalSeq[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double yGlobalSeq[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+static double findFilterCoeff(alf_ctx_t *Enc_ALF, long long int EGlobalSeq[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double yGlobalSeq[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                               double *pixAccGlobalSeq, int filterCoeffSeq[][ALF_MAX_NUM_COEF], int filterCoeffQuantSeq[][ALF_MAX_NUM_COEF], int intervalBest[NO_VAR_BINS][2],
                               int varIndTab[NO_VAR_BINS], int sqrFiltLength, int filters_per_fr, double errorTabForce0Coeff[NO_VAR_BINS][2])
 {
@@ -1634,8 +1634,7 @@ static double findFilterCoeff(alf_ctx_t *Enc_ALF, int64_t EGlobalSeq[][ALF_MAX_N
 
 /* ---------------------------------------------------------------------------
  */
-static
-void xfindBestFilterVarPred(alf_ctx_t *Enc_ALF, double ySym[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], int64_t ESym[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+static void xfindBestFilterVarPred(alf_ctx_t *Enc_ALF, double ySym[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], long long int ESym[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                             double *pixAcc, int filterCoeffSym[][ALF_MAX_NUM_COEF], int *filters_per_fr_best, int varIndTab[], double lambda_val, int numMaxFilters)
 {
     int filterCoeffSymQuant[NO_VAR_BINS][ALF_MAX_NUM_COEF];
@@ -1816,7 +1815,7 @@ void deriveFilterInfo(alf_ctx_t *Enc_ALF, ALFParam *alfPictureParam, AlfCorrData
  * Input:
  *    alfPictureParam: The ALF parameter
  *              apsId: The ALF parameter index in the buffer
- *       isNewApsSent£∫The New flag index
+ *       isNewApsSentÔºöThe New flag index
  *       lambda      : The lambda value in the ALF-RD decision
  * Return:
  * ---------------------------------------------------------------------------
@@ -1889,7 +1888,7 @@ int alf_get_buffer_size(const xavs2_param_t *param)
  */
 void alf_init_buffer(xavs2_t *h, uint8_t *mem_base)
 {
-    // œ£∂˚≤ÆÃÿ…®√ËÀ≥–Ú
+    // Â∏åÂ∞î‰ºØÁâπÊâ´ÊèèÈ°∫Â∫è
     static const uint8_t regionTable[NO_VAR_BINS] = {
         0, 1, 4, 5, 15, 2, 3, 6, 14, 11, 10, 7, 13, 12, 9, 8
     }
