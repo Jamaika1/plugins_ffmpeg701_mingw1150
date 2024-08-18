@@ -17,14 +17,14 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <ogg/ogg.h>
+#include "../libogg/ogg.h"
 #include "decint.h"
 #if defined(OC_DUMP_IMAGES)
 # include <stdio.h>
-# include "png.h"
+# include "../librsvg/libpng/png.h"
 #endif
 #if defined(HAVE_CAIRO)
-# include <cairo.h>
+# include "../librsvg/cairo/cairo.h"
 #endif
 
 

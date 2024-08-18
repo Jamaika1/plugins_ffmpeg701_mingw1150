@@ -17,10 +17,10 @@
 
 #if !defined(_apiwrapper_H)
 # define _apiwrapper_H (1)
-# include <ogg/ogg.h>
-# include <theora/theora.h>
-# include "theora/theoradec.h"
-# include "theora/theoraenc.h"
+# include "../libogg/ogg.h"
+# include "theora.h"
+# include "theoradec.h"
+# include "theoraenc.h"
 # include "state.h"
 
 typedef struct th_api_wrapper th_api_wrapper;

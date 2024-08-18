@@ -16,7 +16,7 @@
  ********************************************************************/
 #if !defined(_encint_H)
 # define _encint_H (1)
-# include "theora/theoraenc.h"
+# include "theoraenc.h"
 # include "state.h"
 # include "mathops.h"
 # include "enquant.h"

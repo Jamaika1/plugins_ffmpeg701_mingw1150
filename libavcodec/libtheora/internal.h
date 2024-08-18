@@ -21,8 +21,8 @@
 # if defined(HAVE_CONFIG_H)
 #  include "config.h"
 # endif
-# include "theora/codec.h"
-# include "theora/theora.h"
+# include "codec.h"
+# include "theora.h"
 # include "ocintrin.h"
 
 # if !defined(__GNUC_PREREQ)
