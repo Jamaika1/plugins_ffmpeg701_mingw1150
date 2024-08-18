@@ -37,11 +37,6 @@
 #include "common.h"
 #include "xlist.h"
 
-#if !defined(_MSC_VER)
-#include <errno.h>
-#include <pthread.h>
-#endif
-
 /**
  * ===========================================================================
  * xlist
