@@ -187,10 +187,9 @@ static const double tab_qp_gpp[3][3] = {
 /* ---------------------------------------------------------------------------
 * compute the gradient per pixel
 */
-static double cal_frame_gradient(xavs2_frame_t *frm)
+static double cal_frame_gradient(xavs2_t *h, xavs2_frame_t *frm)
 {
     double grad_per_pixel = 0;        // gradient per pixel
-    pel_t *src = frm->planes[IMG_Y];// pointer to luma component
     int width = frm->i_width[IMG_Y];
     int height = frm->i_lines[IMG_Y];
     int stride = frm->i_stride[IMG_Y];
@@ -199,6 +198,9 @@ static double cal_frame_gradient(xavs2_frame_t *frm)
 
     width--;
     height--;
+
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *src = frm->planes8[IMG_Y];// pointer to luma component
     for (i = 0; i < height; i++) {
         for (j = 0; j < width; j++) {
             int dx = src[j] - src[j + 1];
@@ -212,6 +214,22 @@ static double cal_frame_gradient(xavs2_frame_t *frm)
     }
 
     return grad_per_pixel / size;
+    } else {
+    pel10_t *src = frm->planes10[IMG_Y];// pointer to luma component
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
+            int dx = src[j] - src[j + 1];
+            int dy = src[j] - src[j + stride];
+
+            if (dx || dy) {
+                grad_per_pixel += sqrt((double)(dx * dx + dy * dy));
+            }
+        }
+        src += stride;
+    }
+
+    return grad_per_pixel / size;
+    }
 }
 #endif
 
@@ -341,7 +359,7 @@ static int rc_calculate_frame_qp(xavs2_t *h, int frm_idx, int frm_type, int forc
     /* compute the initial qp */
     if (frm_idx == 0) {
         double bit = log(1000 * rc->f_target_bpp);
-        double gpp = log(cal_frame_gradient(h->fenc));
+        double gpp = log(cal_frame_gradient(h, h->fenc));
         int    idx = XAVS2_MIN(2, rc->i_intra_period);
         int    max_i_qp = 63 + (h->param->sample_bit_depth - 8) * 8 - 10;
 
@@ -617,7 +635,7 @@ int xavs2_rc_get_frame_qp(xavs2_t *h, int frm_idx, int frm_type, int force_qp)
 */
 int xavs2_rc_get_lcu_qp(xavs2_t *h, int frm_idx, int qp)
 {
-    UNUSED_PARAMETER(h);
+    //UNUSED_PARAMETER(h);
     UNUSED_PARAMETER(frm_idx);
 
     //if (h->param->i_rc_method == XAVS2_RC_CBR_SCU && img->current_mb_nr == 0) {
@@ -691,7 +709,7 @@ int xavs2_rc_get_lcu_qp(xavs2_t *h, int frm_idx, int qp)
 */
 void xavs2_rc_update_after_lcu_coded(xavs2_t *h, int frm_idx, int qp)
 {
-    UNUSED_PARAMETER(h);
+    //UNUSED_PARAMETER(h);
     UNUSED_PARAMETER(frm_idx);
     UNUSED_PARAMETER(qp);
 

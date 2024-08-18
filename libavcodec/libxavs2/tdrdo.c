@@ -54,7 +54,8 @@ typedef struct Frame {
     uint32_t    FrameWidth;
     uint32_t    FrameHeight;
     uint32_t    nStrideY;
-    pel_t      *Y_base;
+    pel10_t      *Y_base10;
+    pel8_t    *Y_base;
 } Frame;
 
 typedef struct BlockDistortion {
@@ -163,15 +164,37 @@ static DL *CreatDistortionList(DL *NewDL, uint32_t totalframenumber, uint32_t wi
 
 /* ---------------------------------------------------------------------------
  */
-static double CalculateBlockMSE(Frame *FA, Frame *FB, Block *A, Block *B)
+static double CalculateBlockMSE8(Frame *FA, Frame *FB, Block *A, Block *B)
 {
     uint16_t x, y;
     int e, blockpixel = A->BlockHeight * A->BlockWidth;
-    pel_t *YA, *YB;
     double dSSE = 0;
 
+    pel8_t *YA, *YB;
     YA = FA->Y_base + A->OriginY * FA->nStrideY + A->OriginX;
     YB = FB->Y_base + B->OriginY * FB->nStrideY + B->OriginX;
+
+    for (y = 0; y < A->BlockHeight; y++) {
+        for (x = 0; x < A->BlockWidth; x++) {
+            e = YA[x] - YB[x];
+            dSSE += e * e;
+        }
+        YA = YA + FA->nStrideY;
+        YB = YB + FB->nStrideY;
+    }
+    return dSSE / blockpixel;
+}
+
+static double CalculateBlockMSE10(Frame *FA, Frame *FB, Block *A, Block *B)
+{
+    uint16_t x, y;
+    int e, blockpixel = A->BlockHeight * A->BlockWidth;
+    double dSSE = 0;
+
+    pel10_t *YA, *YB;
+    YA = FA->Y_base10 + A->OriginY * FA->nStrideY + A->OriginX;
+    YB = FB->Y_base10 + B->OriginY * FB->nStrideY + B->OriginX;
+
     for (y = 0; y < A->BlockHeight; y++) {
         for (x = 0; x < A->BlockWidth; x++) {
             e = YA[x] - YB[x];
@@ -185,7 +208,7 @@ static double CalculateBlockMSE(Frame *FA, Frame *FB, Block *A, Block *B)
 
 /* ---------------------------------------------------------------------------
  */
-static void MotionDistortion(FD *currentFD, Frame *FA, Frame *FB, uint32_t searchrange)
+static void MotionDistortion(xavs2_t *h, FD *currentFD, Frame *FA, Frame *FB, uint32_t searchrange)
 {
     static int dlx[9] = {0, -2, -1,  0,  1, 2, 1, 0, -1};
     static int dly[9] = {0,  0, -1, -2, -1, 0, 1, 2,  1};
@@ -267,12 +290,22 @@ static void MotionDistortion(FD *currentFD, Frame *FA, Frame *FB, uint32_t searc
                     if (x >= left && x <= right && y >= top && y <= bottom) {
                         pBB->OriginX = x;
                         pBB->OriginY = y;
-                        currentMSE = CalculateBlockMSE(FA, FB, pBA, pBB);
+                        if (h->param->input_sample_bit_depth == 8) {
+                        currentMSE = CalculateBlockMSE8(FA, FB, pBA, pBB);
                         if (currentMSE < candidateMSE) {
                             candidateMSE = currentMSE;
                             currentBD->MSE = currentMSE;
                             nextcx = x;
                             nextcy = y;
+                        }
+                        } else {
+                        currentMSE = CalculateBlockMSE10(FA, FB, pBA, pBB);
+                        if (currentMSE < candidateMSE) {
+                            candidateMSE = currentMSE;
+                            currentBD->MSE = currentMSE;
+                            nextcx = x;
+                            nextcy = y;
+                        }
                         }
                     }
                 }
@@ -621,19 +654,36 @@ void tdrdo_frame_start(xavs2_t *h)
     }
     td_rdo->pRealFD->BlockDistortionArray = (BD *)xavs2_calloc(td_rdo->pRealFD->TotalNumOfBlocks, sizeof(BD));
     if (td_rdo->GlobeFrameNumber % td_rdo->StepLength == 0) {
+        if (h->param->input_sample_bit_depth == 8) {
         if (h->fenc->i_frame == 0) {
-            td_rdo->porgF.Y_base   = h->fenc->planes[IMG_Y];
+            td_rdo->porgF.Y_base   = h->fenc->planes8[IMG_Y];
             td_rdo->porgF.nStrideY = h->fenc->i_stride[IMG_Y];
-            td_rdo->ppreF.Y_base   = h->img_luma_pre->planes[IMG_Y];
+            td_rdo->ppreF.Y_base   = h->img_luma_pre->planes8[IMG_Y];
             td_rdo->ppreF.nStrideY = h->img_luma_pre->i_stride[IMG_Y];
             xavs2_frame_copy_planes(h, h->img_luma_pre, h->fenc);
         } else  if ((int)h->fenc->i_frame < h->param->num_frames) {
             td_rdo->pOMCPFD = &td_rdo->OMCPDList.FrameDistortionArray[td_rdo->GlobeFrameNumber - 1];
             td_rdo->pOMCPFD->BlockDistortionArray = (BD *)xavs2_calloc(td_rdo->pOMCPFD->TotalNumOfBlocks, sizeof(BD));
-            td_rdo->porgF.Y_base = h->fenc->planes[IMG_Y];
+            td_rdo->porgF.Y_base = h->fenc->planes8[IMG_Y];
             td_rdo->porgF.nStrideY = h->fenc->i_stride[IMG_Y];
-            MotionDistortion(td_rdo->pOMCPFD, &td_rdo->ppreF, &td_rdo->porgF, SEARCHRANGE);
+            MotionDistortion(h, td_rdo->pOMCPFD, &td_rdo->ppreF, &td_rdo->porgF, SEARCHRANGE);
             xavs2_frame_copy_planes(h, h->img_luma_pre, h->fenc);
+        }
+        } else {
+        if (h->fenc->i_frame == 0) {
+            td_rdo->porgF.Y_base10   = h->fenc->planes10[IMG_Y];
+            td_rdo->porgF.nStrideY = h->fenc->i_stride[IMG_Y];
+            td_rdo->ppreF.Y_base10   = h->img_luma_pre->planes10[IMG_Y];
+            td_rdo->ppreF.nStrideY = h->img_luma_pre->i_stride[IMG_Y];
+            xavs2_frame_copy_planes(h, h->img_luma_pre, h->fenc);
+        } else  if ((int)h->fenc->i_frame < h->param->num_frames) {
+            td_rdo->pOMCPFD = &td_rdo->OMCPDList.FrameDistortionArray[td_rdo->GlobeFrameNumber - 1];
+            td_rdo->pOMCPFD->BlockDistortionArray = (BD *)xavs2_calloc(td_rdo->pOMCPFD->TotalNumOfBlocks, sizeof(BD));
+            td_rdo->porgF.Y_base10 = h->fenc->planes10[IMG_Y];
+            td_rdo->porgF.nStrideY = h->fenc->i_stride[IMG_Y];
+            MotionDistortion(h, td_rdo->pOMCPFD, &td_rdo->ppreF, &td_rdo->porgF, SEARCHRANGE);
+            xavs2_frame_copy_planes(h, h->img_luma_pre, h->fenc);
+        }
         }
         td_rdo->pOMCPFD = NULL;
     }
@@ -653,10 +703,14 @@ void tdrdo_frame_done(xavs2_t *h)
     assert(td_rdo != NULL);
 
     if ((h->fenc->i_frame % td_rdo->StepLength == 0 && !h->param->num_bframes) || h->param->num_bframes) {
-        td_rdo->precF.Y_base = h->fdec->planes[IMG_Y];
+        if (h->param->input_sample_bit_depth == 8) {
+        td_rdo->precF.Y_base = h->fdec->planes8[IMG_Y];
+        } else {
+        td_rdo->precF.Y_base10 = h->fdec->planes10[IMG_Y];
+        }
         //td_rdo->precF.nStrideY = h->fdec->i_stride[IMG_Y];// fdec->stride[0] , bitrate rise ?
         td_rdo->precF.nStrideY = h->img_luma_pre->i_stride[IMG_Y];   //to check: fdec->stride[0] ? by lutao
-        MotionDistortion(td_rdo->pRealFD, &td_rdo->porgF, &td_rdo->precF, 0);
+        MotionDistortion(h, td_rdo->pRealFD, &td_rdo->porgF, &td_rdo->precF, 0);
     }
     td_rdo->pRealFD->FrameNumber = h->fenc->i_frame;
     td_rdo->globenumber++;
@@ -706,7 +760,7 @@ void tdrdo_lcu_adjust_lambda(xavs2_t *h, rdcost_t *new_lambda)
     // Just for LDP
     if (h->i_type != SLICE_TYPE_I && h->param->num_bframes == 0) {
         AdjustLcuQPLambdaLDP(h, td_rdo->pOMCPFD, h->lcu.i_scu_xy, h->i_width_in_mincu, new_lambda);
-        td_rdo->CurMBQP = XAVS2_CLIP3F(MIN_QP, MAX_QP, td_rdo->CurMBQP);
+        td_rdo->CurMBQP = XAVS2_CLIP3F(MIN_QP, MAX_QP + (h->param->sample_bit_depth - 8) * 8, td_rdo->CurMBQP);
     }
 }
 

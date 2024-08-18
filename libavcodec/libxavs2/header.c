@@ -52,7 +52,7 @@
  */
 static ALWAYS_INLINE int is_valid_qp(xavs2_t *h, int i_qp)
 {
-    int max_qp = MAX_QP;
+    int max_qp = MAX_QP + (h->param->sample_bit_depth - 8) * 8;
     UNUSED_PARAMETER(h);
     return i_qp >= 0 && i_qp <= max_qp;
 }

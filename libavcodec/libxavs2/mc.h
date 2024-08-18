@@ -85,13 +85,21 @@ void interpolate_lcu_row(xavs2_t *h, xavs2_frame_t* frm, int i_lcu_y);
 #define interpolate_sample_rows FPFX(interpolate_sample_rows)
 void interpolate_sample_rows(xavs2_t *h, xavs2_frame_t* frm, int start_y, int height, int b_start, int b_end);
 
-#define mc_luma FPFX(mc_luma)
-void mc_luma  (pel_t *p_pred, int i_pred,
+#define mc_luma8 FPFX(mc_luma8)
+void mc_luma8  (xavs2_t *h, pel8_t *p_pred, int i_pred,
+               int pic_pix_x, int pic_pix_y, int width, int height,
+               const xavs2_frame_t *p_ref_frm);
+#define mc_luma10 FPFX(mc_luma10)
+void mc_luma10  (xavs2_t *h, pel10_t *p_pred, int i_pred,
                int pic_pix_x, int pic_pix_y, int width, int height,
                const xavs2_frame_t *p_ref_frm);
 
-#define mc_chroma FPFX(mc_chroma)
-void mc_chroma(pel_t *p_pred_u, pel_t *p_pred_v, int i_pred,
+#define mc_chroma8 FPFX(mc_chroma8)
+void mc_chroma8(xavs2_t *h, pel8_t *p_pred_u, pel8_t *p_pred_v, int i_pred,
+               int pix_quad_x, int pix_quad_y, int width, int height,
+               const xavs2_frame_t *p_ref_frm);
+#define mc_chroma10 FPFX(mc_chroma10)
+void mc_chroma10(xavs2_t *h, pel10_t *p_pred_u, pel10_t *p_pred_v, int i_pred,
                int pix_quad_x, int pix_quad_y, int width, int height,
                const xavs2_frame_t *p_ref_frm);
 

@@ -34,7 +34,7 @@
  *    For more information, contact us at sswang @ pku.edu.cn.
  */
 
-#include "common/common.h"
+#include "common.h"
 #include "cudata.h"
 #include "wrapper.h"
 #include "ratecontrol.h"

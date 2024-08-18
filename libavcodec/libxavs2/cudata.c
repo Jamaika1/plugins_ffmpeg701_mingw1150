@@ -192,13 +192,31 @@ void cu_get_mvds(xavs2_t *h, cu_t *p_cu)
 /* ---------------------------------------------------------------------------
  * copy one block (multi-planes)
  */
-static void block_copy_x3(pel_t *p_dst[], int i_dst[], pel_t *p_src[], int i_src[], int i_width[], int i_height[], int i_planes)
+static void block_copy8_x3(pel8_t *p_dst[], int i_dst[], pel8_t *p_src[], int i_src[], int i_width[], int i_height[], int i_planes)
 {
-    pel_t *dst, *src;
+    pel8_t *dst, *src;
     int y, k;
 
     for (k = 0; k < i_planes; k++) {
-        int i_size = i_width[k] * sizeof(pel_t);
+        int i_size = i_width[k] * sizeof(pel8_t);
+        memcpy_t f_memcpy = i_size & 15 ? memcpy : g_funcs.memcpy_aligned;
+        dst = p_dst[k];
+        src = p_src[k];
+        for (y = i_height[k]; y != 0; y--) {
+            f_memcpy(dst, src, i_size);
+            dst += i_dst[k];
+            src += i_src[k];
+        }
+    }
+}
+
+static void block_copy10_x3(pel10_t *p_dst[], int i_dst[], pel10_t *p_src[], int i_src[], int i_width[], int i_height[], int i_planes)
+{
+    pel10_t *dst, *src;
+    int y, k;
+
+    for (k = 0; k < i_planes; k++) {
+        int i_size = i_width[k] * sizeof(pel10_t);
         memcpy_t f_memcpy = i_size & 15 ? memcpy : g_funcs.memcpy_aligned;
         dst = p_dst[k];
         src = p_src[k];
@@ -213,7 +231,19 @@ static void block_copy_x3(pel_t *p_dst[], int i_dst[], pel_t *p_src[], int i_src
 /* ---------------------------------------------------------------------------
  */
 static ALWAYS_INLINE void
-xavs2_copy_col1(pel_t *dst, pel_t *src, const int height, const int stride)
+xavs2_copy_col18(pel8_t *dst, pel8_t *src, const int height, const int stride)
+{
+    int i;
+    int k = 0;
+
+    for (i = height; i != 0; i--) {
+        dst[k] = src[k];
+        k += stride;
+    }
+}
+
+static ALWAYS_INLINE void
+xavs2_copy_col110(pel10_t *dst, pel10_t *src, const int height, const int stride)
 {
     int i;
     int k = 0;
@@ -228,13 +258,28 @@ xavs2_copy_col1(pel_t *dst, pel_t *src, const int height, const int stride)
  * cache CTU border
  */
 static INLINE
-void xavs2_cache_lcu_border(pel_t *p_dst, const pel_t *p_top,
-                            const pel_t *p_left, int i_left,
+void xavs2_cache_lcu_border8(pel8_t *p_dst, const pel8_t *p_top,
+                            const pel8_t *p_left, int i_left,
                             int lcu_width, int lcu_height)
 {
     int i;
     /* top, top-right */
-    memcpy(p_dst, p_top, (2 * lcu_width + 1) * sizeof(pel_t));
+    memcpy(p_dst, p_top, (2 * lcu_width + 1) * sizeof(pel8_t));
+    /* left */
+    for (i = 1; i <= lcu_height; i++) {
+        p_dst[-i] = p_left[0];
+        p_left += i_left;
+    }
+}
+
+static INLINE
+void xavs2_cache_lcu_border10(pel10_t *p_dst, const pel10_t *p_top,
+                            const pel10_t *p_left, int i_left,
+                            int lcu_width, int lcu_height)
+{
+    int i;
+    /* top, top-right */
+    memcpy(p_dst, p_top, (2 * lcu_width + 1) * sizeof(pel10_t));
     /* left */
     for (i = 1; i <= lcu_height; i++) {
         p_dst[-i] = p_left[0];
@@ -246,14 +291,32 @@ void xavs2_cache_lcu_border(pel_t *p_dst, const pel_t *p_top,
  * cache CTU border (UV components together)
  */
 static INLINE
-void xavs2_cache_lcu_border_uv(pel_t *p_dst_u, const pel_t *p_top_u, const pel_t *p_left_u,
-                               pel_t *p_dst_v, const pel_t *p_top_v, const pel_t *p_left_v,
+void xavs2_cache_lcu_border8_uv(pel8_t *p_dst_u, const pel8_t *p_top_u, const pel8_t *p_left_u,
+                               pel8_t *p_dst_v, const pel8_t *p_top_v, const pel8_t *p_left_v,
                                int i_left, int lcu_width, int lcu_height)
 {
     int i;
     /* top, top-right */
-    memcpy(p_dst_u, p_top_u, (2 * lcu_width + 1) * sizeof(pel_t));
-    memcpy(p_dst_v, p_top_v, (2 * lcu_width + 1) * sizeof(pel_t));
+    memcpy(p_dst_u, p_top_u, (2 * lcu_width + 1) * sizeof(pel8_t));
+    memcpy(p_dst_v, p_top_v, (2 * lcu_width + 1) * sizeof(pel8_t));
+    /* left */
+    for (i = 1; i <= lcu_height; i++) {
+        p_dst_u[-i] = p_left_u[0];
+        p_dst_v[-i] = p_left_v[0];
+        p_left_u += i_left;
+        p_left_v += i_left;
+    }
+}
+
+static INLINE
+void xavs2_cache_lcu_border10_uv(pel10_t *p_dst_u, const pel10_t *p_top_u, const pel10_t *p_left_u,
+                               pel10_t *p_dst_v, const pel10_t *p_top_v, const pel10_t *p_left_v,
+                               int i_left, int lcu_width, int lcu_height)
+{
+    int i;
+    /* top, top-right */
+    memcpy(p_dst_u, p_top_u, (2 * lcu_width + 1) * sizeof(pel10_t));
+    memcpy(p_dst_v, p_top_v, (2 * lcu_width + 1) * sizeof(pel10_t));
     /* left */
     for (i = 1; i <= lcu_height; i++) {
         p_dst_u[-i] = p_left_u[0];
@@ -348,8 +411,9 @@ void lcu_start_init_pixels(xavs2_t *h, int i_lcu_x, int i_lcu_y)
     int blk_h[3];
     int i_src[3];
     int i_dst[3];
-    pel_t *p_src[3];
-    pel_t *p_dst[3];
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *p_src[3];
+    pel8_t *p_dst[3];
 
     /* -------------------------------------------------------------
      * 1, copy LCU pixel data from original image buffer
@@ -357,33 +421,72 @@ void lcu_start_init_pixels(xavs2_t *h, int i_lcu_x, int i_lcu_y)
     i_src[0] = h->fenc->i_stride[0];
     i_src[1] = h->fenc->i_stride[1];
     i_src[2] = h->fenc->i_stride[2];
-    p_src[0] = h->fenc->planes[0] + (img_y     ) * i_src[0] + (img_x     );
-    p_src[1] = h->fenc->planes[1] + (img_y >> 1) * i_src[1] + (img_x >> 1);
-    p_src[2] = h->fenc->planes[2] + (img_y >> 1) * i_src[2] + (img_x >> 1);
+    p_src[0] = h->fenc->planes8[0] + (img_y     ) * i_src[0] + (img_x     );
+    p_src[1] = h->fenc->planes8[1] + (img_y >> 1) * i_src[1] + (img_x >> 1);
+    p_src[2] = h->fenc->planes8[2] + (img_y >> 1) * i_src[2] + (img_x >> 1);
 
     i_dst[0] = i_dst[1] = i_dst[2] = FENC_STRIDE;
-    p_dst[0] = h->lcu.p_fenc[0];
-    p_dst[1] = h->lcu.p_fenc[1];
-    p_dst[2] = h->lcu.p_fenc[2];
+    p_dst[0] = h->lcu.p_fenc8[0];
+    p_dst[1] = h->lcu.p_fenc8[1];
+    p_dst[2] = h->lcu.p_fenc8[2];
 
     blk_w[0] = lcu_width;
     blk_h[0] = lcu_height;
     blk_w[1] = blk_w[2] = lcu_width  >> 1;
     blk_h[1] = blk_h[2] = lcu_height >> 1;
-    block_copy_x3(p_dst, i_dst, p_src, i_src, blk_w, blk_h, 3);
+    block_copy8_x3(p_dst, i_dst, p_src, i_src, blk_w, blk_h, 3);
 
     /* first CTU of LCU row */
     if (h->fenc->b_enable_intra || h->fenc->i_frm_type == XAVS2_TYPE_I) {
         if (img_x == 0) {
-            memcpy(h->lcu.ctu_border[0].rec_top + 1, h->intra_border[0], lcu_width * 2 * sizeof(pel_t));
-            memcpy(h->lcu.ctu_border[1].rec_top + 1, h->intra_border[1], lcu_width * sizeof(pel_t));
-            memcpy(h->lcu.ctu_border[2].rec_top + 1, h->intra_border[2], lcu_width * sizeof(pel_t));
+            memcpy(h->lcu.ctu_border8[0].rec_top + 1, h->intra_border8[0], lcu_width * 2 * sizeof(pel8_t));
+            memcpy(h->lcu.ctu_border8[1].rec_top + 1, h->intra_border8[1], lcu_width * sizeof(pel8_t));
+            memcpy(h->lcu.ctu_border8[2].rec_top + 1, h->intra_border8[2], lcu_width * sizeof(pel8_t));
         } else if (h->param->i_lcurow_threads > 1) {
             /* top-right pixels */
-            memcpy(h->lcu.ctu_border[0].rec_top + 1 + lcu_width,        h->intra_border[0] + img_x + lcu_width, lcu_width * sizeof(pel_t));
-            memcpy(h->lcu.ctu_border[1].rec_top + 1 + (lcu_width >> 1), h->intra_border[1] + ((img_x + lcu_width) >> 1), (lcu_width >> 1) * sizeof(pel_t));
-            memcpy(h->lcu.ctu_border[2].rec_top + 1 + (lcu_width >> 1), h->intra_border[2] + ((img_x + lcu_width) >> 1), (lcu_width >> 1) * sizeof(pel_t));
+            memcpy(h->lcu.ctu_border8[0].rec_top + 1 + lcu_width,        h->intra_border8[0] + img_x + lcu_width, lcu_width * sizeof(pel8_t));
+            memcpy(h->lcu.ctu_border8[1].rec_top + 1 + (lcu_width >> 1), h->intra_border8[1] + ((img_x + lcu_width) >> 1), (lcu_width >> 1) * sizeof(pel8_t));
+            memcpy(h->lcu.ctu_border8[2].rec_top + 1 + (lcu_width >> 1), h->intra_border8[2] + ((img_x + lcu_width) >> 1), (lcu_width >> 1) * sizeof(pel8_t));
         }
+    }
+    } else {
+    pel10_t *p_src[3];
+    pel10_t *p_dst[3];
+
+    /* -------------------------------------------------------------
+     * 1, copy LCU pixel data from original image buffer
+     */
+    i_src[0] = h->fenc->i_stride[0];
+    i_src[1] = h->fenc->i_stride[1];
+    i_src[2] = h->fenc->i_stride[2];
+    p_src[0] = h->fenc->planes10[0] + (img_y     ) * i_src[0] + (img_x     );
+    p_src[1] = h->fenc->planes10[1] + (img_y >> 1) * i_src[1] + (img_x >> 1);
+    p_src[2] = h->fenc->planes10[2] + (img_y >> 1) * i_src[2] + (img_x >> 1);
+
+    i_dst[0] = i_dst[1] = i_dst[2] = FENC_STRIDE;
+    p_dst[0] = h->lcu.p_fenc10[0];
+    p_dst[1] = h->lcu.p_fenc10[1];
+    p_dst[2] = h->lcu.p_fenc10[2];
+
+    blk_w[0] = lcu_width;
+    blk_h[0] = lcu_height;
+    blk_w[1] = blk_w[2] = lcu_width  >> 1;
+    blk_h[1] = blk_h[2] = lcu_height >> 1;
+    block_copy10_x3(p_dst, i_dst, p_src, i_src, blk_w, blk_h, 3);
+
+    /* first CTU of LCU row */
+    if (h->fenc->b_enable_intra || h->fenc->i_frm_type == XAVS2_TYPE_I) {
+        if (img_x == 0) {
+            memcpy(h->lcu.ctu_border10[0].rec_top + 1, h->intra_border10[0], lcu_width * 2 * sizeof(pel10_t));
+            memcpy(h->lcu.ctu_border10[1].rec_top + 1, h->intra_border10[1], lcu_width * sizeof(pel10_t));
+            memcpy(h->lcu.ctu_border10[2].rec_top + 1, h->intra_border10[2], lcu_width * sizeof(pel10_t));
+        } else if (h->param->i_lcurow_threads > 1) {
+            /* top-right pixels */
+            memcpy(h->lcu.ctu_border10[0].rec_top + 1 + lcu_width,        h->intra_border10[0] + img_x + lcu_width, lcu_width * sizeof(pel10_t));
+            memcpy(h->lcu.ctu_border10[1].rec_top + 1 + (lcu_width >> 1), h->intra_border10[1] + ((img_x + lcu_width) >> 1), (lcu_width >> 1) * sizeof(pel10_t));
+            memcpy(h->lcu.ctu_border10[2].rec_top + 1 + (lcu_width >> 1), h->intra_border10[2] + ((img_x + lcu_width) >> 1), (lcu_width >> 1) * sizeof(pel10_t));
+        }
+    }
     }
 }
 
@@ -404,8 +507,9 @@ void lcu_end(xavs2_t *h, int i_lcu_x, int i_lcu_y)
     int blk_h[3];
     int i_src[3];
     int i_dst[3];
-    pel_t *p_src[3];
-    pel_t *p_dst[3];
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *p_src[3];
+    pel8_t *p_dst[3];
 
     /* -------------------------------------------------------------
      * 1, copy decoded LCU to frame buffer
@@ -413,20 +517,20 @@ void lcu_end(xavs2_t *h, int i_lcu_x, int i_lcu_y)
     i_dst[0] = h->fdec->i_stride[0];
     i_dst[1] = h->fdec->i_stride[1];
     i_dst[2] = h->fdec->i_stride[2];
-    p_dst[0] = h->fdec->planes[0] + (img_y) * i_dst[0] + (img_x);
-    p_dst[1] = h->fdec->planes[1] + (img_y_c) * i_dst[1] + (img_x_c);
-    p_dst[2] = h->fdec->planes[2] + (img_y_c) * i_dst[2] + (img_x_c);
+    p_dst[0] = h->fdec->planes8[0] + (img_y) * i_dst[0] + (img_x);
+    p_dst[1] = h->fdec->planes8[1] + (img_y_c) * i_dst[1] + (img_x_c);
+    p_dst[2] = h->fdec->planes8[2] + (img_y_c) * i_dst[2] + (img_x_c);
 
     i_src[0] = i_src[1] = i_src[2] = FDEC_STRIDE;
-    p_src[0] = h->lcu.p_fdec[0];
-    p_src[1] = h->lcu.p_fdec[1];
-    p_src[2] = h->lcu.p_fdec[2];
+    p_src[0] = h->lcu.p_fdec8[0];
+    p_src[1] = h->lcu.p_fdec8[1];
+    p_src[2] = h->lcu.p_fdec8[2];
 
     blk_w[0] = lcu_width;
     blk_h[0] = lcu_height;
     blk_w[1] = blk_w[2] = lcu_width_c;
     blk_h[1] = blk_h[2] = lcu_height_c;
-    block_copy_x3(p_dst, i_dst, p_src, i_src, blk_w, blk_h, 3);
+    block_copy8_x3(p_dst, i_dst, p_src, i_src, blk_w, blk_h, 3);
 
     /* -------------------------------------------------------------
      * 2, backup right col and bottom row pixels for intra coding
@@ -440,18 +544,68 @@ void lcu_end(xavs2_t *h, int i_lcu_x, int i_lcu_y)
                i_pred_mode_width_in_lcu * sizeof(int8_t));
 
         /* cache top and left samples for intra prediction of next CTU */
-        xavs2_cache_lcu_border(h->lcu.ctu_border[0].rec_top, h->intra_border[0] + img_x + lcu_width - 1, p_src[0] + lcu_width - 1,
+        xavs2_cache_lcu_border8(h->lcu.ctu_border8[0].rec_top, h->intra_border8[0] + img_x + lcu_width - 1, p_src[0] + lcu_width - 1,
                                FDEC_STRIDE, lcu_width, lcu_height);
-        xavs2_cache_lcu_border_uv(h->lcu.ctu_border[1].rec_top, h->intra_border[1] + img_x_c + lcu_width_c - 1, p_src[1] + lcu_width_c - 1,
-                                  h->lcu.ctu_border[2].rec_top, h->intra_border[2] + img_x_c + lcu_width_c - 1, p_src[2] + lcu_width_c - 1,
+        xavs2_cache_lcu_border8_uv(h->lcu.ctu_border8[1].rec_top, h->intra_border8[1] + img_x_c + lcu_width_c - 1, p_src[1] + lcu_width_c - 1,
+                                  h->lcu.ctu_border8[2].rec_top, h->intra_border8[2] + img_x_c + lcu_width_c - 1, p_src[2] + lcu_width_c - 1,
                                   FDEC_STRIDE, lcu_width_c, lcu_height_c);
 
         /* 2.2, backup bottom row pixels */
         if (i_lcu_y < h->i_height_in_lcu - 1) {
-            g_funcs.fast_memcpy(h->intra_border[0] + img_x,   p_src[0] + (lcu_height   - 1) * FDEC_STRIDE, lcu_width   * sizeof(pel_t));
-            g_funcs.fast_memcpy(h->intra_border[1] + img_x_c, p_src[1] + (lcu_height_c - 1) * FDEC_STRIDE, lcu_width_c * sizeof(pel_t));
-            g_funcs.fast_memcpy(h->intra_border[2] + img_x_c, p_src[2] + (lcu_height_c - 1) * FDEC_STRIDE, lcu_width_c * sizeof(pel_t));
+            g_funcs.fast_memcpy(h->intra_border8[0] + img_x,   p_src[0] + (lcu_height   - 1) * FDEC_STRIDE, lcu_width   * sizeof(pel8_t));
+            g_funcs.fast_memcpy(h->intra_border8[1] + img_x_c, p_src[1] + (lcu_height_c - 1) * FDEC_STRIDE, lcu_width_c * sizeof(pel8_t));
+            g_funcs.fast_memcpy(h->intra_border8[2] + img_x_c, p_src[2] + (lcu_height_c - 1) * FDEC_STRIDE, lcu_width_c * sizeof(pel8_t));
         }
     }
+    } else {
+    pel10_t *p_src[3];
+    pel10_t *p_dst[3];
 
+    /* -------------------------------------------------------------
+     * 1, copy decoded LCU to frame buffer
+     */
+    i_dst[0] = h->fdec->i_stride[0];
+    i_dst[1] = h->fdec->i_stride[1];
+    i_dst[2] = h->fdec->i_stride[2];
+    p_dst[0] = h->fdec->planes10[0] + (img_y) * i_dst[0] + (img_x);
+    p_dst[1] = h->fdec->planes10[1] + (img_y_c) * i_dst[1] + (img_x_c);
+    p_dst[2] = h->fdec->planes10[2] + (img_y_c) * i_dst[2] + (img_x_c);
+
+    i_src[0] = i_src[1] = i_src[2] = FDEC_STRIDE;
+    p_src[0] = h->lcu.p_fdec10[0];
+    p_src[1] = h->lcu.p_fdec10[1];
+    p_src[2] = h->lcu.p_fdec10[2];
+
+    blk_w[0] = lcu_width;
+    blk_h[0] = lcu_height;
+    blk_w[1] = blk_w[2] = lcu_width_c;
+    blk_h[1] = blk_h[2] = lcu_height_c;
+    block_copy10_x3(p_dst, i_dst, p_src, i_src, blk_w, blk_h, 3);
+
+    /* -------------------------------------------------------------
+     * 2, backup right col and bottom row pixels for intra coding
+     */
+    if (h->fenc->b_enable_intra || h->fenc->i_frm_type == XAVS2_TYPE_I) {
+        // backup intra pred mode of bottom 4x4 row
+        int i_pred_mode_stride = h->i_width_in_minpu + 16;
+        int i_pred_mode_width_in_lcu = (1 << h->i_lcu_level) >> MIN_PU_SIZE_IN_BIT;
+        memcpy(h->ipredmode - i_pred_mode_stride + i_lcu_x * i_pred_mode_width_in_lcu,
+               h->ipredmode + i_pred_mode_stride * (i_pred_mode_width_in_lcu - 1) + i_lcu_x * i_pred_mode_width_in_lcu,
+               i_pred_mode_width_in_lcu * sizeof(int8_t));
+
+        /* cache top and left samples for intra prediction of next CTU */
+        xavs2_cache_lcu_border10(h->lcu.ctu_border10[0].rec_top, h->intra_border10[0] + img_x + lcu_width - 1, p_src[0] + lcu_width - 1,
+                               FDEC_STRIDE, lcu_width, lcu_height);
+        xavs2_cache_lcu_border10_uv(h->lcu.ctu_border10[1].rec_top, h->intra_border10[1] + img_x_c + lcu_width_c - 1, p_src[1] + lcu_width_c - 1,
+                                  h->lcu.ctu_border10[2].rec_top, h->intra_border10[2] + img_x_c + lcu_width_c - 1, p_src[2] + lcu_width_c - 1,
+                                  FDEC_STRIDE, lcu_width_c, lcu_height_c);
+
+        /* 2.2, backup bottom row pixels */
+        if (i_lcu_y < h->i_height_in_lcu - 1) {
+            g_funcs.fast_memcpy(h->intra_border10[0] + img_x,   p_src[0] + (lcu_height   - 1) * FDEC_STRIDE, lcu_width   * sizeof(pel10_t));
+            g_funcs.fast_memcpy(h->intra_border10[1] + img_x_c, p_src[1] + (lcu_height_c - 1) * FDEC_STRIDE, lcu_width_c * sizeof(pel10_t));
+            g_funcs.fast_memcpy(h->intra_border10[2] + img_x_c, p_src[2] + (lcu_height_c - 1) * FDEC_STRIDE, lcu_width_c * sizeof(pel10_t));
+        }
+    }
+    }
 }

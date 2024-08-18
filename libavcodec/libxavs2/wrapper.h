@@ -48,7 +48,8 @@
  */
 
 // function type
-typedef void(*vpp_ipred_t)(pel_t *p_pred, pel_t *p_top, pel_t *p_left);
+typedef void(*vpp_ipred8_t)(pel8_t *p_pred, pel8_t *p_top, pel8_t *p_left);
+typedef void(*vpp_ipred10_t)(pel10_t *p_pred, pel10_t *p_top, pel10_t *p_left);
 
 /* ---------------------------------------------------------------------------
  * lookahead_t
@@ -63,26 +64,44 @@ typedef struct lookahead_t {
 /* ---------------------------------------------------------------------------
  * low resolution of frame (luma plane)
  */
-typedef struct frm_lowres_t {
+typedef struct frm_lowres8_t {
     int         i_width;              /* width  for luma plane */
     int         i_lines;              /* height for luma plane */
     int         i_stride;             /* stride for luma plane */
-    pel_t      *filtered;             /* half-size copy of input frame (luma only) */
-} frm_lowres_t;
+    pel8_t      *filtered8;             /* half-size copy of input frame (luma only) */
+} frm_lowres8_t;
+
+typedef struct frm_lowres10_t {
+    int         i_width;              /* width  for luma plane */
+    int         i_lines;              /* height for luma plane */
+    int         i_stride;             /* stride for luma plane */
+    pel10_t      *filtered10;             /* half-size copy of input frame (luma only) */
+} frm_lowres10_t;
 
 /* ---------------------------------------------------------------------------
  * video pre-processing motion estimation
  */
-typedef struct vpp_me_t {
+typedef struct vpp8_me_t {
     int             mv_min[2];        /* full pel MV range for motion search (min) */
     int             mv_max[2];        /* full pel MV range for motion search (max) */
     mv_t            bmv;              /* [OUT] best motion vector */
     mv_t            pmv;              /* pred motion vector for the current block */
     uint16_t       *mvbits;           /* used for getting the mv bits */
-    pixel_cmp_t     sad_8x8;          /* function handle for cal sad of 8x8 block */
-    pixel_cmp_x3_t  sad_8x8_x3;       /* function handle for cal sad of 8x8 block (X3) */
-    pixel_cmp_x4_t  sad_8x8_x4;       /* function handle for cal sad of 8x8 block (X4) */
-} vpp_me_t;
+    pixel8_cmp_t     sad8_8x8;          /* function handle for cal sad of 8x8 block */
+    pixel8_cmp_x3_t  sad8_8x8_x3;       /* function handle for cal sad of 8x8 block (X3) */
+    pixel8_cmp_x4_t  sad8_8x8_x4;       /* function handle for cal sad of 8x8 block (X4) */
+} vpp8_me_t;
+
+typedef struct vpp10_me_t {
+    int             mv_min[2];        /* full pel MV range for motion search (min) */
+    int             mv_max[2];        /* full pel MV range for motion search (max) */
+    mv_t            bmv;              /* [OUT] best motion vector */
+    mv_t            pmv;              /* pred motion vector for the current block */
+    uint16_t       *mvbits;           /* used for getting the mv bits */
+    pixel10_cmp_t     sad10_8x8;          /* function handle for cal sad of 8x8 block */
+    pixel10_cmp_x3_t  sad10_8x8_x3;       /* function handle for cal sad of 8x8 block (X3) */
+    pixel10_cmp_x4_t  sad10_8x8_x4;       /* function handle for cal sad of 8x8 block (X4) */
+} vpp10_me_t;
 
 /* ---------------------------------------------------------------------------
  * frame buffer manager

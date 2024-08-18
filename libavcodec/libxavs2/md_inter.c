@@ -900,7 +900,11 @@ int pred_inter_search_single(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_m
     all_min_costs = &h->all_mincost[mv_mempos_y * width_in_4x4 + mv_mempos_x];
 
     /* make p_fenc point to the start address of the current PU */
-    p_me->p_fenc  = h->lcu.p_fenc[0] + (pix_y - h->lcu.i_pix_y) * FENC_STRIDE + pix_x - h->lcu.i_pix_x;
+    if (h->param->input_sample_bit_depth == 8) {
+    p_me->p_fenc8  = h->lcu.p_fenc8[0] + (pix_y - h->lcu.i_pix_y) * FENC_STRIDE + pix_x - h->lcu.i_pix_x;
+    } else {
+    p_me->p_fenc10  = h->lcu.p_fenc10[0] + (pix_y - h->lcu.i_pix_y) * FENC_STRIDE + pix_x - h->lcu.i_pix_x;
+    }
     p_me->i_pixel = PART_INDEX(bsx, bsy);
     p_me->i_pix_x   = pix_x;
     p_me->i_pix_y   = pix_y;
@@ -1039,7 +1043,6 @@ void pred_inter_search_bi(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me, 
     mv_t mvp, mv;
     cu_parallel_t *p_enc = cu_get_enc_context(h, p_cu->cu_info.i_level);
     cu_mv_mode_t *p_mode_mv = cu_get_layer_mode(h, p_cu->cu_info.i_level)->mvs[mode];
-    pel_t *buf_pixel_temp = p_enc->buf_pixel_temp;
     int pu_size_shift = p_cu->cu_info.i_level - MIN_CU_SIZE_IN_BIT;
     dist_t cost, cost_bid;
     int m, n, i, j;
@@ -1080,8 +1083,10 @@ void pred_inter_search_bi(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me, 
     b_mv_valid &= check_mv_range_sym(h,  &mv, pix_x, pix_y, bsx, bsy, distance_fwd, distance_bwd);
     b_mv_valid &= check_mvd(h, mvp.x, mvp.y);  // avoid mv-bits calculation error
 
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *buf_pixel_temp = p_enc->buf_pixel_temp8;
     if (b_mv_valid) {
-        cost = xavs2_me_search_sym(h, p_me, buf_pixel_temp, &mv);
+        cost = xavs2_me_search_sym8(h, p_me, buf_pixel_temp, &mv);
     } else {
         cost = MAX_DISTORTION;
     }
@@ -1091,7 +1096,7 @@ void pred_inter_search_bi(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me, 
     b_mv_valid &= check_mvd(h, p_me->mvp1.x, p_me->mvp1.y);  // avoid mv-bits calculation error
     b_mv_valid &= check_mvd(h, p_me->mvp2.x, p_me->mvp2.y);
     if (b_mv_valid) {
-        cost_bid = xavs2_me_search_bid(h, p_me, buf_pixel_temp, &fwd_mv, &bwd_mv, p_enc);
+        cost_bid = xavs2_me_search_bid8(h, p_me, buf_pixel_temp, &fwd_mv, &bwd_mv, p_enc);
     } else {
         cost_bid = MAX_DISTORTION;
     }
@@ -1127,6 +1132,56 @@ void pred_inter_search_bi(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me, 
 
     *sym_mcost = cost;
     *bid_mcost = cost_bid;
+    } else {
+    pel10_t *buf_pixel_temp = p_enc->buf_pixel_temp10;
+    if (b_mv_valid) {
+        cost = xavs2_me_search_sym10(h, p_me, buf_pixel_temp, &mv);
+    } else {
+        cost = MAX_DISTORTION;
+    }
+
+    b_mv_valid  = check_mv_range(h, &fwd_mv, B_FWD, pix_x, pix_y, bsx, bsy);
+    b_mv_valid &= check_mv_range(h, &bwd_mv, B_BWD, pix_x, pix_y, bsx, bsy);
+    b_mv_valid &= check_mvd(h, p_me->mvp1.x, p_me->mvp1.y);  // avoid mv-bits calculation error
+    b_mv_valid &= check_mvd(h, p_me->mvp2.x, p_me->mvp2.y);
+    if (b_mv_valid) {
+        cost_bid = xavs2_me_search_bid10(h, p_me, buf_pixel_temp, &fwd_mv, &bwd_mv, p_enc);
+    } else {
+        cost_bid = MAX_DISTORTION;
+    }
+
+    // store motion vectors
+    m = XAVS2_MAX((bsx >> (MIN_PU_SIZE_IN_BIT + pu_size_shift)), 1);
+    n = XAVS2_MAX((bsy >> (MIN_PU_SIZE_IN_BIT + pu_size_shift)), 1);
+    for (j = 0; j < n; j++) {
+        for (i = 0; i < m; i++) {
+            k = ((pu_idx_y + j) << 1) + (pu_idx_x + i);
+            p_mode_mv[k].all_sym_mv     [0] = mv;
+            p_mode_mv[k].all_dual_mv_1st[0] = fwd_mv;
+            p_mode_mv[k].all_dual_mv_2nd[0] = bwd_mv;
+        }
+    }
+
+    if (!(check_mv_range(h, &fwd_mv, B_FWD, pix_x, pix_y, bsx, bsy) &&
+          check_mvd(h, (fwd_mv.x - p_me->mvp1.x), (fwd_mv.y - p_me->mvp1.y)))) {
+        cost_bid = MAX_DISTORTION;
+    }
+
+    if (!(check_mv_range(h, &bwd_mv, B_BWD, pix_x, pix_y, bsx, bsy) &&
+          check_mvd(h, (bwd_mv.x - p_me->mvp2.x), (bwd_mv.y - p_me->mvp2.y)))) {
+        cost_bid = MAX_DISTORTION;
+    }
+
+    if (!(check_mv_range_sym(h, &mv, pix_x, pix_y, bsx, bsy, distance_fwd, distance_bwd) &&
+          check_mvd(h, (mv.x - mvp.x), (mv.y - mvp.y)))) {
+        cost = MAX_DISTORTION;
+    }
+    p_me->bmvcost[PDIR_SYM] = p_me->mvcost[PDIR_SYM];
+    p_me->bmvcost[PDIR_BID] = p_me->mvcost[PDIR_BID];
+
+    *sym_mcost = cost;
+    *bid_mcost = cost_bid;
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1139,7 +1194,6 @@ void pred_inter_search_dual(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me
     mv_t fst_dual, snd_dual;
     cu_parallel_t *p_enc = cu_get_enc_context(h, p_cu->cu_info.i_level);
     cu_mv_mode_t *p_mode_mv = cu_get_layer_mode(h, p_cu->cu_info.i_level)->mvs[mode];
-    pel_t *buf_pixel_temp = p_enc->buf_pixel_temp;
     int pix_x = p_cu->i_pix_x + p_cb->x;
     int pix_y = p_cu->i_pix_y + p_cb->y;
     int pu_idx_x = p_cb->x != 0;           // PU index
@@ -1182,8 +1236,10 @@ void pred_inter_search_dual(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me
         b_mv_valid &= check_mvd(h, (fst_dual.x - p_me->mvp1.x), (fst_dual.y - p_me->mvp1.y));
         b_mv_valid &= check_mvd(h, p_me->mvp1.x, p_me->mvp1.y);
         b_mv_valid &= check_mvd(h, p_me->mvp.x, p_me->mvp.y);
+        if (h->param->input_sample_bit_depth == 8) {
+        pel8_t *buf_pixel_temp = p_enc->buf_pixel_temp8;
         if (b_mv_valid) {
-            cost = xavs2_me_search_sym(h, p_me, buf_pixel_temp, &fst_dual);
+            cost = xavs2_me_search_sym8(h, p_me, buf_pixel_temp, &fst_dual);
         } else {
             cost = MAX_DISTORTION;
         }
@@ -1214,6 +1270,42 @@ void pred_inter_search_dual(xavs2_t *h, cu_t *p_cu, cb_t *p_cb, xavs2_me_t *p_me
                 *dual_best_snd_ref = !ref_idx;
                 p_me->bmvcost[PDIR_DUAL] = p_me->mvcost[PDIR_SYM];
             }
+        }
+        } else {
+        pel10_t *buf_pixel_temp = p_enc->buf_pixel_temp10;
+        if (b_mv_valid) {
+            cost = xavs2_me_search_sym10(h, p_me, buf_pixel_temp, &fst_dual);
+        } else {
+            cost = MAX_DISTORTION;
+        }
+
+        /* store motion vectors and reference frame (for motion vector prediction) */
+        snd_dual.v = MAKEDWORD(scale_mv_skip  (   fst_dual.x, distance_bwd, distance_fwd),
+                               scale_mv_skip_y(h, fst_dual.y, distance_bwd, distance_fwd));
+
+        m = XAVS2_MAX((bsx >> (MIN_PU_SIZE_IN_BIT + pu_size_shift)), 1);
+        n = XAVS2_MAX((bsy >> (MIN_PU_SIZE_IN_BIT + pu_size_shift)), 1);
+        for (j = 0; j < n; j++) {
+            for (i = 0; i < m; i++) {
+                k = ((pu_idx_y + j) << 1) + (pu_idx_x + i);
+                p_mode_mv[k].all_dual_mv_1st[ref_idx] = fst_dual;
+                p_mode_mv[k].all_dual_mv_2nd[ref_idx] = snd_dual;
+            }
+        }
+
+        b_mv_valid &= check_mv_range_sym(h, &fst_dual, pix_x, pix_y, bsx, bsy, distance_fwd, distance_bwd);
+        b_mv_valid &= check_mvd(h, (fst_dual.x - p_me->mvp1.x), (fst_dual.y - p_me->mvp1.y));
+        if (!b_mv_valid) {
+            cost = MAX_DISTORTION;
+        } else {
+            cost += REF_COST(ref_idx);
+            if (cost < *dual_mcost) {
+                *dual_mcost = cost;
+                *dual_best_fst_ref = ref_idx;
+                *dual_best_snd_ref = !ref_idx;
+                p_me->bmvcost[PDIR_DUAL] = p_me->mvcost[PDIR_SYM];
+            }
+        }
         }
     }
 }

@@ -55,26 +55,29 @@ void xavs2_init_all_primitives(xavs2_param_t* param, intrinsic_func_t *p_funcs)
     uint32_t cpuid = p_funcs->cpuid;
 
     if (param != NULL) {
-        if (param->sample_bit_depth != g_bit_depth) {
-            xavs2_log(NULL, XAVS2_LOG_ERROR, "init primitives error: only %d bit-depth is supported\n", g_bit_depth);
+        if (param->sample_bit_depth != param->input_sample_bit_depth) {
+            xavs2_log(NULL, XAVS2_LOG_ERROR, "init primitives error: only %d bit-depth is supported\n", param->input_sample_bit_depth);
         }
     }
 
     /* init memory operation function handlers */
-    xavs2_mem_oper_init  (cpuid, p_funcs);
+    xavs2_mem_oper_init  (param, cpuid, p_funcs);
 
     /* init function handles */
-    xavs2_intra_pred_init(cpuid, p_funcs);
-    xavs2_mc_init        (cpuid, p_funcs);
-    xavs2_pixel_init     (cpuid, &p_funcs->pixf);
-    xavs2_deblock_init   (cpuid, p_funcs);
+    xavs2_intra_pred_init(param, cpuid, p_funcs);
+    xavs2_mc_init        (param, cpuid, p_funcs);
+    xavs2_pixel_init     (param, cpuid, &p_funcs->pixf);
+    xavs2_deblock_init   (param, cpuid, p_funcs);
     xavs2_dct_init       (cpuid, &p_funcs->dctf);
     xavs2_quant_init     (cpuid, &p_funcs->dctf);
     xavs2_cg_scan_init   (cpuid, p_funcs);
-    xavs2_mad_init       (cpuid, p_funcs->pixf.madf);
-
-    xavs2_sao_init       (cpuid, p_funcs);
-    xavs2_alf_init       (cpuid, p_funcs);
+    if (param->input_sample_bit_depth == 8) {
+    xavs2_mad8_init       (cpuid, p_funcs->pixf.madf8);
+    } else {
+    xavs2_mad10_init       (cpuid, p_funcs->pixf.madf10);
+    }
+    xavs2_sao_init       (param, cpuid, p_funcs);
+    xavs2_alf_init       (param, cpuid, p_funcs);
 
     xavs2_rdo_init       (cpuid, p_funcs);
 }

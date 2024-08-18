@@ -270,7 +270,7 @@ void *proc_xavs2_threadpool_thread(xavs2_threadpool_t *pool)
 
 /* ---------------------------------------------------------------------------
  */
-int xavs2_threadpool_init(xavs2_threadpool_t **p_pool, int threads, xavs2_tfunc_t init_func, void *init_arg)
+int xavs2_threadpool_init(xavs2_param_t* param, xavs2_threadpool_t **p_pool, int threads, xavs2_tfunc_t init_func, void *init_arg)
 {
     xavs2_threadpool_t *pool;
     uint8_t *mem_ptr = NULL;
@@ -286,7 +286,11 @@ int xavs2_threadpool_init(xavs2_threadpool_t **p_pool, int threads, xavs2_tfunc_
                threads * sizeof(threadpool_job_t) +
                CACHE_LINE_SIZE * XAVS2_THREAD_MAX * 2;
 
-    CHECKED_MALLOCZERO(mem_ptr, uint8_t *, size_mem);
+    if (param->input_sample_bit_depth == 8) {
+    CHECKED_MALLOCZERO8(mem_ptr, uint8_t *, size_mem);
+    } else {
+    CHECKED_MALLOCZERO10(mem_ptr, uint8_t *, size_mem);
+    }
     pool          = (xavs2_threadpool_t *)mem_ptr;
     mem_ptr      += sizeof(xavs2_threadpool_t);
     ALIGN_POINTER(mem_ptr);
@@ -300,7 +304,11 @@ int xavs2_threadpool_init(xavs2_threadpool_t **p_pool, int threads, xavs2_tfunc_
     if (xavs2_sync_job_list_init(&pool->uninit, pool->i_threads) ||
         xavs2_sync_job_list_init(&pool->run,    pool->i_threads) ||
         xavs2_sync_job_list_init(&pool->done,   pool->i_threads)) {
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     for (i = 0; i < pool->i_threads; i++) {
@@ -313,13 +321,21 @@ int xavs2_threadpool_init(xavs2_threadpool_t **p_pool, int threads, xavs2_tfunc_
 
     for (i = 0; i < pool->i_threads; i++) {
         if (xavs2_create_thread(pool->thread_handle + i, (xavs2_tfunc_t)proc_xavs2_threadpool_thread, pool)) {
-            goto fail;
+            if (param->input_sample_bit_depth == 8) {
+            goto fail8;
+            } else {
+            goto fail10;
+            }
         }
     }
 
     return 0;
 
-fail:
+    if (param->input_sample_bit_depth == 8) {
+fail8:
+    } else {
+fail10:
+    }
     return -1;
 }
 
