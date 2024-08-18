@@ -46,19 +46,35 @@ void dump_yuv_out(xavs2_t *h, FILE *fp, xavs2_frame_t *frame, int img_w, int img
     int j;
 
     if (fp != NULL) {
-        UNUSED_PARAMETER(h);
+        //UNUSED_PARAMETER(h);
+        if (h->param->input_sample_bit_depth == 8) {
         for (j = 0; j < img_h; j++) {
-            fwrite(frame->planes[0] + j * frame->i_stride[0], img_w, 1, fp);
+            fwrite(frame->planes8[0] + j * frame->i_stride[0], img_w, 1, fp);
         }
 
         if (frame->i_plane == 3) {
             for (j = 0; j < (img_h >> 1); j++) {
-                fwrite(frame->planes[1] + j * frame->i_stride[1], img_w >> 1, 1, fp);
+                fwrite(frame->planes8[1] + j * frame->i_stride[1], img_w >> 1, 1, fp);
             }
 
             for (j = 0; j < (img_h >> 1); j++) {
-                fwrite(frame->planes[2] + j * frame->i_stride[2], img_w >> 1, 1, fp);
+                fwrite(frame->planes8[2] + j * frame->i_stride[2], img_w >> 1, 1, fp);
             }
+        }
+        } else {
+        for (j = 0; j < img_h; j++) {
+            fwrite(frame->planes10[0] + j * frame->i_stride[0], img_w, 1, fp);
+        }
+
+        if (frame->i_plane == 3) {
+            for (j = 0; j < (img_h >> 1); j++) {
+                fwrite(frame->planes10[1] + j * frame->i_stride[1], img_w >> 1, 1, fp);
+            }
+
+            for (j = 0; j < (img_h >> 1); j++) {
+                fwrite(frame->planes10[2] + j * frame->i_stride[2], img_w >> 1, 1, fp);
+            }
+        }
         }
 
     }

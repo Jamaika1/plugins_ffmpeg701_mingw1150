@@ -121,48 +121,79 @@ enum ChromaCU {
 };
 
 
-typedef cmp_dist_t(*pixel_cmp_t)(const pel_t *pix1, intptr_t i_pix1, const pel_t *pix2, intptr_t i_pix2);
-typedef dist_t(*pixel_ssd_t)(const pel_t *pix1, intptr_t i_pix1, const pel_t *pix2, intptr_t i_pix2);
-typedef dist_t(*pixel_ssd2_t)(const pel_t *pix1, intptr_t i_pix1, const pel_t *pix2, intptr_t i_pix2, int width, int height);
-typedef void(*pixel_cmp_x3_t)(const pel_t *fenc, const pel_t *pix0, const pel_t *pix1, const pel_t *pix2,                    intptr_t i_stride, int scores[3]);
-typedef void(*pixel_cmp_x4_t)(const pel_t *fenc, const pel_t *pix0, const pel_t *pix1, const pel_t *pix2, const pel_t *pix3, intptr_t i_stride, int scores[4]);
+typedef cmp_dist_t(*pixel8_cmp_t)(const pel8_t *pix1, intptr_t i_pix1, const pel8_t *pix2, intptr_t i_pix2);
+typedef cmp_dist_t(*pixel10_cmp_t)(const pel10_t *pix1, intptr_t i_pix1, const pel10_t *pix2, intptr_t i_pix2);
+typedef dist_t(*pixel8_ssd_t)(const pel8_t *pix1, intptr_t i_pix1, const pel8_t *pix2, intptr_t i_pix2);
+typedef dist_t(*pixel10_ssd_t)(const pel10_t *pix1, intptr_t i_pix1, const pel10_t *pix2, intptr_t i_pix2);
+typedef dist_t(*pixel8_ssd2_t)(const pel8_t *pix1, intptr_t i_pix1, const pel8_t *pix2, intptr_t i_pix2, int width, int height);
+typedef dist_t(*pixel10_ssd2_t)(const pel10_t *pix1, intptr_t i_pix1, const pel10_t *pix2, intptr_t i_pix2, int width, int height);
+typedef void(*pixel8_cmp_x3_t)(const pel8_t *fenc, const pel8_t *pix0, const pel8_t *pix1, const pel8_t *pix2,                    intptr_t i_stride, int scores[3]);
+typedef void(*pixel10_cmp_x3_t)(const pel10_t *fenc, const pel10_t *pix0, const pel10_t *pix1, const pel10_t *pix2,                    intptr_t i_stride, int scores[3]);
+typedef void(*pixel8_cmp_x4_t)(const pel8_t *fenc, const pel8_t *pix0, const pel8_t *pix1, const pel8_t *pix2, const pel8_t *pix3, intptr_t i_stride, int scores[4]);
+typedef void(*pixel10_cmp_x4_t)(const pel10_t *fenc, const pel10_t *pix0, const pel10_t *pix1, const pel10_t *pix2, const pel10_t *pix3, intptr_t i_stride, int scores[4]);
 
-typedef void(*copy_pp_t)(pel_t* dst, intptr_t dstStride, const pel_t* src, intptr_t srcStride); // dst is aligned
-typedef void(*copy_sp_t)(pel_t* dst, intptr_t dstStride, const coeff_t* src, intptr_t srcStride);
-typedef void(*copy_ps_t)(coeff_t* dst, intptr_t dstStride, const pel_t* src, intptr_t srcStride);
-typedef void(*copy_ss_t)(coeff_t* dst, intptr_t dstStride, const coeff_t* src, intptr_t srcStride);
+typedef void(*copy_pp8_t)(pel8_t* dst, intptr_t dstStride, const pel8_t* src, intptr_t srcStride); // dst is aligned
+typedef void(*copy_pp10_t)(pel10_t* dst, intptr_t dstStride, const pel10_t* src, intptr_t srcStride); // dst is aligned
+typedef void(*copy_sp8_t)(pel8_t* dst, intptr_t dstStride, const coeff_t* src, intptr_t srcStride);
+typedef void(*copy_sp10_t)(pel10_t* dst, intptr_t dstStride, const coeff_t* src, intptr_t srcStride);
+typedef void(*copy_ps8_t)(coeff_t* dst, intptr_t dstStride, const pel8_t* src, intptr_t srcStride);
+typedef void(*copy_ps10_t)(coeff_t* dst, intptr_t dstStride, const pel10_t* src, intptr_t srcStride);
+typedef void(*copy_ss8_t)(coeff_t* dst, intptr_t dstStride, const coeff_t* src, intptr_t srcStride);
+typedef void(*copy_ss10_t)(coeff_t* dst, intptr_t dstStride, const coeff_t* src, intptr_t srcStride);
 
-typedef void(*pixel_sub_ps_t)(coeff_t* dst, intptr_t dstride, const pel_t* src0, const pel_t* src1, intptr_t sstride0, intptr_t sstride1);
-typedef void(*pixel_add_ps_t)(pel_t* a, intptr_t dstride, const pel_t* b0, const coeff_t* b1, intptr_t sstride0, intptr_t sstride1);
-typedef void(*pixel_avg_pp_t)(pel_t* dst, intptr_t dstride, const pel_t* src0, intptr_t sstride0, const pel_t* src1, intptr_t sstride1, int weight);
+typedef void(*pixel_sub_ps8_t)(coeff_t* dst, intptr_t dstride, const pel8_t* src0, const pel8_t* src1, intptr_t sstride0, intptr_t sstride1);
+typedef void(*pixel_sub_ps10_t)(coeff_t* dst, intptr_t dstride, const pel10_t* src0, const pel10_t* src1, intptr_t sstride0, intptr_t sstride1);
+typedef void(*pixel_add_ps8_t)(xavs2_t *h, pel8_t* a, intptr_t dstride, const pel8_t* b0, const coeff_t* b1, intptr_t sstride0, intptr_t sstride1);
+typedef void(*pixel_add_ps10_t)(xavs2_t *h, pel10_t* a, intptr_t dstride, const pel10_t* b0, const coeff_t* b1, intptr_t sstride0, intptr_t sstride1);
+typedef void(*pixel_avg_pp8_t)(pel8_t* dst, intptr_t dstride, const pel8_t* src0, intptr_t sstride0, const pel8_t* src1, intptr_t sstride1, int weight);
+typedef void(*pixel_avg_pp10_t)(pel10_t* dst, intptr_t dstride, const pel10_t* src0, intptr_t sstride0, const pel10_t* src1, intptr_t sstride1, int weight);
 
-typedef int(*mad_funcs_t)(pel_t *p_src, int i_src, int cu_size);
+typedef int(*mad_funcs8_t)(pel8_t *p_src, int i_src, int cu_size);
+typedef int(*mad_funcs10_t)(pel10_t *p_src, int i_src, int cu_size);
 
 typedef struct {
 
-    pixel_cmp_t     sad    [NUM_PU_SIZES];
-    pixel_cmp_t     satd   [NUM_PU_SIZES];
-    pixel_cmp_t     sa8d   [NUM_PU_SIZES];
-    pixel_ssd_t     ssd    [NUM_PU_SIZES];
-    pixel_cmp_x3_t  sad_x3 [NUM_PU_SIZES];
-    pixel_cmp_x4_t  sad_x4 [NUM_PU_SIZES];
+    pixel8_cmp_t     sad8    [NUM_PU_SIZES];
+    pixel10_cmp_t     sad10   [NUM_PU_SIZES];
+    pixel8_cmp_t     satd8   [NUM_PU_SIZES];
+    pixel10_cmp_t     satd10   [NUM_PU_SIZES];
+    pixel8_cmp_t     sa8d8   [NUM_PU_SIZES];
+    pixel10_cmp_t     sa8d10   [NUM_PU_SIZES];
+    pixel8_ssd_t     ssd8    [NUM_PU_SIZES];
+    pixel10_ssd_t     ssd10    [NUM_PU_SIZES];
+    pixel8_cmp_x3_t  sad8_x3 [NUM_PU_SIZES];
+    pixel10_cmp_x3_t  sad10_x3 [NUM_PU_SIZES];
+    pixel8_cmp_x4_t  sad8_x4 [NUM_PU_SIZES];
+    pixel10_cmp_x4_t  sad10_x4 [NUM_PU_SIZES];
 
-    pixel_sub_ps_t  sub_ps [NUM_PU_SIZES];
-    pixel_add_ps_t  add_ps [NUM_PU_SIZES];
-    copy_sp_t       copy_sp[NUM_PU_SIZES];
-    copy_ps_t       copy_ps[NUM_PU_SIZES];
-    copy_ss_t       copy_ss[NUM_PU_SIZES];
-    copy_pp_t       copy_pp[NUM_PU_SIZES];
-    pixel_avg_pp_t  avg    [NUM_PU_SIZES];
+    pixel_sub_ps8_t  sub_ps8 [NUM_PU_SIZES];
+    pixel_sub_ps10_t  sub_ps10 [NUM_PU_SIZES];
+    pixel_add_ps8_t  add_ps8 [NUM_PU_SIZES];
+    pixel_add_ps10_t  add_ps10 [NUM_PU_SIZES];
+    copy_sp8_t       copy_sp8[NUM_PU_SIZES];
+    copy_sp10_t       copy_sp10[NUM_PU_SIZES];
+    copy_ps8_t       copy_ps8[NUM_PU_SIZES];
+    copy_ps10_t       copy_ps10[NUM_PU_SIZES];
+    copy_ss8_t       copy_ss8[NUM_PU_SIZES];
+    copy_ss10_t       copy_ss10[NUM_PU_SIZES];
+    copy_pp8_t       copy_pp8[NUM_PU_SIZES];
+    copy_pp10_t       copy_pp10[NUM_PU_SIZES];
+    pixel_avg_pp8_t  avg8    [NUM_PU_SIZES];
+    pixel_avg_pp10_t  avg10    [NUM_PU_SIZES];
 
-    pixel_cmp_t    *intra_cmp;  /* either satd or sad for intra mode prediction */
-    pixel_cmp_t    *fpel_cmp;   /* either satd or sad for fractional pixel comparison in ME */
+    pixel8_cmp_t    *intra8_cmp;  /* either satd or sad for intra mode prediction */
+    pixel10_cmp_t    *intra10_cmp;  /* either satd or sad for intra mode prediction */
+    pixel8_cmp_t    *fpel8_cmp;   /* either satd or sad for fractional pixel comparison in ME */
+    pixel10_cmp_t    *fpel10_cmp;   /* either satd or sad for fractional pixel comparison in ME */
 
-    mad_funcs_t     madf[CTU_DEPTH];
+    mad_funcs8_t     madf8[CTU_DEPTH];
+    mad_funcs10_t     madf10[CTU_DEPTH];
 
-    pixel_ssd2_t    ssd_block;
+    pixel8_ssd2_t    ssd_block8;
+    pixel10_ssd2_t    ssd_block10;
     /* block average */
-    void (*average)(pel_t *dst, int i_dst, pel_t *src1, int i_src1, pel_t *src2, int i_src2, int width, int height);
+    void (*average8)(pel8_t *dst, int i_dst, pel8_t *src1, int i_src1, pel8_t *src2, int i_src2, int width, int height);
+    void (*average10)(pel10_t *dst, int i_dst, pel10_t *src1, int i_src1, pel10_t *src2, int i_src2, int width, int height);
 } pixel_funcs_t;
 
 
@@ -185,17 +216,26 @@ extern const uint8_t g_partition_map_tab[];
  */
 
 #define xavs2_pixel_init FPFX(pixel_init)
-void xavs2_pixel_init(uint32_t cpu, pixel_funcs_t* pixf);
+void xavs2_pixel_init(xavs2_param_t* param, uint32_t cpu, pixel_funcs_t* pixf);
 
-#define xavs2_pixel_ssd_wxh FPFX(xpixel_ssd_wxh)
-uint64_t xavs2_pixel_ssd_wxh(pixel_funcs_t *pf,
-                             pel_t *p_pix1, intptr_t i_pix1,
-                             pel_t *p_pix2, intptr_t i_pix2,
+#define xavs2_pixel_ssd8_wxh FPFX(xpixel_ssd8_wxh)
+uint64_t xavs2_pixel_ssd8_wxh(pixel_funcs_t *pf,
+                             pel8_t *p_pix1, intptr_t i_pix1,
+                             pel8_t *p_pix2, intptr_t i_pix2,
+                             int i_width, int i_height,
+                             int inout_shift);
+#define xavs2_pixel_ssd10_wxh FPFX(xpixel_ssd10_wxh)
+uint64_t xavs2_pixel_ssd10_wxh(pixel_funcs_t *pf,
+                             pel10_t *p_pix1, intptr_t i_pix1,
+                             pel10_t *p_pix2, intptr_t i_pix2,
                              int i_width, int i_height,
                              int inout_shift);
 
 
-#define xavs2_mad_init FPFX(mad_init)
-void xavs2_mad_init(uint32_t cpu, mad_funcs_t *madf);
+#define xavs2_mad8_init FPFX(mad8_init)
+void xavs2_mad8_init(uint32_t cpu, mad_funcs8_t *madf8);
+
+#define xavs2_mad10_init FPFX(mad10_init)
+void xavs2_mad10_init(uint32_t cpu, mad_funcs10_t *madf10);
 
 #endif  // XAVS2_PIXEL_H

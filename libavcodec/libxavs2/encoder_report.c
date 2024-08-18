@@ -72,21 +72,22 @@ void encoder_cal_psnr(xavs2_t *h, double *psnr_y, double *psnr_u, double *psnr_v
     const int inout_shift     = 0;
     uint64_t diff_y, diff_u, diff_v;
 
+    if (h->param->input_sample_bit_depth == 8) {
     /* luma */
-    diff_y = xavs2_pixel_ssd_wxh(&g_funcs.pixf,
-                                 h->fenc->planes[0], h->fenc->i_stride[0],
-                                 h->fdec->planes[0], h->fdec->i_stride[0], i_width, i_height, inout_shift);
+    diff_y = xavs2_pixel_ssd8_wxh(&g_funcs.pixf,
+                                 h->fenc->planes8[0], h->fenc->i_stride[0],
+                                 h->fdec->planes8[0], h->fdec->i_stride[0], i_width, i_height, inout_shift);
 
     /* chroma */
     if (h->param->chroma_format != CHROMA_400) {
         i_width  >>= 1;
         i_height >>= 1;
-        diff_u = xavs2_pixel_ssd_wxh(&g_funcs.pixf,
-                                     h->fenc->planes[1], h->fenc->i_stride[1],
-                                     h->fdec->planes[1], h->fdec->i_stride[1], i_width, i_height, inout_shift);
-        diff_v = xavs2_pixel_ssd_wxh(&g_funcs.pixf,
-                                     h->fenc->planes[2], h->fenc->i_stride[2],
-                                     h->fdec->planes[2], h->fdec->i_stride[2], i_width, i_height, inout_shift);
+        diff_u = xavs2_pixel_ssd8_wxh(&g_funcs.pixf,
+                                     h->fenc->planes8[1], h->fenc->i_stride[1],
+                                     h->fdec->planes8[1], h->fdec->i_stride[1], i_width, i_height, inout_shift);
+        diff_v = xavs2_pixel_ssd8_wxh(&g_funcs.pixf,
+                                     h->fenc->planes8[2], h->fenc->i_stride[2],
+                                     h->fdec->planes8[2], h->fdec->i_stride[2], i_width, i_height, inout_shift);
     } else {
         diff_u = 0;
         diff_v = 0;
@@ -98,6 +99,34 @@ void encoder_cal_psnr(xavs2_t *h, double *psnr_y, double *psnr_u, double *psnr_v
     *psnr_y = get_psnr_with_ssd(f_max_signal, diff_y);
     *psnr_u = get_psnr_with_ssd(f_max_signal, diff_u * uvformat);
     *psnr_v = get_psnr_with_ssd(f_max_signal, diff_v * uvformat);
+    } else {
+    /* luma */
+    diff_y = xavs2_pixel_ssd10_wxh(&g_funcs.pixf,
+                                 h->fenc->planes10[0], h->fenc->i_stride[0],
+                                 h->fdec->planes10[0], h->fdec->i_stride[0], i_width, i_height, inout_shift);
+
+    /* chroma */
+    if (h->param->chroma_format != CHROMA_400) {
+        i_width  >>= 1;
+        i_height >>= 1;
+        diff_u = xavs2_pixel_ssd10_wxh(&g_funcs.pixf,
+                                     h->fenc->planes10[1], h->fenc->i_stride[1],
+                                     h->fdec->planes10[1], h->fdec->i_stride[1], i_width, i_height, inout_shift);
+        diff_v = xavs2_pixel_ssd10_wxh(&g_funcs.pixf,
+                                     h->fenc->planes10[2], h->fenc->i_stride[2],
+                                     h->fdec->planes10[2], h->fdec->i_stride[2], i_width, i_height, inout_shift);
+    } else {
+        diff_u = 0;
+        diff_v = 0;
+    }
+
+    xavs2_emms();     /* call before using float instructions */
+
+    /* get the PSNR for current frame */
+    *psnr_y = get_psnr_with_ssd(f_max_signal, diff_y);
+    *psnr_u = get_psnr_with_ssd(f_max_signal, diff_u * uvformat);
+    *psnr_v = get_psnr_with_ssd(f_max_signal, diff_v * uvformat);
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -136,12 +165,13 @@ double ssim_calculate_plane(xavs2_t *h, int comp_id)
     double C1 = k_ssim_1 * k_ssim_1 * uiMaxval * uiMaxval;
     double C2 = k_ssim_2 * k_ssim_2 * uiMaxval * uiMaxval;
 
-    pel_t*  pOrg = h->fenc->planes[comp_id];
-    pel_t*  pRec = h->fdec->planes[comp_id];
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t*  pOrg = h->fenc->planes8[comp_id];
+    pel8_t*  pRec = h->fdec->planes8[comp_id];
     // xavs2_log(h, XAVS2_LOG_INFO, "pOrg : %p pRec : %p\n",pOrg,pRec);
 
-    pel_t*  pOrgPel = pOrg;
-    pel_t*  pRecPel = pRec;
+    pel8_t*  pOrgPel = pOrg;
+    pel8_t*  pRecPel = pRec;
 
     for (j = 0; j <= uiHeight - uiWinHeight; j++) {
         for (i = 0; i <= uiWidth - uiWinWidth; i++) {
@@ -191,6 +221,63 @@ double ssim_calculate_plane(xavs2_t *h, int comp_id)
 
     // xavs2_log(h, XAVS2_LOG_INFO,"ssim: %7.4f \n ", dMSSIM / (double)uiNumWin);
     return dMSSIM / (double)uiNumWin;
+    } else {
+    pel10_t*  pOrg = h->fenc->planes10[comp_id];
+    pel10_t*  pRec = h->fdec->planes10[comp_id];
+    // xavs2_log(h, XAVS2_LOG_INFO, "pOrg : %p pRec : %p\n",pOrg,pRec);
+
+    pel10_t*  pOrgPel = pOrg;
+    pel10_t*  pRecPel = pRec;
+
+    for (j = 0; j <= uiHeight - uiWinHeight; j++) {
+        for (i = 0; i <= uiWidth - uiWinWidth; i++) {
+            dLocMeanRef = 0;
+            dLocMeanRec = 0;
+            dLocVarRef = 0;
+            dLocVarRec = 0;
+            dLocCovar = 0;
+            pOrgPel = pOrg + i + iStride1*j;
+            pRecPel = pRec + i + iStride2*j;
+            // xavs2_log(h, XAVS2_LOG_INFO, "pOrgPel[0] : %d pRecPel[0] : %d\n",pOrgPel[0],pRecPel[0]);
+            // xavs2_log(h, XAVS2_LOG_INFO, "uiWinWidth : %d uiWinHeight : %d\n",uiWinWidth,uiWinHeight);
+
+            for (y = 0; y < uiWinHeight; y++) {
+                for (x = 0; x < uiWinWidth; x++) {
+                    // xavs2_log(h, XAVS2_LOG_INFO, "pOrgPel[%d] : %d pRecPel[%d] : %d\n",x,pOrgPel[x],x,pRecPel[x]);
+
+                    dLocMeanRef += pOrgPel[x];
+                    dLocMeanRec += pRecPel[x];
+                    dLocVarRef += pOrgPel[x] * pOrgPel[x];
+                    dLocVarRec += pRecPel[x] * pRecPel[x];
+                    dLocCovar += pOrgPel[x] * pRecPel[x];
+
+                }
+                pOrgPel += iStride1;
+                pRecPel += iStride2;
+            }
+
+            dLocMeanRef /= iWinPixel;
+            dLocMeanRec /= iWinPixel;
+            // xavs2_log(h, XAVS2_LOG_INFO, "dLocMeanRef : %7.4f dLocMeanRec : %7.4f \n",dLocMeanRef,dLocMeanRec);
+
+            dLocVarRef = (dLocVarRef - dLocMeanRef * dLocMeanRef * iWinPixel) / iWinPixel;
+            dLocVarRec = (dLocVarRec - dLocMeanRec * dLocMeanRec * iWinPixel) / iWinPixel;
+            dLocCovar = (dLocCovar - dLocMeanRef * dLocMeanRec * iWinPixel) / iWinPixel;
+
+            Num1 = 2.0 * dLocMeanRef * dLocMeanRec + C1;
+            Num2 = 2.0 * dLocCovar + C2;
+            Den1 = dLocMeanRef * dLocMeanRef + dLocMeanRec * dLocMeanRec + C1;
+            Den2 = dLocVarRef + dLocVarRec + C2;
+
+            dLocSSIM = (Num1 * Num2) / (Den1 * Den2);
+
+            dMSSIM += dLocSSIM;
+        }
+    }
+
+    // xavs2_log(h, XAVS2_LOG_INFO,"ssim: %7.4f \n ", dMSSIM / (double)uiNumWin);
+    return dMSSIM / (double)uiNumWin;
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -405,8 +492,13 @@ void encoder_show_head_info(xavs2_param_t *param)
     xavs2_log(NULL, XAVS2_LOG_DEBUG, " Total Frames     : %d \n", param->num_frames);
     /* basic parameters */
     xavs2_log(NULL, XAVS2_LOG_INFO, "--------------------------------------------------------------------------------\n");
+    if (param->input_sample_bit_depth == 8) {
     xavs2_log(NULL, XAVS2_LOG_INFO, " Profile & Level  : 0x%02X-0x%02X, BitDepth: %d/%d, size(pel): %d \n",
-              param->profile_id, param->level_id, param->input_sample_bit_depth, param->sample_bit_depth, sizeof(pel_t));
+              param->profile_id, param->level_id, param->input_sample_bit_depth, param->sample_bit_depth, sizeof(pel8_t));
+    } else {
+    xavs2_log(NULL, XAVS2_LOG_INFO, " Profile & Level  : 0x%02X-0x%02X, BitDepth: %d/%d, size(pel): %d \n",
+              param->profile_id, param->level_id, param->input_sample_bit_depth, param->sample_bit_depth, sizeof(pel10_t));
+    }
     xavs2_log(NULL, XAVS2_LOG_INFO, " Video Property   : %dx%d, %.3f Hz (FrameRateCode: %d)\n",
               param->org_width, param->org_height, param->frame_rate, param->frame_rate_code);
 

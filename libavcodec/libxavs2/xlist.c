@@ -37,6 +37,11 @@
 #include "common.h"
 #include "xlist.h"
 
+#if !(defined(_MSC_VER) || defined(__MINGW32__))
+#include <errno.h>
+#include <pthread.h>
+#endif
+
 /**
  * ===========================================================================
  * xlist

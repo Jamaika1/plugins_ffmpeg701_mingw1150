@@ -41,7 +41,9 @@
 #include "filter.h"
 #include "cpu.h"
 #include "cudata.h"
+#if HAVE_MMX
 #include "vec/intrinsic.h"
+#endif
 
 static const int tab_sao_check_mode_fast[3][5] = {
     1, 1, 0, 0, 0,
@@ -65,7 +67,7 @@ static ALWAYS_INLINE void sao_init_stat_data(SAOStatData *p_stats)
 /* ---------------------------------------------------------------------------
  */
 static
-void sao_get_stat_block_EO_0(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
+void sao_get_stat_block_EO_0(xavs2_t *h, xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
                              SAOStatData *p_stats, sao_region_t *p_region, int compIdx)
 {
     int start_x, end_x, start_y, end_y;
@@ -81,10 +83,11 @@ void sao_get_stat_block_EO_0(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
 
     int i_rec = frm_rec->i_stride[compIdx];
     int i_org = frm_org->i_stride[compIdx];
-    const pel_t *p_rec = frm_rec->planes[compIdx] + pix_y * i_rec + pix_x;
-    const pel_t *p_org = frm_org->planes[compIdx] + pix_y * i_org + pix_x;
-    const pel_t *p_org_iter;
-    const pel_t *p_rec_iter;
+    if (h->param->input_sample_bit_depth == 8) {
+    const pel8_t *p_rec = frm_rec->planes8[compIdx] + pix_y * i_rec + pix_x;
+    const pel8_t *p_org = frm_org->planes8[compIdx] + pix_y * i_org + pix_x;
+    const pel8_t *p_org_iter;
+    const pel8_t *p_rec_iter;
     sao_init_stat_data(p_stats);
     p_org_iter = p_org;
     p_rec_iter = p_rec;
@@ -106,12 +109,39 @@ void sao_get_stat_block_EO_0(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
         p_rec_iter += i_rec;
         p_org_iter += i_org;
     }
+    } else {
+    const pel10_t *p_rec = frm_rec->planes10[compIdx] + pix_y * i_rec + pix_x;
+    const pel10_t *p_org = frm_org->planes10[compIdx] + pix_y * i_org + pix_x;
+    const pel10_t *p_org_iter;
+    const pel10_t *p_rec_iter;\
+    sao_init_stat_data(p_stats);
+    p_org_iter = p_org;
+    p_rec_iter = p_rec;
+    start_y = 0;
+    end_y = height;
+    start_x = p_region->b_left ? 0 : 1;
+    end_x = p_region->b_right ? width : (width - 1);
+    p_org_iter = p_org + start_y * i_org;
+    p_rec_iter += start_y * i_rec;
+    for (y = start_y; y < end_y; y++) {
+        leftsign = xavs2_sign3(p_rec_iter[start_x] - p_rec_iter[start_x - 1]);
+        for (x = start_x; x < end_x; x++) {
+            rightsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x + 1]);
+            edgetype = leftsign + rightsign;
+            leftsign = -rightsign;
+            p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+            p_stats->count[edgetype + 2]++;
+        }
+        p_rec_iter += i_rec;
+        p_org_iter += i_org;
+    }
+    }
 }
 
 /* ---------------------------------------------------------------------------
 */
 static
-void sao_get_stat_block_EO_90(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
+void sao_get_stat_block_EO_90(xavs2_t *h, xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
                               SAOStatData *p_stats, sao_region_t *p_region, int compIdx)
 {
     int start_x, end_x, start_y, end_y;
@@ -127,10 +157,11 @@ void sao_get_stat_block_EO_90(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
 
     int i_rec = frm_rec->i_stride[compIdx];
     int i_org = frm_org->i_stride[compIdx];
-    const pel_t *p_rec = frm_rec->planes[compIdx] + pix_y * i_rec + pix_x;
-    const pel_t *p_org = frm_org->planes[compIdx] + pix_y * i_org + pix_x;
-    const pel_t *p_org_iter;
-    const pel_t *p_rec_iter;
+    if (h->param->input_sample_bit_depth == 8) {
+    const pel8_t *p_rec = frm_rec->planes8[compIdx] + pix_y * i_rec + pix_x;
+    const pel8_t *p_org = frm_org->planes8[compIdx] + pix_y * i_org + pix_x;
+    const pel8_t *p_org_iter;
+    const pel8_t *p_rec_iter;
 
     sao_init_stat_data(p_stats);
 
@@ -150,12 +181,37 @@ void sao_get_stat_block_EO_90(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
             p_stats->count[edgetype + 2]++;
         }
     }
+    } else {
+    const pel10_t *p_rec = frm_rec->planes10[compIdx] + pix_y * i_rec + pix_x;
+    const pel10_t *p_org = frm_org->planes10[compIdx] + pix_y * i_org + pix_x;
+    const pel10_t *p_org_iter;
+    const pel10_t *p_rec_iter;
+
+    sao_init_stat_data(p_stats);
+
+    p_org_iter = p_org;
+    p_rec_iter = p_rec;
+    start_x = 0;
+    end_x = width;
+    start_y = p_region->b_top ? 0 : 1;
+    end_y = p_region->b_down ? height : (height - 1);
+    for (x = start_x; x < end_x; x++) {
+        upsign = xavs2_sign3(p_rec_iter[start_y * i_rec + x] - p_rec_iter[(start_y - 1) * i_rec + x]);
+        for (y = start_y; y < end_y; y++) {
+            downsign = xavs2_sign3(p_rec_iter[y * i_rec + x] - p_rec_iter[(y + 1) * i_rec + x]);
+            edgetype = downsign + upsign;
+            upsign = -downsign;
+            p_stats->diff[edgetype + 2] += (p_org_iter[y * i_org + x] - p_rec_iter[y * i_rec + x]);
+            p_stats->count[edgetype + 2]++;
+        }
+    }
+    }
 }
 
 /* ---------------------------------------------------------------------------
 */
 static
-void sao_get_stat_block_EO_135(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
+void sao_get_stat_block_EO_135(xavs2_t *h, xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
                                SAOStatData *p_stats, sao_region_t *p_region, int compIdx)
 {
     int start_x_r0, end_x_r0, start_x_r, end_x_r, start_x_rn, end_x_rn;
@@ -173,10 +229,11 @@ void sao_get_stat_block_EO_135(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
 
     int i_rec = frm_rec->i_stride[compIdx];
     int i_org = frm_org->i_stride[compIdx];
-    const pel_t *p_rec = frm_rec->planes[compIdx] + pix_y * i_rec + pix_x;
-    const pel_t *p_org = frm_org->planes[compIdx] + pix_y * i_org + pix_x;
-    const pel_t *p_org_iter;
-    const pel_t *p_rec_iter;
+    if (h->param->input_sample_bit_depth == 8) {
+    const pel8_t *p_rec = frm_rec->planes8[compIdx] + pix_y * i_rec + pix_x;
+    const pel8_t *p_org = frm_org->planes8[compIdx] + pix_y * i_org + pix_x;
+    const pel8_t *p_org_iter;
+    const pel8_t *p_rec_iter;
 
     sao_init_stat_data(p_stats);
 
@@ -232,12 +289,73 @@ void sao_get_stat_block_EO_135(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
         p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
         p_stats->count[edgetype + 2]++;
     }
+    } else {
+    const pel10_t *p_rec = frm_rec->planes10[compIdx] + pix_y * i_rec + pix_x;
+    const pel10_t *p_org = frm_org->planes10[compIdx] + pix_y * i_org + pix_x;
+    const pel10_t *p_org_iter;
+    const pel10_t *p_rec_iter;
+
+    sao_init_stat_data(p_stats);
+
+    p_org_iter = p_org;
+    p_rec_iter = p_rec;
+    start_x_r0 = p_region->b_top_left ? 0 : 1;
+    end_x_r0 = p_region->b_top ? (p_region->b_right ? width : (width - 1)) : 1;
+    start_x_r = p_region->b_left ? 0 : 1;
+    end_x_r = p_region->b_right ? width : (width - 1);
+    start_x_rn = p_region->b_down ? (p_region->b_left ? 0 : 1) : (width - 1);
+    end_x_rn = p_region->b_right_down ? width : (width - 1);
+
+    // init the line buffer
+    for (x = start_x_r + 1; x < end_x_r + 1; x++) {
+        upsign = xavs2_sign3(p_rec_iter[x + i_rec] - p_rec_iter[x - 1]);
+        signupline[x] = upsign;
+    }
+    // first row
+    for (x = start_x_r0; x < end_x_r0; x++) {
+        upsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x - 1 - i_rec]);
+        edgetype = upsign - signupline[x + 1];
+        p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+        p_stats->count[edgetype + 2]++;
+    }
+
+    // middle rows
+    p_rec_iter += i_rec;
+    p_org_iter += i_org;
+    for (y = 1; y < height - 1; y++) {
+        for (x = start_x_r; x < end_x_r; x++) {
+            if (x == start_x_r) {
+                upsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x - 1 - i_rec]);
+                signupline[x] = upsign;
+            }
+            downsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x + 1 + i_rec]);
+            edgetype = downsign + signupline[x];
+            p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+            p_stats->count[edgetype + 2]++;
+            signupline[x] = (char)reg;
+            reg = -downsign;
+        }
+        p_rec_iter += i_rec;
+        p_org_iter += i_org;
+    }
+    // last row
+    for (x = start_x_rn; x < end_x_rn; x++) {
+        if (x == start_x_r) {
+            upsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x - 1 - i_rec]);
+            signupline[x] = upsign;
+        }
+        downsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x + 1 + i_rec]);
+        edgetype = downsign + signupline[x];
+        p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+        p_stats->count[edgetype + 2]++;
+    }
+    }
 }
 
 /* ---------------------------------------------------------------------------
 */
 static
-void sao_get_stat_block_EO_45(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
+void sao_get_stat_block_EO_45(xavs2_t *h, xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
                               SAOStatData *p_stats, sao_region_t *p_region, int compIdx)
 {
     int start_x_r0, end_x_r0, start_x_r, end_x_r, start_x_rn, end_x_rn;
@@ -255,10 +373,11 @@ void sao_get_stat_block_EO_45(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
 
     int i_rec = frm_rec->i_stride[compIdx];
     int i_org = frm_org->i_stride[compIdx];
-    const pel_t *p_rec = frm_rec->planes[compIdx] + pix_y * i_rec + pix_x;
-    const pel_t *p_org = frm_org->planes[compIdx] + pix_y * i_org + pix_x;
-    const pel_t *p_org_iter;
-    const pel_t *p_rec_iter;
+    if (h->param->input_sample_bit_depth == 8) {
+    const pel8_t *p_rec = frm_rec->planes8[compIdx] + pix_y * i_rec + pix_x;
+    const pel8_t *p_org = frm_org->planes8[compIdx] + pix_y * i_org + pix_x;
+    const pel8_t *p_org_iter;
+    const pel8_t *p_rec_iter;
 
     sao_init_stat_data(p_stats);
 
@@ -313,12 +432,72 @@ void sao_get_stat_block_EO_45(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
         p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
         p_stats->count[edgetype + 2]++;
     }
+    } else {
+    const pel10_t *p_rec = frm_rec->planes10[compIdx] + pix_y * i_rec + pix_x;
+    const pel10_t *p_org = frm_org->planes10[compIdx] + pix_y * i_org + pix_x;
+    const pel10_t *p_org_iter;
+    const pel10_t *p_rec_iter;
+
+    sao_init_stat_data(p_stats);
+
+    p_org_iter = p_org;
+    p_rec_iter = p_rec;
+    start_x_r0 = p_region->b_top ? (p_region->b_left ? 0 : 1) : (width - 1);
+    end_x_r0 = p_region->b_top_right ? width : (width - 1);
+    start_x_r = p_region->b_left ? 0 : 1;
+    end_x_r = p_region->b_right ? width : (width - 1);
+    start_x_rn = p_region->b_down_left ? 0 : 1;
+    end_x_rn = p_region->b_down ? (p_region->b_right ? width : (width - 1)) : 1;
+
+    // init the line buffer
+    signupline1 = signupline + 1;
+    for (x = start_x_r - 1; x < XAVS2_MAX(end_x_r - 1, end_x_r0 - 1); x++) {
+        upsign = xavs2_sign3(p_rec_iter[x + i_rec] - p_rec_iter[x + 1]);
+        signupline1[x] = upsign;
+    }
+    // first row
+    for (x = start_x_r0; x < end_x_r0; x++) {
+        upsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x + 1 - i_rec]);
+        edgetype = upsign - signupline1[x - 1];
+        p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+        p_stats->count[edgetype + 2]++;
+    }
+
+    // middle rows
+    p_rec_iter += i_rec;
+    p_org_iter += i_org;
+    for (y = 1; y < height - 1; y++) {
+        for (x = start_x_r; x < end_x_r; x++) {
+            if (x == end_x_r - 1) {
+                upsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x + 1 - i_rec]);
+                signupline1[x] = upsign;
+            }
+            downsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x - 1 + i_rec]);
+            edgetype = downsign + signupline1[x];
+            p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+            p_stats->count[edgetype + 2]++;
+            signupline1[x - 1] = -downsign;
+        }
+        p_rec_iter += i_rec;
+        p_org_iter += i_org;
+    }
+    for (x = start_x_rn; x < end_x_rn; x++) {
+        if (x == end_x_r - 1) {
+            upsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x + 1 - i_rec]);
+            signupline1[x] = upsign;
+        }
+        downsign = xavs2_sign3(p_rec_iter[x] - p_rec_iter[x - 1 + i_rec]);
+        edgetype = downsign + signupline1[x];
+        p_stats->diff[edgetype + 2] += (p_org_iter[x] - p_rec_iter[x]);
+        p_stats->count[edgetype + 2]++;
+    }
+    }
 }
 
 /* ---------------------------------------------------------------------------
 */
 static
-void sao_get_stat_block_BO(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
+void sao_get_stat_block_BO(xavs2_t *h, xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
                            SAOStatData *p_stats, sao_region_t *p_region, int compIdx)
 {
     int start_x, end_x, start_y, end_y;
@@ -334,16 +513,17 @@ void sao_get_stat_block_BO(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
 
     int i_rec = frm_rec->i_stride[compIdx];
     int i_org = frm_org->i_stride[compIdx];
-    const pel_t *p_rec = frm_rec->planes[compIdx] + pix_y * i_rec + pix_x;
-    const pel_t *p_org = frm_org->planes[compIdx] + pix_y * i_org + pix_x;
-    const pel_t *p_org_iter;
-    const pel_t *p_rec_iter;
+    if (h->param->input_sample_bit_depth == 8) {
+    const pel8_t *p_rec = frm_rec->planes8[compIdx] + pix_y * i_rec + pix_x;
+    const pel8_t *p_org = frm_org->planes8[compIdx] + pix_y * i_org + pix_x;
+    const pel8_t *p_org_iter;
+    const pel8_t *p_rec_iter;
 
     sao_init_stat_data(p_stats);
 
     p_org_iter = p_org;
     p_rec_iter = p_rec;
-    band_shift = (g_bit_depth - NUM_SAO_BO_CLASSES_IN_BIT);
+    band_shift = (h->param->input_sample_bit_depth - NUM_SAO_BO_CLASSES_IN_BIT);
     start_x = 0;
     end_x = width;
     start_y = 0;
@@ -357,11 +537,36 @@ void sao_get_stat_block_BO(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
         p_rec_iter += i_rec;
         p_org_iter += i_org;
     }
+    } else {
+    const pel10_t *p_rec = frm_rec->planes10[compIdx] + pix_y * i_rec + pix_x;
+    const pel10_t *p_org = frm_org->planes10[compIdx] + pix_y * i_org + pix_x;
+    const pel10_t *p_org_iter;
+    const pel10_t *p_rec_iter;
+
+    sao_init_stat_data(p_stats);
+
+    p_org_iter = p_org;
+    p_rec_iter = p_rec;
+    band_shift = (h->param->input_sample_bit_depth - NUM_SAO_BO_CLASSES_IN_BIT);
+    start_x = 0;
+    end_x = width;
+    start_y = 0;
+    end_y = height;
+    for (y = start_y; y < end_y; y++) {
+        for (x = start_x; x < end_x; x++) {
+            bandtype = p_rec_iter[x] >> band_shift;
+            p_stats->diff[bandtype] += (p_org_iter[x] - p_rec_iter[x]);
+            p_stats->count[bandtype]++;
+        }
+        p_rec_iter += i_rec;
+        p_org_iter += i_org;
+    }
+    }
 }
 
 /* ---------------------------------------------------------------------------
 */
-typedef void(*sao_pf)(xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
+typedef void(*sao_pf)(xavs2_t *h, xavs2_frame_t *frm_rec, xavs2_frame_t *frm_org,
                       SAOStatData *stat_datas, sao_region_t *p_region, int compIdx);
 
 sao_pf gf_sao_stat[5] = {
@@ -733,8 +938,9 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
 
     int i_src = h->img_sao->i_stride[compIdx];
     int i_dst = h->fdec->i_stride[compIdx];
-    pel_t *dst = h->fdec->planes[compIdx] + pix_y * i_dst + pix_x;
-    pel_t *src = h->img_sao->planes[compIdx] + pix_y * i_src + pix_x;
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *dst = h->fdec->planes8[compIdx] + pix_y * i_dst + pix_x;
+    pel8_t *src = h->img_sao->planes8[compIdx] + pix_y * i_src + pix_x;
 
     assert(blk_param->typeIdc != SAO_TYPE_OFF);
 
@@ -749,15 +955,15 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
                 rightsign = xavs2_sign3(src[x] - src[x + 1]);
                 edgetype = leftsign + rightsign;
                 leftsign = -rightsign;
-                dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+                dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
             }
             src += i_src;
             dst += i_dst;
         }
         break;
     case SAO_TYPE_EO_90: {
-        pel_t *src_base = src;
-        pel_t *dst_base = dst;
+        pel8_t *src_base = src;
+        pel8_t *dst_base = dst;
         start_x = 0;
         end_x = width;
         start_y = p_region->b_top ? 0 : 1;
@@ -773,7 +979,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
                 downsign = xavs2_sign3(src[0] - src[i_src]);
                 edgetype = downsign + upsign;
                 upsign = -downsign;
-                *dst = (pel_t)XAVS2_CLIP3(0, max_val, src[0] + blk_param->offset[edgetype + 2]);
+                *dst = (pel8_t)XAVS2_CLIP3(0, max_val, src[0] + blk_param->offset[edgetype + 2]);
                 src += i_src;
                 dst += i_dst;
             }
@@ -798,7 +1004,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
         for (x = start_x_r0; x < end_x_r0; x++) {
             upsign = xavs2_sign3(src[x] - src[x - 1 - i_src]);
             edgetype = upsign - signupline[x + 1];
-            dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+            dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
         }
         // middle rows
         src += i_src;
@@ -809,7 +1015,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
             for (; x < end_x_r; x++) {
                 downsign = xavs2_sign3(src[x] - src[x + 1 + i_src]);
                 edgetype = downsign + signupline[x];
-                dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+                dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
                 signupline[x] = reg;
                 reg = -downsign;
             }
@@ -822,7 +1028,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
         for (; x < end_x_rn; x++) {
             downsign = xavs2_sign3(src[x] - src[x + 1 + i_src]);
             edgetype = downsign + signupline[x];
-            dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+            dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
         }
     }
     break;
@@ -842,7 +1048,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
         for (x = start_x_r0; x < end_x_r0; x++) {
             upsign = xavs2_sign3(src[x] - src[x + 1 - i_src]);
             edgetype = upsign - signupline[x];
-            dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+            dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
         }
         // middle rows
         src += i_src;
@@ -852,7 +1058,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
             for (x = start_x_r; x < end_x_r; x++) {
                 downsign = xavs2_sign3(src[x] - src[x - 1 + i_src]);
                 edgetype = downsign + signupline[x + 1];
-                dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+                dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
                 signupline[x] = -downsign;
             }
             src += i_src;
@@ -866,7 +1072,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
             }
             downsign = xavs2_sign3(src[x] - src[x - 1 + i_src]);
             edgetype = downsign + signupline[x + 1];
-            dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+            dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
         }
         break;
     }
@@ -881,7 +1087,7 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
         for (y = start_y; y < end_y; y++) {
             for (x = start_x; x < end_x; x++) {
                 bandtype = src[x] >> band_shift;
-                dst[x] = (pel_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[bandtype]);
+                dst[x] = (pel8_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[bandtype]);
             }
             src += i_src;
             dst += i_dst;
@@ -890,6 +1096,166 @@ static void sao_filter_region(xavs2_t *h, SAOBlkParam *blk_param, int compIdx, s
     default:
         xavs2_log(h, XAVS2_LOG_ERROR, "Not a supported SAO types for SAO_on_Block\n");
         exit(-1);
+    }
+    } else {
+    pel10_t *dst = h->fdec->planes10[compIdx] + pix_y * i_dst + pix_x;
+    pel10_t *src = h->img_sao->planes10[compIdx] + pix_y * i_src + pix_x;
+
+    assert(blk_param->typeIdc != SAO_TYPE_OFF);
+
+    switch (blk_param->typeIdc) {
+    case SAO_TYPE_EO_0:
+        end_y = height;
+        start_x = p_region->b_left ? 0 : 1;
+        end_x = p_region->b_right ? width : (width - 1);
+        for (y = 0; y < end_y; y++) {
+            leftsign = xavs2_sign3(src[start_x] - src[start_x - 1]);
+            for (x = start_x; x < end_x; x++) {
+                rightsign = xavs2_sign3(src[x] - src[x + 1]);
+                edgetype = leftsign + rightsign;
+                leftsign = -rightsign;
+                dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+            }
+            src += i_src;
+            dst += i_dst;
+        }
+        break;
+    case SAO_TYPE_EO_90: {
+        pel10_t *src_base = src;
+        pel10_t *dst_base = dst;
+        start_x = 0;
+        end_x = width;
+        start_y = p_region->b_top ? 0 : 1;
+        end_y = p_region->b_down ? height : (height - 1);
+
+        src_base += start_y * i_src;
+        dst_base += start_y * i_dst;
+        for (x = start_x; x < end_x; x++) {
+            src = src_base;
+            dst = dst_base;
+            upsign = xavs2_sign3(src[0] - src[-i_src]);
+            for (y = start_y; y < end_y; y++) {
+                downsign = xavs2_sign3(src[0] - src[i_src]);
+                edgetype = downsign + upsign;
+                upsign = -downsign;
+                *dst = (pel10_t)XAVS2_CLIP3(0, max_val, src[0] + blk_param->offset[edgetype + 2]);
+                src += i_src;
+                dst += i_dst;
+            }
+            src_base++;
+            dst_base++;
+        }
+        break;
+    }
+    case SAO_TYPE_EO_135: {
+        start_x_r0 = p_region->b_top_left ? 0 : 1;
+        end_x_r0 = p_region->b_top ? (p_region->b_right ? width : (width - 1)) : 1;
+        start_x_r = p_region->b_left ? 0 : 1;
+        end_x_r = p_region->b_right ? width : (width - 1);
+        start_x_rn = p_region->b_down ? (p_region->b_left ? 0 : 1) : (width - 1);
+        end_x_rn = p_region->b_right_down ? width : (width - 1);
+
+        // init the line buffer
+        for (x = start_x_r + 1; x < end_x_r + 1; x++) {
+            signupline[x] = xavs2_sign3(src[x + i_src] - src[x - 1]);
+        }
+        // first row
+        for (x = start_x_r0; x < end_x_r0; x++) {
+            upsign = xavs2_sign3(src[x] - src[x - 1 - i_src]);
+            edgetype = upsign - signupline[x + 1];
+            dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+        }
+        // middle rows
+        src += i_src;
+        dst += i_dst;
+        for (y = 1; y < height - 1; y++) {
+            x = start_x_r;
+            signupline[x] = xavs2_sign3(src[x] - src[x - 1 - i_src]);
+            for (; x < end_x_r; x++) {
+                downsign = xavs2_sign3(src[x] - src[x + 1 + i_src]);
+                edgetype = downsign + signupline[x];
+                dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+                signupline[x] = reg;
+                reg = -downsign;
+            }
+            dst += i_dst;
+            src += i_src;
+        }
+        // last row
+        x = start_x_rn;
+        signupline[x] = xavs2_sign3(src[x] - src[x - 1 - i_src]);
+        for (; x < end_x_rn; x++) {
+            downsign = xavs2_sign3(src[x] - src[x + 1 + i_src]);
+            edgetype = downsign + signupline[x];
+            dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+        }
+    }
+    break;
+    case SAO_TYPE_EO_45: {
+        start_x_r0 = p_region->b_top ? (p_region->b_left ? 0 : 1) : (width - 1);
+        end_x_r0 = p_region->b_top_right ? width : (width - 1);
+        start_x_r = p_region->b_left ? 0 : 1;
+        end_x_r = p_region->b_right ? width : (width - 1);
+        start_x_rn = p_region->b_down_left ? 0 : 1;
+        end_x_rn = p_region->b_down ? (p_region->b_right ? width : (width - 1)) : 1;
+
+        // init the line buffer
+        for (x = start_x_r; x < end_x_r; x++) {
+            signupline[x] = xavs2_sign3(src[x - 1 + i_src] - src[x]);
+        }
+        // first row
+        for (x = start_x_r0; x < end_x_r0; x++) {
+            upsign = xavs2_sign3(src[x] - src[x + 1 - i_src]);
+            edgetype = upsign - signupline[x];
+            dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+        }
+        // middle rows
+        src += i_src;
+        dst += i_dst;
+        for (y = 1; y < height - 1; y++) {
+            signupline[end_x_r] = xavs2_sign3(src[end_x_r - 1] - src[end_x_r - i_src]);
+            for (x = start_x_r; x < end_x_r; x++) {
+                downsign = xavs2_sign3(src[x] - src[x - 1 + i_src]);
+                edgetype = downsign + signupline[x + 1];
+                dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+                signupline[x] = -downsign;
+            }
+            src += i_src;
+            dst += i_dst;
+        }
+        //last row
+        for (x = start_x_rn; x < end_x_rn; x++) {
+            if (x == end_x_r - 1) {
+                upsign = xavs2_sign3(src[x] - src[x + 1 - i_src]);
+                signupline[x + 1] = upsign;
+            }
+            downsign = xavs2_sign3(src[x] - src[x - 1 + i_src]);
+            edgetype = downsign + signupline[x + 1];
+            dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[edgetype + 2]);
+        }
+        break;
+    }
+    case SAO_TYPE_BO:
+        band_shift = (h->param->sample_bit_depth - NUM_SAO_BO_CLASSES_IN_BIT);
+        start_x = 0;
+        end_x = width;
+        start_y = 0;
+        end_y = height;
+        src += start_y * i_src;
+        dst += start_y * i_dst;
+        for (y = start_y; y < end_y; y++) {
+            for (x = start_x; x < end_x; x++) {
+                bandtype = src[x] >> band_shift;
+                dst[x] = (pel10_t)XAVS2_CLIP3(0, max_val, src[x] + blk_param->offset[bandtype]);
+            }
+            src += i_src;
+            dst += i_dst;
+        }
+        break;
+    default:
+        xavs2_log(h, XAVS2_LOG_ERROR, "Not a supported SAO types for SAO_on_Block\n");
+        exit(-1);
+    }
     }
 }
 
@@ -1098,16 +1464,17 @@ void sao_copy_lcu(xavs2_t *h, xavs2_frame_t *frm_dst, xavs2_frame_t *frm_src, in
     int lcu_height;
     int i_first_lcu_y_for_filter = h->param->b_cross_slice_loop_filter ? 0 : h->slices[h->i_slice_index]->i_first_lcu_y;
     int start_y_shift = (lcu_y != i_first_lcu_y_for_filter) ? SAO_SHIFT_PIX_NUM : 0;
-    pel_t *p_src;
-    pel_t *p_dst;
-    pel_t *p_src2, *p_dst2;
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *p_src;
+    pel8_t *p_dst;
+    pel8_t *p_src2, *p_dst2;
 
     /* luma component */
     start_y -= start_y_shift;
     lcu_height = end_y - start_y;
-    p_src = frm_src->planes[0] + start_y * i_src + start_x;
-    p_dst = frm_dst->planes[0] + start_y * i_dst + start_x;
-    g_funcs.plane_copy(p_dst, i_dst, p_src, i_src, lcu_width, lcu_height);
+    p_src = frm_src->planes8[0] + start_y * i_src + start_x;
+    p_dst = frm_dst->planes8[0] + start_y * i_dst + start_x;
+    g_funcs.plane_copy8(h, p_dst, i_dst, p_src, i_src, lcu_width, lcu_height);
 
     /* chroma component */
     start_y = lcu_y << (h->i_lcu_level - CHROMA_V_SHIFT);
@@ -1120,12 +1487,42 @@ void sao_copy_lcu(xavs2_t *h, xavs2_frame_t *frm_dst, xavs2_frame_t *frm_src, in
     lcu_height = end_y - start_y;
     i_src = frm_src->i_stride[1];
     i_dst = frm_dst->i_stride[1];
-    p_src  = frm_src->planes[1] + start_y * i_src + start_x;
-    p_src2 = frm_src->planes[2] + start_y * i_src + start_x;
-    p_dst  = frm_dst->planes[1] + start_y * i_dst + start_x;
-    p_dst2 = frm_dst->planes[2] + start_y * i_dst + start_x;
-    g_funcs.plane_copy(p_dst, i_dst, p_src, i_src, lcu_width, lcu_height);
-    g_funcs.plane_copy(p_dst2, i_dst, p_src2, i_src, lcu_width, lcu_height);
+    p_src  = frm_src->planes8[1] + start_y * i_src + start_x;
+    p_src2 = frm_src->planes8[2] + start_y * i_src + start_x;
+    p_dst  = frm_dst->planes8[1] + start_y * i_dst + start_x;
+    p_dst2 = frm_dst->planes8[2] + start_y * i_dst + start_x;
+    g_funcs.plane_copy8(h, p_dst, i_dst, p_src, i_src, lcu_width, lcu_height);
+    g_funcs.plane_copy8(h, p_dst2, i_dst, p_src2, i_src, lcu_width, lcu_height);
+    } else {
+    pel10_t *p_src;
+    pel10_t *p_dst;
+    pel10_t *p_src2, *p_dst2;
+
+    /* luma component */
+    start_y -= start_y_shift;
+    lcu_height = end_y - start_y;
+    p_src = frm_src->planes10[0] + start_y * i_src + start_x;
+    p_dst = frm_dst->planes10[0] + start_y * i_dst + start_x;
+    g_funcs.plane_copy10(h, p_dst, i_dst, p_src, i_src, lcu_width, lcu_height);
+
+    /* chroma component */
+    start_y = lcu_y << (h->i_lcu_level - CHROMA_V_SHIFT);
+    start_y -= start_y_shift;
+    end_y   >>= CHROMA_V_SHIFT;
+    start_x >>= CHROMA_V_SHIFT;
+    end_x   >>= CHROMA_V_SHIFT;
+
+    lcu_width  = end_x - start_x;
+    lcu_height = end_y - start_y;
+    i_src = frm_src->i_stride[1];
+    i_dst = frm_dst->i_stride[1];
+    p_src  = frm_src->planes10[1] + start_y * i_src + start_x;
+    p_src2 = frm_src->planes10[2] + start_y * i_src + start_x;
+    p_dst  = frm_dst->planes10[1] + start_y * i_dst + start_x;
+    p_dst2 = frm_dst->planes10[2] + start_y * i_dst + start_x;
+    g_funcs.plane_copy10(h, p_dst, i_dst, p_src, i_src, lcu_width, lcu_height);
+    g_funcs.plane_copy10(h, p_dst2, i_dst, p_src2, i_src, lcu_width, lcu_height);
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1144,7 +1541,7 @@ void sao_get_lcu_param_after_deblock(xavs2_t *h, aec_t *p_aec, int i_lcu_x, int 
             for (type = 0; type < 5; type++) {
                 if (!h->param->b_fast_sao || tab_sao_check_mode_fast[compIdx][type]) {
                     if (((!IS_ALG_ENABLE(OPT_FAST_SAO)) || (!(!h->fdec->rps.referd_by_others && h->i_type == SLICE_TYPE_B)))) {
-                        gf_sao_stat[type](h->img_sao, h->fenc, &h->sao_stat_datas[i_lcu_xy][compIdx][type], &region, compIdx);
+                        gf_sao_stat[type](h, h->img_sao, h->fenc, &h->sao_stat_datas[i_lcu_xy][compIdx][type], &region, compIdx);
                     }
                     // SAOStatData tmp;
                     // memset(&tmp, 0, sizeof(tmp));
@@ -1182,8 +1579,9 @@ void sao_filter_lcu(xavs2_t *h, SAOBlkParam blk_param[NUM_SAO_COMPONENTS], int l
         int pix_x = region.pix_x[compIdx];
         int i_dst = h->fdec->i_stride[compIdx];
         int i_src = h->img_sao->i_stride[compIdx];
-        pel_t *dst = h->fdec->planes[compIdx]    + pix_y * i_dst + pix_x;
-        pel_t *src = h->img_sao->planes[compIdx] + pix_y * i_src + pix_x;
+        if (h->param->input_sample_bit_depth == 8) {
+        pel8_t *dst = h->fdec->planes8[compIdx]    + pix_y * i_dst + pix_x;
+        pel8_t *src = h->img_sao->planes8[compIdx] + pix_y * i_src + pix_x;
         int avail[8];
         avail[0] = region.b_top;
         avail[1] = region.b_down;
@@ -1193,11 +1591,26 @@ void sao_filter_lcu(xavs2_t *h, SAOBlkParam blk_param[NUM_SAO_COMPONENTS], int l
         avail[5] = region.b_top_right;
         avail[6] = region.b_down_left;
         avail[7] = region.b_right_down;
-        g_funcs.sao_block(dst, i_dst, src, i_src,
+        g_funcs.sao_block8(h, dst, i_dst, src, i_src,
                           region.width[compIdx], region.height[compIdx],
                           avail, &p_param[compIdx]);
-
-    }
+        } else {
+        pel10_t *dst = h->fdec->planes10[compIdx]    + pix_y * i_dst + pix_x;
+        pel10_t *src = h->img_sao->planes10[compIdx] + pix_y * i_src + pix_x;
+       int avail[8];
+        avail[0] = region.b_top;
+        avail[1] = region.b_down;
+        avail[2] = region.b_left;
+        avail[3] = region.b_right;
+        avail[4] = region.b_top_left;
+        avail[5] = region.b_top_right;
+        avail[6] = region.b_down_left;
+        avail[7] = region.b_right_down;
+        g_funcs.sao_block10(h, dst, i_dst, src, i_src,
+                          region.width[compIdx], region.height[compIdx],
+                          avail, &p_param[compIdx]);
+        }
+     }
 }
 
 

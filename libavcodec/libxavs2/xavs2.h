@@ -51,20 +51,20 @@ extern "C" {    // only need to export C interface if used by C++ source code
  * ===========================================================================
  */
 #ifdef XAVS2_EXPORTS
-#  ifdef __GNUC__                     /* for Linux  */
-#    if __GNUC__ >= 4
+#  if defined(__GNUC__) && !defined(_WIN32)  /* for Linux  */
+//#    if __GNUC__ >= 4
 #      define XAVS2_API __attribute__((visibility("default")))
-#    else
-#      define XAVS2_API __attribute__((dllexport))
-#    endif
-#  else                               /* for windows */
+//#    else
+//#      define XAVS2_API __attribute__((dllexport))
+//#    endif
+#  else                                      /* for windows */
 #    define XAVS2_API __declspec(dllexport)
 #  endif
 #else
-#  ifdef __GNUC__                     /* for Linux   */
-#    define XAVS2_API
-#  else                               /* for windows */
+#  ifdef _MSC_VER                            /* for windows */
 #    define XAVS2_API __declspec(dllimport)
+#  else                                      /* for Linux */
+#    define XAVS2_API
 #  endif
 #endif
 
@@ -134,14 +134,14 @@ enum log_level_e {
 /* -----------------------------
  * xavs2 encoder input parameters
  *
- * For version safety you may use 
+ * For version safety you may use
  *    xavs2_encoder_opt_alloc(), xavs2_encoder_opt_destroy()
- * to manage the allocation of xavs2_param_t instances, and 
+ * to manage the allocation of xavs2_param_t instances, and
  *    xavs2_encoder_opt_set(), xavs2_encoder_opt_set2()
- * to assign values by name, and 
+ * to assign values by name, and
  *    xavs2_encoder_opt_get(p, "param_name")
  * to get specific configuration value string.
- * 
+ *
  * Just treat xavs2_param_t as an opaque data structure */
 typedef struct xavs2_param_t  xavs2_param_t;
 
@@ -157,9 +157,9 @@ typedef struct xavs2_image_t {
     int      i_width[3];               /* widths  for each plane */
     int      i_lines[3];               /* heights for each plane */
     int      i_stride[3];              /* strides for each plane */
-    uint8_t *img_planes[4];            /* pointers to each plane (planes[3]: start buffer address) */
+    uint8_t *img8_planes[4];            /* pointers to each plane (planes[3]: start buffer address) */
+    uint16_t *img10_planes[4];            /* pointers to each plane (planes[3]: start buffer address) */
 } xavs2_image_t;
-
 
 /* ---------------------------------------------------------------------------
  * xavs2_picture_t
@@ -188,6 +188,7 @@ typedef struct xavs2_picture_t {
     int64_t     i_dts;
     /* [IN ]    raw data */
     xavs2_image_t  img;
+    //xavs2_image_t  img10;
     /* [IN ]    private pointer, DO NOT change it */
     void       *priv;
 } xavs2_picture_t;
@@ -293,7 +294,7 @@ typedef struct xavs2_api_t {
      * ---------------------------------------------------------------------------
      */
     void (*opt_destroy)(xavs2_param_t *param);
-    
+
     /**
      * ===========================================================================
      * encoder API
@@ -311,7 +312,7 @@ typedef struct xavs2_api_t {
      * ---------------------------------------------------------------------------
      */
     int (*encoder_get_buffer)(void *coder, xavs2_picture_t *pic);
-    
+
     /**
      * ---------------------------------------------------------------------------
      * Function   : create and initialize the xavs2 video encoder
@@ -324,7 +325,7 @@ typedef struct xavs2_api_t {
      * ---------------------------------------------------------------------------
      */
     void *(*encoder_create)(xavs2_param_t *param);
-    
+
     /**
      * ---------------------------------------------------------------------------
      * Function   : destroy the xavs2 video encoder
@@ -332,7 +333,7 @@ typedef struct xavs2_api_t {
      *      [in ] : coder - pointer to handle of xavs2 encoder (return by `encoder_create()`)
      *      [out] : none
      * Return     : none
-     * Note       : this API is *NOT* thread-safe, 
+     * Note       : this API is *NOT* thread-safe,
      *              and can not be called simultaneously with other APIs.
      * ---------------------------------------------------------------------------
      */
@@ -349,6 +350,7 @@ typedef struct xavs2_api_t {
      * ---------------------------------------------------------------------------
      */
     int (*encoder_encode)(void *coder, xavs2_picture_t *pic, xavs2_outpacket_t *packet);
+
 
     /**
      * ---------------------------------------------------------------------------

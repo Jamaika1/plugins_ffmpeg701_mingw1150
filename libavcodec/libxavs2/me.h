@@ -123,9 +123,13 @@ void xavs2_me_init_umh_threshold(xavs2_t *h, double *bsize, int i_qp);
 #define xavs2_me_search FPFX(me_search)
 dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc);
 
-#define xavs2_me_search_sym FPFX(me_search_sym)
-dist_t xavs2_me_search_sym(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, mv_t *mv);
-#define xavs2_me_search_bid FPFX(me_search_bid)
-dist_t xavs2_me_search_bid(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, mv_t *fwd_mv, mv_t *bwd_mv, cu_parallel_t *p_enc);
+#define xavs2_me_search_sym8 FPFX(me_search_sym8)
+dist_t xavs2_me_search_sym8(xavs2_t *h, xavs2_me_t *p_me, pel8_t *buf_pixel_temp, mv_t *mv);
+#define xavs2_me_search_sym10 FPFX(me_search_sym10)
+dist_t xavs2_me_search_sym10(xavs2_t *h, xavs2_me_t *p_me, pel10_t *buf_pixel_temp, mv_t *mv);
+#define xavs2_me_search_bid8 FPFX(me_search_bid8)
+dist_t xavs2_me_search_bid8(xavs2_t *h, xavs2_me_t *p_me, pel8_t *buf_pixel_temp, mv_t *fwd_mv, mv_t *bwd_mv, cu_parallel_t *p_enc);
+#define xavs2_me_search_bid10 FPFX(me_search_bid10)
+dist_t xavs2_me_search_bid10(xavs2_t *h, xavs2_me_t *p_me, pel10_t *buf_pixel_temp, mv_t *fwd_mv, mv_t *bwd_mv, cu_parallel_t *p_enc);
 
 #endif  // XAVS2_ME_H

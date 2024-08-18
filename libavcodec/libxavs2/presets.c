@@ -34,8 +34,8 @@
  *    For more information, contact us at sswang @ pku.edu.cn.
  */
 
-#include "common/common.h"
-#include "encoder/aec.h"
+#include "common.h"
+#include "aec.h"
 #include "presets.h"
 
 /**
@@ -103,21 +103,23 @@ const static double tab_qsfd_cu_size_weight[4] = {
     0.25, 1.0, 3.0, 7.5  /* 8x8, 16x16, 32x32, 64x64 */
 };
 
-double tab_qsfd_thres[MAX_QP][2][CTU_DEPTH];
+//extern double tab_qsfd_thres[MAX_QP][2][CTU_DEPTH];
 
 /*--------------------------------------------------------------------------
  */
 static INLINE
 void algorithm_init_thresholds(xavs2_param_t *p_param)
 {
+    double tab_qsfd_thres[MAX_QP + (p_param->sample_bit_depth - 8) * 8][2][CTU_DEPTH];
     int i_preset_level = p_param->preset_level;
     //trade-off encoding time and performance
     const double s_inter = tab_qsfd_s_presets[0][i_preset_level];
     const double s_intra = tab_qsfd_s_presets[1][i_preset_level];
     int i;
 
+    int max_qp = MAX_QP + (p_param->sample_bit_depth - 8) * 8;
     /* QSFD threasholds */
-    for (i = 0; i < MAX_QP; i++) {
+    for (i = 0; i < max_qp; i++) {
         double qstep = 32768.0 / tab_Q_TAB[i];
         double th_base = 350 * pow(qstep, 0.9);
         double th__8 = th_base * tab_qsfd_cu_size_weight[0];
@@ -361,10 +363,18 @@ void encoder_set_fast_algorithms(xavs2_t *h)
     h->num_rdo_intra_chroma = tab_num_rdo_chroma_intra_mode[i_preset_level];
 
     /* Ö¡ÄÚÔ¤²âÄ£Ê½ */
+    if (h->param->input_sample_bit_depth == 8) {
     if (IS_ALG_ENABLE(OPT_FAST_INTRA_MODE)) {
-        h->get_intra_candidates_luma = rdo_get_pred_intra_luma_rmd;
+        h->get_intra_candidates_luma8 = rdo_get_pred_intra_luma8_rmd;
     } else {
-        h->get_intra_candidates_luma = rdo_get_pred_intra_luma;
+        h->get_intra_candidates_luma8 = rdo_get_pred_intra_luma8;
+    }
+    } else {
+    if (IS_ALG_ENABLE(OPT_FAST_INTRA_MODE)) {
+        h->get_intra_candidates_luma10 = rdo_get_pred_intra_luma10_rmd;
+    } else {
+        h->get_intra_candidates_luma10 = rdo_get_pred_intra_luma10;
+    }
     }
     if (IS_ALG_ENABLE(OPT_FAST_RDO_INTRA_C)) {
         h->get_intra_candidates_chroma = rdo_get_pred_intra_chroma_fast;

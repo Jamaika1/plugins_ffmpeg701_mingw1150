@@ -37,8 +37,8 @@
 #include "common.h"
 #include "block_info.h"
 #include "me.h"
-#include "common/cpu.h"
-#include "common/mc.h"
+#include "cpu.h"
+#include "mc.h"
 #include "predict.h"
 
 
@@ -162,11 +162,18 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  * early termination */
-#define EARLY_TERMINATION(pred_sad) \
+#define EARLY_TERMINATION8(pred_sad) \
     if (bcost < (pred_sad) * beta3) {\
-        goto umh_step_3;\
+        goto umh_step8_3;\
     } else if (bcost < (pred_sad) * beta2) {\
-        goto umh_step_2;\
+        goto umh_step8_2;\
+    }
+
+#define EARLY_TERMINATION10(pred_sad) \
+    if (bcost < (pred_sad) * beta3) {\
+        goto umh_step10_3;\
+    } else if (bcost < (pred_sad) * beta2) {\
+        goto umh_step10_2;\
     }
 
 
@@ -178,40 +185,79 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  */
-#define CAL_COST_IPEL(mx, my) \
-    g_funcs.pixf.sad[i_pixel](p_org, i_org,\
+#define CAL_COST_IPEL8(mx, my) \
+    g_funcs.pixf.sad8[i_pixel](p_org, i_org,\
+        p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my)
+
+#define CAL_COST_IPEL10(mx, my) \
+    g_funcs.pixf.sad10[i_pixel](p_org, i_org,\
         p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my)
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_IPEL(mx, my) \
+#define ME_COST_IPEL8(mx, my) \
     if (CHECK_MV_RANGE(mx, my)) {\
-        int cost = g_funcs.pixf.sad[i_pixel](p_org, i_org,\
+        int cost = g_funcs.pixf.sad8[i_pixel](p_org, i_org,\
                    p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
         COPY3_IF_LT(bcost, cost, bmx, mx, bmy, my);\
     }
-#define ME_COST_IPELM(mx, my) \
+#define ME_COST_IPEL10(mx, my) \
+    if (CHECK_MV_RANGE(mx, my)) {\
+        int cost = g_funcs.pixf.sad10[i_pixel](p_org, i_org,\
+                   p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
+        COPY3_IF_LT(bcost, cost, bmx, mx, bmy, my);\
+    }
+#define ME_COST_IPEL8M(mx, my) \
     if (CHECK_MV_RANGEM(mx, my)) {\
-        int cost = g_funcs.pixf.sad[i_pixel](p_org, i_org,\
+        int cost = g_funcs.pixf.sad8[i_pixel](p_org, i_org,\
+                   p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPELM(mx, my);\
+        COPY3_IF_LT(bcost, cost, bmx, mx, bmy, my);\
+    }
+#define ME_COST_IPEL10M(mx, my) \
+    if (CHECK_MV_RANGEM(mx, my)) {\
+        int cost = g_funcs.pixf.sad10[i_pixel](p_org, i_org,\
                    p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPELM(mx, my);\
         COPY3_IF_LT(bcost, cost, bmx, mx, bmy, my);\
     }
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_IPEL_DIR(mx, my, d) \
+#define ME_COST_IPEL8_DIR(mx, my, d) \
     if (CHECK_MV_RANGE(mx, my)) {\
-        int cost = g_funcs.pixf.sad[i_pixel](p_org, i_org,\
+        int cost = g_funcs.pixf.sad8[i_pixel](p_org, i_org,\
+                   p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
+        COPY4_IF_LT(bcost, cost, bmx, mx, bmy, my, dir, d);\
+    }
+
+#define ME_COST_IPEL10_DIR(mx, my, d) \
+    if (CHECK_MV_RANGE(mx, my)) {\
+        int cost = g_funcs.pixf.sad10[i_pixel](p_org, i_org,\
                    p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
         COPY4_IF_LT(bcost, cost, bmx, mx, bmy, my, dir, d);\
     }
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_IPEL_X3(m0x, m0y, m1x, m1y, m2x, m2y) \
+#define ME_COST_IPEL8_X3(m0x, m0y, m1x, m1y, m2x, m2y) \
 {\
-    pel_t *pix_base = p_fref + omy * i_fref + omx;\
-    g_funcs.pixf.sad_x3[i_pixel](p_org,\
+    pel8_t *pix_base = p_fref + omy * i_fref + omx;\
+    g_funcs.pixf.sad8_x3[i_pixel](p_org,\
+        pix_base + (m0y) * i_fref + (m0x),\
+        pix_base + (m1y) * i_fref + (m1x),\
+        pix_base + (m2y) * i_fref + (m2x),\
+        i_fref, costs);\
+    costs[0] += MV_COST_IPEL(omx + (m0x), omy + (m0y));\
+    costs[1] += MV_COST_IPEL(omx + (m1x), omy + (m1y));\
+    costs[2] += MV_COST_IPEL(omx + (m2x), omy + (m2y));\
+    COPY3_IF_LT(bcost, costs[0], bmx, omx + (m0x), bmy, omy + (m0y));\
+    COPY3_IF_LT(bcost, costs[1], bmx, omx + (m1x), bmy, omy + (m1y));\
+    COPY3_IF_LT(bcost, costs[2], bmx, omx + (m2x), bmy, omy + (m2y));\
+}
+
+#define ME_COST_IPEL10_X3(m0x, m0y, m1x, m1y, m2x, m2y) \
+{\
+    pel10_t *pix_base = p_fref + omy * i_fref + omx;\
+    g_funcs.pixf.sad10_x3[i_pixel](p_org,\
         pix_base + (m0y) * i_fref + (m0x),\
         pix_base + (m1y) * i_fref + (m1x),\
         pix_base + (m2y) * i_fref + (m2x),\
@@ -226,10 +272,26 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_IPEL_X3_DIR(m0x, m0y, d0, m1x, m1y, d1, m2x, m2y, d2) \
+#define ME_COST_IPEL8_X3_DIR(m0x, m0y, d0, m1x, m1y, d1, m2x, m2y, d2) \
 {\
-    pel_t *pix_base = p_fref + omy * i_fref + omx;\
-    g_funcs.pixf.sad_x3[i_pixel](p_org,\
+    pel8_t *pix_base = p_fref + omy * i_fref + omx;\
+    g_funcs.pixf.sad8_x3[i_pixel](p_org,\
+        pix_base + (m0y) * i_fref + (m0x),\
+        pix_base + (m1y) * i_fref + (m1x),\
+        pix_base + (m2y) * i_fref + (m2x),\
+        i_fref, costs);\
+    costs[0] += MV_COST_IPEL(omx + (m0x), omy + (m0y));\
+    costs[1] += MV_COST_IPEL(omx + (m1x), omy + (m1y));\
+    costs[2] += MV_COST_IPEL(omx + (m2x), omy + (m2y));\
+    COPY4_IF_LT(bcost, costs[0], bmx, omx + (m0x), bmy, omy + (m0y), dir, d0);\
+    COPY4_IF_LT(bcost, costs[1], bmx, omx + (m1x), bmy, omy + (m1y), dir, d1);\
+    COPY4_IF_LT(bcost, costs[2], bmx, omx + (m2x), bmy, omy + (m2y), dir, d2);\
+}
+
+#define ME_COST_IPEL10_X3_DIR(m0x, m0y, d0, m1x, m1y, d1, m2x, m2y, d2) \
+{\
+    pel10_t *pix_base = p_fref + omy * i_fref + omx;\
+    g_funcs.pixf.sad10_x3[i_pixel](p_org,\
         pix_base + (m0y) * i_fref + (m0x),\
         pix_base + (m1y) * i_fref + (m1x),\
         pix_base + (m2y) * i_fref + (m2x),\
@@ -244,11 +306,11 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_IPEL_X4(m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y) \
+#define ME_COST_IPEL8_X4(m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y) \
 {\
     if (CHECK_MV_RANGE_X4(m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y)) {  \
-        pel_t *pix_base = p_fref + omy * i_fref + omx;\
-        g_funcs.pixf.sad_x4[i_pixel](p_org,\
+        pel8_t *pix_base = p_fref + omy * i_fref + omx;\
+        g_funcs.pixf.sad8_x4[i_pixel](p_org,\
             pix_base + (m0y) * i_fref + (m0x),\
             pix_base + (m1y) * i_fref + (m1x),\
             pix_base + (m2y) * i_fref + (m2x),\
@@ -263,19 +325,63 @@ static const int i_org = FENC_STRIDE;
         COPY3_IF_LT(bcost, costs[2], bmx, omx + (m2x), bmy, omy + (m2y));\
         COPY3_IF_LT(bcost, costs[3], bmx, omx + (m3x), bmy, omy + (m3y));\
     } else {                    \
-        ME_COST_IPELM(m0x, m0y); \
-        ME_COST_IPELM(m1x, m1y); \
-        ME_COST_IPEL(m2x, m2y); \
-        ME_COST_IPEL(m3x, m3y); \
+        ME_COST_IPEL8M(m0x, m0y); \
+        ME_COST_IPEL8M(m1x, m1y); \
+        ME_COST_IPEL8(m2x, m2y); \
+        ME_COST_IPEL8(m3x, m3y); \
+    } \
+}
+
+#define ME_COST_IPEL10_X4(m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y) \
+{\
+    if (CHECK_MV_RANGE_X4(m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y)) {  \
+        pel10_t *pix_base = p_fref + omy * i_fref + omx;\
+        g_funcs.pixf.sad10_x4[i_pixel](p_org,\
+            pix_base + (m0y) * i_fref + (m0x),\
+            pix_base + (m1y) * i_fref + (m1x),\
+            pix_base + (m2y) * i_fref + (m2x),\
+            pix_base + (m3y) * i_fref + (m3x),\
+            i_fref, costs);\
+        costs[0] += MV_COST_IPELM(omx + (m0x), omy + (m0y));\
+        costs[1] += MV_COST_IPELM(omx + (m1x), omy + (m1y));\
+        costs[2] += MV_COST_IPEL(omx + (m2x), omy + (m2y));\
+        costs[3] += MV_COST_IPEL(omx + (m3x), omy + (m3y));\
+        COPY3_IF_LT(bcost, costs[0], bmx, omx + (m0x), bmy, omy + (m0y));\
+        COPY3_IF_LT(bcost, costs[1], bmx, omx + (m1x), bmy, omy + (m1y));\
+        COPY3_IF_LT(bcost, costs[2], bmx, omx + (m2x), bmy, omy + (m2y));\
+        COPY3_IF_LT(bcost, costs[3], bmx, omx + (m3x), bmy, omy + (m3y));\
+    } else {                    \
+        ME_COST_IPEL10M(m0x, m0y); \
+        ME_COST_IPEL10M(m1x, m1y); \
+        ME_COST_IPEL10(m2x, m2y); \
+        ME_COST_IPEL10(m3x, m3y); \
     } \
 }
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_IPEL_X4_DIR(m0x, m0y, d0, m1x, m1y, d1, m2x, m2y, d2, m3x, m3y, d3) \
+#define ME_COST_IPEL8_X4_DIR(m0x, m0y, d0, m1x, m1y, d1, m2x, m2y, d2, m3x, m3y, d3) \
 {\
-    pel_t *pix_base = p_fref + omy * i_fref + omx;\
-    g_funcs.pixf.sad_x4[i_pixel](p_org,\
+    pel8_t *pix_base = p_fref + omy * i_fref + omx;\
+    g_funcs.pixf.sad8_x4[i_pixel](p_org,\
+        pix_base + (m0y) * i_fref + (m0x),\
+        pix_base + (m1y) * i_fref + (m1x),\
+        pix_base + (m2y) * i_fref + (m2x),\
+        pix_base + (m3y) * i_fref + (m3x), i_fref, costs);\
+    costs[0] += MV_COST_IPEL(omx + (m0x), omy + (m0y));\
+    costs[1] += MV_COST_IPEL(omx + (m1x), omy + (m1y));\
+    costs[2] += MV_COST_IPEL(omx + (m2x), omy + (m2y));\
+    costs[3] += MV_COST_IPEL(omx + (m3x), omy + (m3y));\
+    COPY4_IF_LT(bcost, costs[0], bmx, omx + (m0x), bmy, omy + (m0y), dir, d0);\
+    COPY4_IF_LT(bcost, costs[1], bmx, omx + (m1x), bmy, omy + (m1y), dir, d1);\
+    COPY4_IF_LT(bcost, costs[2], bmx, omx + (m2x), bmy, omy + (m2y), dir, d2);\
+    COPY4_IF_LT(bcost, costs[3], bmx, omx + (m3x), bmy, omy + (m3y), dir, d3);\
+}
+
+#define ME_COST_IPEL10_X4_DIR(m0x, m0y, d0, m1x, m1y, d1, m2x, m2y, d2, m3x, m3y, d3) \
+{\
+    pel10_t *pix_base = p_fref + omy * i_fref + omx;\
+    g_funcs.pixf.sad10_x4[i_pixel](p_org,\
         pix_base + (m0y) * i_fref + (m0x),\
         pix_base + (m1y) * i_fref + (m1x),\
         pix_base + (m2y) * i_fref + (m2x),\
@@ -292,18 +398,51 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  * for TZ */
-#define ME_COST_IPEL_DIR_DIST(mx, my, direction, dist) \
+#define ME_COST_IPEL8_DIR_DIST(mx, my, direction, dist) \
     if (CHECK_MV_RANGE(mx, my)) {\
-        int cost = g_funcs.pixf.sad[i_pixel](p_org, i_org,\
+        int cost = g_funcs.pixf.sad8[i_pixel](p_org, i_org,\
+                   p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
+        COPY5_IF_LT(mv->bcost, cost, mv->bmx, mx, mv->bmy, my, mv->bdir, direction, mv->bdist, dist);\
+    }
+
+#define ME_COST_IPEL10_DIR_DIST(mx, my, direction, dist) \
+    if (CHECK_MV_RANGE(mx, my)) {\
+        int cost = g_funcs.pixf.sad10[i_pixel](p_org, i_org,\
                    p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
         COPY5_IF_LT(mv->bcost, cost, mv->bmx, mx, mv->bmy, my, mv->bdir, direction, mv->bdist, dist);\
     }
 
 /* ---------------------------------------------------------------------------
  * for TZ */
-#define ME_COST_IPEL_X4_DIR_DIST(m0x, m0y, p0, d0, m1x, m1y, p1, d1, m2x, m2y, p2, d2, m3x, m3y, p3, d3) \
+#define ME_COST_IPEL8_X4_DIR_DIST(m0x, m0y, p0, d0, m1x, m1y, p1, d1, m2x, m2y, p2, d2, m3x, m3y, p3, d3) \
 {\
-    g_funcs.pixf.sad_x4[i_pixel](p_org,\
+    g_funcs.pixf.sad8_x4[i_pixel](p_org,\
+        p_fref + (m0x) + (m0y) * i_fref,\
+        p_fref + (m1x) + (m1y) * i_fref,\
+        p_fref + (m2x) + (m2y) * i_fref,\
+        p_fref + (m3x) + (m3y) * i_fref,\
+        i_fref, costs);\
+    (costs)[0] += MV_COST_IPEL(m0x, m0y);\
+    (costs)[1] += MV_COST_IPEL(m1x, m1y);\
+    (costs)[2] += MV_COST_IPEL(m2x, m2y);\
+    (costs)[3] += MV_COST_IPEL(m3x, m3y);\
+    if (CHECK_MV_RANGE(m0x,m0y)) {\
+        COPY5_IF_LT(mv->bcost, costs[0], mv->bmx, m0x, mv->bmy, m0y, mv->bdir, p0, mv->bdist, d0);\
+    }\
+    if (CHECK_MV_RANGE(m1x,m1y)) {\
+        COPY5_IF_LT(mv->bcost, costs[1], mv->bmx, m1x, mv->bmy, m1y, mv->bdir, p1, mv->bdist, d1);\
+    }\
+    if (CHECK_MV_RANGE(m2x,m2y)) {\
+        COPY5_IF_LT(mv->bcost, costs[2], mv->bmx, m2x, mv->bmy, m2y, mv->bdir, p2, mv->bdist, d2);\
+    }\
+    if (CHECK_MV_RANGE(m3x,m3y)) {\
+        COPY5_IF_LT(mv->bcost, costs[3], mv->bmx, m3x, mv->bmy, m3y, mv->bdir, p3, mv->bdist, d3);\
+    }\
+}
+
+#define ME_COST_IPEL10_X4_DIR_DIST(m0x, m0y, p0, d0, m1x, m1y, p1, d1, m2x, m2y, p2, d2, m3x, m3y, p3, d3) \
+{\
+    g_funcs.pixf.sad10_x4[i_pixel](p_org,\
         p_fref + (m0x) + (m0y) * i_fref,\
         p_fref + (m1x) + (m1y) * i_fref,\
         p_fref + (m2x) + (m2y) * i_fref,\
@@ -331,11 +470,18 @@ static const int i_org = FENC_STRIDE;
  * diamond:     1
  *            1 0 1
  *              1    */
-#define DIA_ITER(mx, my) \
+#define DIA_ITER8(mx, my) \
 {\
     omx = mx;\
     omy = my;\
-    ME_COST_IPEL_X4(0,-1, -1,0, 1,0, 0,1);\
+    ME_COST_IPEL8_X4(0,-1, -1,0, 1,0, 0,1);\
+}
+
+#define DIA_ITER10(mx, my) \
+{\
+    omx = mx;\
+    omy = my;\
+    ME_COST_IPEL10_X4(0,-1, -1,0, 1,0, 0,1);\
 }
 
 
@@ -347,16 +493,23 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_QPEL(mx, my) \
+#define ME_COST_QPEL8(mx, my) \
 {\
-    pel_t *p_pred = p_filtered[(((my) & 3) << 2) + ((mx) & 3)] + i_offset\
+    pel8_t *p_pred = p_filtered[(((my) & 3) << 2) + ((mx) & 3)] + i_offset\
                   + ((my) >> 2) * i_fref + ((mx) >> 2); \
-    cost = g_funcs.pixf.fpel_cmp[i_pixel](p_org, i_org, p_pred, i_fref) + MV_COST_FPEL(mx, my);\
+    cost = g_funcs.pixf.fpel8_cmp[i_pixel](p_org, i_org, p_pred, i_fref) + MV_COST_FPEL(mx, my);\
+}
+
+#define ME_COST_QPEL10(mx, my) \
+{\
+    pel10_t *p_pred = p_filtered[(((my) & 3) << 2) + ((mx) & 3)] + i_offset\
+                  + ((my) >> 2) * i_fref + ((mx) >> 2); \
+    cost = g_funcs.pixf.fpel10_cmp[i_pixel](p_org, i_org, p_pred, i_fref) + MV_COST_FPEL(mx, my);\
 }
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_QPEL_SYM \
+#define ME_COST_QPEL8_SYM \
 {\
     int mx_sym;\
     int my_sym;\
@@ -375,15 +528,48 @@ static const int i_org = FENC_STRIDE;
         int yy1 = my     >> 2;\
         int xx2 = mx_sym >> 2;\
         int yy2 = my_sym >> 2;\
-        pel_t *p_src1 = p_filtered1[((my     & 3) << 2) + (mx     & 3)]; \
-        pel_t *p_src2 = p_filtered2[((my_sym & 3) << 2) + (mx_sym & 3)]; \
-        pel_t *p_pred = buf_pixel_temp;\
+        pel8_t *p_src1 = p_filtered1[((my     & 3) << 2) + (mx     & 3)]; \
+        pel8_t *p_src2 = p_filtered2[((my_sym & 3) << 2) + (mx_sym & 3)]; \
+        pel8_t *p_pred = buf_pixel_temp;\
         \
         if (p_src1 != NULL && p_src2 != NULL) { \
             p_src1 += i_offset + yy1 * i_fref + xx1;\
             p_src2 += i_offset + yy2 * i_fref + xx2;\
-            g_funcs.pixf.avg[i_pixel](p_pred, 64, p_src1, i_fref, p_src2, i_fref, 32); \
-            cost = g_funcs.pixf.fpel_cmp[i_pixel](p_org, i_org, p_pred, MAX_CU_SIZE)\
+            g_funcs.pixf.avg8[i_pixel](p_pred, 64, p_src1, i_fref, p_src2, i_fref, 32); \
+            cost = g_funcs.pixf.fpel8_cmp[i_pixel](p_org, i_org, p_pred, MAX_CU_SIZE)\
+                 + MV_COST_FPEL(mx, my);\
+        } \
+    }\
+}
+
+#define ME_COST_QPEL10_SYM \
+{\
+    int mx_sym;\
+    int my_sym;\
+    \
+    cost = MAX_DISTORTION;\
+    if (h->i_type == SLICE_TYPE_B) {\
+        mx_sym = -scale_mv_skip  (   mx, distance_bwd, distance_fwd);\
+        my_sym = -scale_mv_skip_y(h, my, distance_bwd, distance_fwd);\
+    } else {\
+        mx_sym = scale_mv_skip  (   mx, distance_bwd, distance_fwd);\
+        my_sym = scale_mv_skip_y(h, my, distance_bwd, distance_fwd);\
+    }\
+    \
+    if (CHECK_MV_RANGE(mx, my) && CHECK_MV_RANGE(mx_sym, my_sym)) {\
+        int xx1 = mx     >> 2;\
+        int yy1 = my     >> 2;\
+        int xx2 = mx_sym >> 2;\
+        int yy2 = my_sym >> 2;\
+        pel10_t *p_src1 = p_filtered1[((my     & 3) << 2) + (mx     & 3)]; \
+        pel10_t *p_src2 = p_filtered2[((my_sym & 3) << 2) + (mx_sym & 3)]; \
+        pel10_t *p_pred = buf_pixel_temp;\
+        \
+        if (p_src1 != NULL && p_src2 != NULL) { \
+            p_src1 += i_offset + yy1 * i_fref + xx1;\
+            p_src2 += i_offset + yy2 * i_fref + xx2;\
+            g_funcs.pixf.avg10[i_pixel](p_pred, 64, p_src1, i_fref, p_src2, i_fref, 32); \
+            cost = g_funcs.pixf.fpel10_cmp[i_pixel](p_org, i_org, p_pred, MAX_CU_SIZE)\
                  + MV_COST_FPEL(mx, my);\
         } \
     }\
@@ -391,12 +577,24 @@ static const int i_org = FENC_STRIDE;
 
 /* ---------------------------------------------------------------------------
  */
-#define ME_COST_QPEL_BID \
+#define ME_COST_QPEL8_BID \
     if (CHECK_MV_RANGE(mx, my) && CHECK_MV_RANGE(mx_bid, my_bid)) {\
         int xx1 = mx     >> 2;\
         int yy1 = my     >> 2;\
-        pel_t *p_src1 = p_filtered1[((my     & 3) << 2) + (mx     & 3)] + i_offset + yy1 * i_fref + xx1;\
-        int distortion = g_funcs.pixf.fpel_cmp[i_pixel](buf_pixel_temp, MAX_CU_SIZE, p_src1, i_fref) >> 1;\
+        pel8_t *p_src1 = p_filtered1[((my     & 3) << 2) + (mx     & 3)] + i_offset + yy1 * i_fref + xx1;\
+        int distortion = g_funcs.pixf.fpel8_cmp[i_pixel](buf_pixel_temp, MAX_CU_SIZE, p_src1, i_fref) >> 1;\
+        \
+        cost = distortion + MV_COST_FPEL(mx, my) + mv_bid_bit;\
+    } else {\
+        cost = MAX_DISTORTION;\
+    }
+
+#define ME_COST_QPEL10_BID \
+    if (CHECK_MV_RANGE(mx, my) && CHECK_MV_RANGE(mx_bid, my_bid)) {\
+        int xx1 = mx     >> 2;\
+        int yy1 = my     >> 2;\
+        pel10_t *p_src1 = p_filtered1[((my     & 3) << 2) + (mx     & 3)] + i_offset + yy1 * i_fref + xx1;\
+        int distortion = g_funcs.pixf.fpel10_cmp[i_pixel](buf_pixel_temp, MAX_CU_SIZE, p_src1, i_fref) >> 1;\
         \
         cost = distortion + MV_COST_FPEL(mx, my) + mv_bid_bit;\
     } else {\
@@ -485,11 +683,6 @@ mv_clip(int16_t (*dst)[2], int16_t (*mvc)[2], int i_mvc, int mv_min[2], int mv_m
 static dist_t
 me_subpel_refine(xavs2_t *h, xavs2_me_t *p_me)
 {
-#if !ENABLE_FRAME_SUBPEL_INTPL
-    ALIGN32(pel_t p_pred[MAX_CU_SIZE * MAX_CU_SIZE]);
-#endif
-    pel_t  *p_org     = p_me->p_fenc;
-    pel_t **p_filtered = p_me->p_fref_1st->filtered;
     int i_fref   = p_me->p_fref_1st->i_stride[IMG_Y];
     int pmx      = p_me->mvp.x;
     int pmy      = p_me->mvp.y;
@@ -514,8 +707,14 @@ me_subpel_refine(xavs2_t *h, xavs2_me_t *p_me)
     bmy = p_me->bmv.y;
     bmv = p_me->bmv;
 
+    if (h->param->input_sample_bit_depth == 8) {
+#if !ENABLE_FRAME_SUBPEL_INTPL
+    ALIGN32(pel8_t p_pred[MAX_CU_SIZE * MAX_CU_SIZE]);
+#endif
+    pel8_t  *p_org     = p_me->p_fenc8;
+    pel8_t **p_filtered = p_me->p_fref_1st->filtered8;
     if (h->param->enable_hadamard) {
-        ME_COST_QPEL(bmx, bmy);
+        ME_COST_QPEL8(bmx, bmy);
         bcost = cost;
     } else {
         bcost = p_me->bcost;
@@ -529,7 +728,7 @@ me_subpel_refine(xavs2_t *h, xavs2_me_t *p_me)
         mx = bmx + (search_pattern[pos][0] << 1);
         my = bmy + (search_pattern[pos][1] << 1);
 #if ENABLE_FRAME_SUBPEL_INTPL
-        ME_COST_QPEL(mx, my);
+        ME_COST_QPEL8(mx, my);
 #else
         mv_t mvt;
         mvt.v = MAKEDWORD(mx, my);
@@ -563,7 +762,7 @@ me_subpel_refine(xavs2_t *h, xavs2_me_t *p_me)
 
             // set motion vector cost
 #if ENABLE_FRAME_SUBPEL_INTPL
-            ME_COST_QPEL(mx, my);
+            ME_COST_QPEL8(mx, my);
 #else
             mv_t mvt;
             mvt.v = MAKEDWORD(mx, my);
@@ -582,6 +781,81 @@ me_subpel_refine(xavs2_t *h, xavs2_me_t *p_me)
     p_me->bcost = bcost;
     p_me->mvcost[PDIR_FWD] = MV_COST_FPEL(bmv.x,bmv.y);
     return bcost;
+    } else {
+#if !ENABLE_FRAME_SUBPEL_INTPL
+    ALIGN32(pel10_t p_pred[MAX_CU_SIZE * MAX_CU_SIZE]);
+#endif
+    pel10_t  *p_org     = p_me->p_fenc10;
+    pel10_t **p_filtered = p_me->p_fref_1st->filtered10;
+    if (h->param->enable_hadamard) {
+        ME_COST_QPEL10(bmx, bmy);
+        bcost = cost;
+    } else {
+        bcost = p_me->bcost;
+    }
+
+    /* -------------------------------------------------------------
+     * half-pel refine */
+
+    // loop over search positions
+    for (pos = 1; pos < search_pos2; pos += search_step) {
+        mx = bmx + (search_pattern[pos][0] << 1);
+        my = bmy + (search_pattern[pos][1] << 1);
+#if ENABLE_FRAME_SUBPEL_INTPL
+        ME_COST_QPEL10(mx, my);
+#else
+        mv_t mvt;
+        mvt.v = MAKEDWORD(mx, my);
+        get_mv_for_mc(h, &mvt, p_me->i_pix_x, p_me->i_pix_y, p_me->i_block_w, p_me->i_block_h);
+        mc_luma(p_pred, MAX_CU_SIZE, mvt.x, mvt.y, p_me->i_block_w, p_me->i_block_h, p_me->p_fref_1st);
+        cost = g_funcs.pixf.fpel_cmp[i_pixel](p_org, i_org, p_pred, MAX_CU_SIZE) + MV_COST_FPEL(mx, my);
+#endif
+        if (cost < bcost) {
+            bcost = cost;
+            bmv.v = MAKEDWORD(mx, my);
+        }
+    }
+
+    bmx = bmv.x;
+    bmy = bmv.y;
+
+    /* -------------------------------------------------------------
+     * quarter-pel refine */
+
+    if (h->use_fractional_me > 1) {
+        // loop over search positions
+        for (pos = 1; pos < search_pos4; pos += search_step) {
+            if (h->param->enable_pmvr) {
+                if (pmvr_adapt_mv(&mx, &my, ctr_x, ctr_y, bmx, bmy, search_pattern[pos][0], search_pattern[pos][1])) {
+                    continue;
+                }
+            } else {
+                mx = bmx + search_pattern[pos][0];    // quarter-pel units
+                my = bmy + search_pattern[pos][1];    // quarter-pel units
+            }
+
+            // set motion vector cost
+#if ENABLE_FRAME_SUBPEL_INTPL
+            ME_COST_QPEL10(mx, my);
+#else
+            mv_t mvt;
+            mvt.v = MAKEDWORD(mx, my);
+            get_mv_for_mc(h, &mvt, p_me->i_pix_x, p_me->i_pix_y, p_me->i_block_w, p_me->i_block_h);
+            mc_luma(p_pred, MAX_CU_SIZE, mvt.x, mvt.y, p_me->i_block_w, p_me->i_block_h, p_me->p_fref_1st);
+            cost = g_funcs.pixf.fpel_cmp[i_pixel](p_org, i_org, p_pred, MAX_CU_SIZE) + MV_COST_FPEL(mx, my);
+#endif
+            if (cost < bcost) {
+                bcost = cost;
+                bmv.v = MAKEDWORD(mx, my);
+            }
+        }
+    }
+    // save the results
+    p_me->bmv   = bmv;
+    p_me->bcost = bcost;
+    p_me->mvcost[PDIR_FWD] = MV_COST_FPEL(bmv.x,bmv.y);
+    return bcost;
+    }
 }
 
 
@@ -672,10 +946,10 @@ void xavs2_me_init_umh_threshold(xavs2_t *h, double *bsize, int i_qp)
 
 /* ---------------------------------------------------------------------------
  */
-static void tz_pattern_search(xavs2_t* h,
+static void tz_pattern_search8(xavs2_t* h,
                               xavs2_me_t *p_me,
-                              pel_t*    p_org,
-                              pel_t*    p_fref,
+                              pel8_t*    p_org,
+                              pel8_t*    p_fref,
                               mv_info*  mv,
                               int       mv_x_min,
                               int       mv_y_min,
@@ -706,22 +980,22 @@ static void tz_pattern_search(xavs2_t* h,
     int idx;
 
     if (top >= mv_y_min && left >= mv_x_min && right <= mv_x_max && bottom <= mv_y_max) {
-        ME_COST_IPEL_X4_DIR_DIST(omx,   top,    2, dist,      /* direction */
+        ME_COST_IPEL8_X4_DIR_DIST(omx,   top,    2, dist,      /* direction */
                                  left,  omy,    4, dist,      /*     2     */
                                  right, omy,    5, dist,      /*   4 * 5   */
                                  omx,   bottom, 7, dist);     /*     7     */
     } else {
         if (top >= mv_y_min) {        // check top
-            ME_COST_IPEL_DIR_DIST(omx, top, 2, dist);
+            ME_COST_IPEL8_DIR_DIST(omx, top, 2, dist);
         }
         if (left >= mv_x_min) {       // check middle left
-            ME_COST_IPEL_DIR_DIST(left, omy, 4, dist);
+            ME_COST_IPEL8_DIR_DIST(left, omy, 4, dist);
         }
         if (right <= mv_x_max) {      // check middle right
-            ME_COST_IPEL_DIR_DIST(right, omy, 5, dist);
+            ME_COST_IPEL8_DIR_DIST(right, omy, 5, dist);
         }
         if (bottom <= mv_y_max) {     // check bottom
-            ME_COST_IPEL_DIR_DIST(omx, bottom, 7, dist);
+            ME_COST_IPEL8_DIR_DIST(omx, bottom, 7, dist);
         }
     }
 
@@ -751,42 +1025,42 @@ static void tz_pattern_search(xavs2_t* h,
 
         // check border
         if (top >= mv_y_min && left >= mv_x_min && right <= mv_x_max && bottom <= mv_y_max) {
-            ME_COST_IPEL_X4_DIR_DIST(omx,    top,     2, dist,
+            ME_COST_IPEL8_X4_DIR_DIST(omx,    top,     2, dist,
                                      left2,  top2,    1, dist >> 1,
                                      right2, top2,    3, dist >> 1,
                                      left,   omy,     4, dist);
-            ME_COST_IPEL_X4_DIR_DIST(right,  omy,     5, dist,
+            ME_COST_IPEL8_X4_DIR_DIST(right,  omy,     5, dist,
                                      left2,  bottom2, 6, dist >> 1,
                                      right2, bottom2, 8, dist >> 1,
                                      omx,    bottom,  7, dist);
         } else {
             if (top >= mv_y_min) {              // check top
-                ME_COST_IPEL_DIR_DIST(omx, top, 2, dist);
+                ME_COST_IPEL8_DIR_DIST(omx, top, 2, dist);
             }
             if (top2 >= mv_y_min) {             // check half top
                 if (left2 >= mv_x_min) {        // check half left
-                    ME_COST_IPEL_DIR_DIST(left2, top2, 1, (dist >> 1));
+                    ME_COST_IPEL8_DIR_DIST(left2, top2, 1, (dist >> 1));
                 }
                 if (right2 <= mv_x_max) {       // check half right
-                    ME_COST_IPEL_DIR_DIST(right2, top2, 3, (dist >> 1));
+                    ME_COST_IPEL8_DIR_DIST(right2, top2, 3, (dist >> 1));
                 }
             }
             if (left >= mv_x_min) {             // check left
-                ME_COST_IPEL_DIR_DIST(left, omy, 4, dist);
+                ME_COST_IPEL8_DIR_DIST(left, omy, 4, dist);
             }
             if (right <= mv_x_max) {            // check right
-                ME_COST_IPEL_DIR_DIST(right, omy, 5, dist);
+                ME_COST_IPEL8_DIR_DIST(right, omy, 5, dist);
             }
             if (bottom2 <= mv_y_max) {          // check half bottom
                 if (left2 >= mv_x_min) {        // check half left
-                    ME_COST_IPEL_DIR_DIST(left2, bottom2, 6, (dist >> 1));
+                    ME_COST_IPEL8_DIR_DIST(left2, bottom2, 6, (dist >> 1));
                 }
                 if (right2 <= mv_x_max) {       // check half right
-                    ME_COST_IPEL_DIR_DIST(right2, bottom2, 8, (dist >> 1));
+                    ME_COST_IPEL8_DIR_DIST(right2, bottom2, 8, (dist >> 1));
                 }
             }
             if (bottom <= mv_y_max) {           // check bottom
-                ME_COST_IPEL_DIR_DIST(omx, bottom, 7, dist);
+                ME_COST_IPEL8_DIR_DIST(omx, bottom, 7, dist);
             }
         }
         if (mv->bcost < bcost) {
@@ -815,7 +1089,7 @@ static void tz_pattern_search(xavs2_t* h,
              *               2
              *               3
              *               0                  */
-            ME_COST_IPEL_X4_DIR_DIST(omx,   top,    0, dist,
+            ME_COST_IPEL8_X4_DIR_DIST(omx,   top,    0, dist,
                                      left,  omy,    0, dist,
                                      right, omy,    0, dist,
                                      omx,   bottom, 0, dist);
@@ -824,7 +1098,7 @@ static void tz_pattern_search(xavs2_t* h,
                 posYB = bottom - ((dist >> 2) * idx);
                 posXL = omx    - ((dist >> 2) * idx);
                 posXR = omx    + ((dist >> 2) * idx);
-                ME_COST_IPEL_X4_DIR_DIST(posXL, posYT, 0, dist,
+                ME_COST_IPEL8_X4_DIR_DIST(posXL, posYT, 0, dist,
                                          posXR, posYT, 0, dist,
                                          posXL, posYB, 0, dist,
                                          posXR, posYB, 0, dist);
@@ -832,16 +1106,16 @@ static void tz_pattern_search(xavs2_t* h,
         } else {
             // check border for each mv
             if (top >= mv_y_min) {              // check top
-                ME_COST_IPEL_DIR_DIST(omx, top, 0, dist);
+                ME_COST_IPEL8_DIR_DIST(omx, top, 0, dist);
             }
             if (left >= mv_x_min) {             // check left
-                ME_COST_IPEL_DIR_DIST(left, omy, 0, dist);
+                ME_COST_IPEL8_DIR_DIST(left, omy, 0, dist);
             }
             if (right <= mv_x_max) {            // check right
-                ME_COST_IPEL_DIR_DIST(right, omy, 0, dist);
+                ME_COST_IPEL8_DIR_DIST(right, omy, 0, dist);
             }
             if (bottom <= mv_y_max) {           // check bottom
-                ME_COST_IPEL_DIR_DIST(omx, bottom, 0, dist);
+                ME_COST_IPEL8_DIR_DIST(omx, bottom, 0, dist);
             }
 
             for (idx = 1; idx < 4; idx++) {
@@ -852,18 +1126,223 @@ static void tz_pattern_search(xavs2_t* h,
 
                 if (posYT >= mv_y_min) {        // check top
                     if (posXL >= mv_x_min) {    // check left
-                        ME_COST_IPEL_DIR_DIST(posXL, posYT, 0, dist);
+                        ME_COST_IPEL8_DIR_DIST(posXL, posYT, 0, dist);
                     }
                     if (posXR <= mv_x_max) {    // check right
-                        ME_COST_IPEL_DIR_DIST(posXR, posYT, 0, dist);
+                        ME_COST_IPEL8_DIR_DIST(posXR, posYT, 0, dist);
                     }
                 }
                 if (posYB <= mv_y_max) {        // check bottom
                     if (posXL >= mv_x_min) {    // check left
-                        ME_COST_IPEL_DIR_DIST(posXL, posYB, 0, dist);
+                        ME_COST_IPEL8_DIR_DIST(posXL, posYB, 0, dist);
                     }
                     if (posXR <= mv_x_max) {    // check right
-                        ME_COST_IPEL_DIR_DIST(posXR, posYB, 0, dist);
+                        ME_COST_IPEL8_DIR_DIST(posXR, posYB, 0, dist);
+                    }
+                }
+            }
+        }
+
+        if (mv->bcost < bcost) {
+            rounds = 0;
+        } else if (++rounds >= earlyExitIters) {
+            return;
+        }
+    }
+}
+
+static void tz_pattern_search10(xavs2_t* h,
+                              xavs2_me_t *p_me,
+                              pel10_t*    p_org,
+                              pel10_t*    p_fref,
+                              mv_info*  mv,
+                              int       mv_x_min,
+                              int       mv_y_min,
+                              int       mv_x_max,
+                              int       mv_y_max,
+                              int       i_pixel,
+                              int       i_fref,
+                              int       earlyExitIters,
+                              int       merange)
+{
+    ALIGN16(int costs[16]);
+    const uint32_t mv_min = pack16to32_mask2(-mv_x_min, -mv_y_min);
+    const uint32_t mv_max = pack16to32_mask2(mv_x_max, mv_y_max) | 0x8000;
+    const uint16_t *p_cost_mvx = h->mvbits - p_me->mvp.x;
+    const uint16_t *p_cost_mvy = h->mvbits - p_me->mvp.y;
+    int lambda = h->i_lambda_factor;
+    int rounds = 0;
+    int dist   = 1;
+    int omx    = mv->bmx;
+    int omy    = mv->bmx;
+    dist_t bcost  = mv->bcost;
+    int top    = omy - dist;
+    int bottom = omy + dist;
+    int left   = omx - dist;
+    int right  = omx + dist;
+    int top2, bottom2, left2, right2;
+    int posYT, posYB, posXL, posXR;
+    int idx;
+
+    if (top >= mv_y_min && left >= mv_x_min && right <= mv_x_max && bottom <= mv_y_max) {
+        ME_COST_IPEL10_X4_DIR_DIST(omx,   top,    2, dist,      /* direction */
+                                 left,  omy,    4, dist,      /*     2     */
+                                 right, omy,    5, dist,      /*   4 * 5   */
+                                 omx,   bottom, 7, dist);     /*     7     */
+    } else {
+        if (top >= mv_y_min) {        // check top
+            ME_COST_IPEL10_DIR_DIST(omx, top, 2, dist);
+        }
+        if (left >= mv_x_min) {       // check middle left
+            ME_COST_IPEL10_DIR_DIST(left, omy, 4, dist);
+        }
+        if (right <= mv_x_max) {      // check middle right
+            ME_COST_IPEL10_DIR_DIST(right, omy, 5, dist);
+        }
+        if (bottom <= mv_y_max) {     // check bottom
+            ME_COST_IPEL10_DIR_DIST(omx, bottom, 7, dist);
+        }
+    }
+
+    if (mv->bcost < bcost) {
+        rounds = 0;
+    } else if (++rounds >= earlyExitIters) {
+        return;
+    }
+
+    for (dist = 2; dist <= 8; dist <<= 1) {
+        /*          2           points 2, 4, 5, 7 are dist
+         *        1   3         points 1, 3, 6, 8 are dist/2
+         *      4   *   5
+         *        6   8
+         *          7           */
+        omx     = mv->bmx;
+        omy     = mv->bmx;
+        bcost   = mv->bcost;
+        top     = omy - dist;
+        bottom  = omy + dist;
+        left    = omx - dist;
+        right   = omx + dist;
+        top2    = omy - (dist >> 1);
+        bottom2 = omy + (dist >> 1);
+        left2   = omx - (dist >> 1);
+        right2  = omx + (dist >> 1);
+
+        // check border
+        if (top >= mv_y_min && left >= mv_x_min && right <= mv_x_max && bottom <= mv_y_max) {
+            ME_COST_IPEL10_X4_DIR_DIST(omx,    top,     2, dist,
+                                     left2,  top2,    1, dist >> 1,
+                                     right2, top2,    3, dist >> 1,
+                                     left,   omy,     4, dist);
+            ME_COST_IPEL10_X4_DIR_DIST(right,  omy,     5, dist,
+                                     left2,  bottom2, 6, dist >> 1,
+                                     right2, bottom2, 8, dist >> 1,
+                                     omx,    bottom,  7, dist);
+        } else {
+            if (top >= mv_y_min) {              // check top
+                ME_COST_IPEL10_DIR_DIST(omx, top, 2, dist);
+            }
+            if (top2 >= mv_y_min) {             // check half top
+                if (left2 >= mv_x_min) {        // check half left
+                    ME_COST_IPEL10_DIR_DIST(left2, top2, 1, (dist >> 1));
+                }
+                if (right2 <= mv_x_max) {       // check half right
+                    ME_COST_IPEL10_DIR_DIST(right2, top2, 3, (dist >> 1));
+                }
+            }
+            if (left >= mv_x_min) {             // check left
+                ME_COST_IPEL10_DIR_DIST(left, omy, 4, dist);
+            }
+            if (right <= mv_x_max) {            // check right
+                ME_COST_IPEL10_DIR_DIST(right, omy, 5, dist);
+            }
+            if (bottom2 <= mv_y_max) {          // check half bottom
+                if (left2 >= mv_x_min) {        // check half left
+                    ME_COST_IPEL10_DIR_DIST(left2, bottom2, 6, (dist >> 1));
+                }
+                if (right2 <= mv_x_max) {       // check half right
+                    ME_COST_IPEL10_DIR_DIST(right2, bottom2, 8, (dist >> 1));
+                }
+            }
+            if (bottom <= mv_y_max) {           // check bottom
+                ME_COST_IPEL10_DIR_DIST(omx, bottom, 7, dist);
+            }
+        }
+        if (mv->bcost < bcost) {
+            rounds = 0;
+        } else if (++rounds >= earlyExitIters) {
+            return;
+        }
+    }
+
+    for (dist = 16; dist <= merange; dist <<= 1) {
+        omx    = mv->bmx;
+        omy    = mv->bmx;
+        bcost  = mv->bcost;
+        top    = omy - dist;
+        bottom = omy + dist;
+        left   = omx - dist;
+        right  = omx + dist;
+
+        if (top >= mv_y_min && left >= mv_x_min && right <= mv_x_max && bottom <= mv_y_max) { // check border
+            /* index:        0
+             *               3
+             *               2
+             *               1
+             *       0 3 2 1 * 1 2 3 0
+             *               1
+             *               2
+             *               3
+             *               0                  */
+            ME_COST_IPEL10_X4_DIR_DIST(omx,   top,    0, dist,
+                                     left,  omy,    0, dist,
+                                     right, omy,    0, dist,
+                                     omx,   bottom, 0, dist);
+            for (idx = 1; idx < 4; idx++) {
+                posYT = top    + ((dist >> 2) * idx);
+                posYB = bottom - ((dist >> 2) * idx);
+                posXL = omx    - ((dist >> 2) * idx);
+                posXR = omx    + ((dist >> 2) * idx);
+                ME_COST_IPEL10_X4_DIR_DIST(posXL, posYT, 0, dist,
+                                         posXR, posYT, 0, dist,
+                                         posXL, posYB, 0, dist,
+                                         posXR, posYB, 0, dist);
+            }
+        } else {
+            // check border for each mv
+            if (top >= mv_y_min) {              // check top
+                ME_COST_IPEL10_DIR_DIST(omx, top, 0, dist);
+            }
+            if (left >= mv_x_min) {             // check left
+                ME_COST_IPEL10_DIR_DIST(left, omy, 0, dist);
+            }
+            if (right <= mv_x_max) {            // check right
+                ME_COST_IPEL10_DIR_DIST(right, omy, 0, dist);
+            }
+            if (bottom <= mv_y_max) {           // check bottom
+                ME_COST_IPEL10_DIR_DIST(omx, bottom, 0, dist);
+            }
+
+            for (idx = 1; idx < 4; idx++) {
+                posYT = top    + ((dist >> 2) * idx);
+                posYB = bottom - ((dist >> 2) * idx);
+                posXL = omx    - ((dist >> 2) * idx);
+                posXR = omx    + ((dist >> 2) * idx);
+
+                if (posYT >= mv_y_min) {        // check top
+                    if (posXL >= mv_x_min) {    // check left
+                        ME_COST_IPEL10_DIR_DIST(posXL, posYT, 0, dist);
+                    }
+                    if (posXR <= mv_x_max) {    // check right
+                        ME_COST_IPEL10_DIR_DIST(posXR, posYT, 0, dist);
+                    }
+                }
+                if (posYB <= mv_y_max) {        // check bottom
+                    if (posXL >= mv_x_min) {    // check left
+                        ME_COST_IPEL10_DIR_DIST(posXL, posYB, 0, dist);
+                    }
+                    if (posXR <= mv_x_max) {    // check right
+                        ME_COST_IPEL10_DIR_DIST(posXR, posYB, 0, dist);
                     }
                 }
             }
@@ -888,8 +1367,6 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
     ALIGNED_ARRAY_16(int, costs,[8]);
     double beta2  = p_me->beta2 + 1;
     double beta3  = p_me->beta3 + 1;
-    pel_t *p_org = p_me->p_fenc;
-    pel_t *p_fref = p_me->p_fref_1st->planes[IMG_Y] + p_me->i_bias;
     int i_fref    = p_me->p_fref_1st->i_stride[IMG_Y];
     int i_pixel   = p_me->i_pixel;
     int mv_x_min  = p_me->mv_min_fpel[0];
@@ -916,18 +1393,22 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
      * try MVP and some key searching points */
     pmv = MAKEDWORD(mvc[0][0], mvc[0][1]);   /* mvc[0][] is the MVP */
 
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *p_org = p_me->p_fenc8;
+    pel8_t *p_fref = p_me->p_fref_1st->planes8[IMG_Y] + p_me->i_bias;
     for (i = 0; i < i_mvc; i++) {
         int mx = mvc[i][0];
         int my = mvc[i][1];
-        ME_COST_IPEL(mx, my);
+        ME_COST_IPEL8(mx, my);
     }
 
     if (bcost == MAX_DISTORTION) {
-        goto _me_error;         /* me failed */
+        goto _me_error8;         /* me failed */
     }
 
     /* -------------------------------------------------------------
      * search using different method */
+
     switch (h->param->me_method) {
     case XAVS2_ME_TZ: {       /* TZ */
         const int RasterDistance = 16;
@@ -939,11 +1420,11 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
 
         omx = bmx;
         omy = bmy;
-        ME_COST_IPEL_X3(-2, 0, -1,  2,  1,  2);
-        ME_COST_IPEL_X3( 2, 0,  1, -2, -1, -2);
+        ME_COST_IPEL8_X3(-2, 0, -1,  2,  1,  2);
+        ME_COST_IPEL8_X3( 2, 0,  1, -2, -1, -2);
 
         if (CHECK_MV_RANGE(bmx, bmy)) {
-            DIA_ITER(bmx, bmy);
+            DIA_ITER8(bmx, bmy);
         }
 
         mvinfo.bcost = bcost;
@@ -951,7 +1432,7 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
         mvinfo.bmx   = bmx;
         mvinfo.bmy   = bmy;
         mvinfo.bdir  = 0;
-        tz_pattern_search(h, p_me, p_org, p_fref, &mvinfo, mv_x_min, mv_y_min, mv_x_max, mv_y_max, i_pixel, i_fref, EarlyExitIters, me_range);
+        tz_pattern_search8(h, p_me, p_org, p_fref, &mvinfo, mv_x_min, mv_y_min, mv_x_max, mv_y_max, i_pixel, i_fref, EarlyExitIters, me_range);
         bcost = mvinfo.bcost;
         bdist = mvinfo.bdist;
         bmx   = mvinfo.bmx;
@@ -970,10 +1451,10 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
             mv2_x = bmx + offsets[(dir - 1) * 2 + 1][0];    /*     4 * 5     */
             mv2_y = bmy + offsets[(dir - 1) * 2 + 1][1];    /*   X 6 7 8 X   */
             if (CHECK_MV_RANGE(mv1_x, mv1_y)) {             /*     X   X     */
-                ME_COST_IPEL(mv1_x, mv1_y);
+                ME_COST_IPEL8(mv1_x, mv1_y);
             }
             if (CHECK_MV_RANGE(mv2_x, mv2_y)) {
-                ME_COST_IPEL(mv2_x, mv2_y);
+                ME_COST_IPEL8(mv2_x, mv2_y);
             }
 
             /* if no new point is found, stop */
@@ -992,7 +1473,7 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
             int rmv_x_max = XAVS2_MIN(mv_x_max, bmx + RasterDistance - 2);
             for (j = rmv_y_min; j < rmv_y_max; j += iRasterDist) {
                 for (i = rmv_x_min; i < rmv_x_max; i += iRasterDist) {
-                    ME_COST_IPEL_X4(i, j, i, j + iRasterDist2, i + iRasterDist2, j, i + iRasterDist2, j + iRasterDist2);
+                    ME_COST_IPEL8_X4(i, j, i, j + iRasterDist2, i + iRasterDist2, j, i + iRasterDist2, j + iRasterDist2);
                 }
             }
         }
@@ -1004,7 +1485,7 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
             mvinfo.bmx   = bmx;
             mvinfo.bmy   = bmy;
             mvinfo.bdir  = 0;
-            tz_pattern_search(h, p_me, p_org, p_fref, &mvinfo, mv_x_min, mv_y_min, mv_x_max, mv_y_max, i_pixel, i_fref, MaxIters, me_range);
+            tz_pattern_search8(h, p_me, p_org, p_fref, &mvinfo, mv_x_min, mv_y_min, mv_x_max, mv_y_max, i_pixel, i_fref, MaxIters, me_range);
             bcost = mvinfo.bcost;
             bdist = mvinfo.bdist;
             bmx   = mvinfo.bmx;
@@ -1019,10 +1500,10 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
                     mv2_x = bmx + offsets[(dir - 1) * 2 + 1][0]; /*  X 6 7 8 X  */
                     mv2_y = bmy + offsets[(dir - 1) * 2 + 1][1]; /*    X   X    */
                     if (CHECK_MV_RANGE(mv1_x, mv1_y)) {
-                        ME_COST_IPEL(mv1_x, mv1_y);
+                        ME_COST_IPEL8(mv1_x, mv1_y);
                     }
                     if (CHECK_MV_RANGE(mv2_x, mv2_y)) {
-                        ME_COST_IPEL(mv2_x, mv2_y);
+                        ME_COST_IPEL8(mv2_x, mv2_y);
                     }
                 }
                 break;
@@ -1030,14 +1511,14 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
         }
 
         /* equivalent to the above, but eliminates duplicate candidates */
-        goto umh_step_2;
+        goto umh_step8_2;
     }
     case XAVS2_ME_UMH:        /* UMH */
         /* http://www.cnblogs.com/TaigaCon/archive/2014/06/16/3788984.html
          * 0. ³õÊ¼µãËÑË÷ */
-        DIA_ITER(mvc[0][0], mvc[0][1]);
+        DIA_ITER8(mvc[0][0], mvc[0][1]);
         if (pmv && (bmx != mvc[0][0] || bmy != mvc[0][1])) {
-            DIA_ITER(bmx, bmy);
+            DIA_ITER8(bmx, bmy);
             pmv = MAKEDWORD(bmx, bmy);
         }
 
@@ -1045,26 +1526,26 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
         if (p_me->mvp1.v != 0) {
             int mx = IPEL(p_me->mvp1.x);
             int my = IPEL(p_me->mvp1.y);
-            ME_COST_IPEL(mx, my);
+            ME_COST_IPEL8(mx, my);
         }
-        EARLY_TERMINATION(p_me->pred_sad_uplayer);
+        EARLY_TERMINATION8(p_me->pred_sad_uplayer);
         // g_me_time[1]++;
 
         // prediction using mv of last ref_idx motion vector
         if (p_me->i_ref_idx > 0) {
-            ME_COST_IPEL(IPEL(p_me->mvp2.x), IPEL(p_me->mvp2.y));
+            ME_COST_IPEL8(IPEL(p_me->mvp2.x), IPEL(p_me->mvp2.y));
         }
         if (p_me->mvp3.v != 0) {
-            ME_COST_IPEL(IPEL(p_me->mvp3.x), IPEL(p_me->mvp3.y));
+            ME_COST_IPEL8(IPEL(p_me->mvp3.x), IPEL(p_me->mvp3.y));
         }
 
         /* µ±Ç°×îÓÅMV²»ÊÇ MVP£¬ËÑË÷ÆäÖÜÎ§Ò»¸öÐ¡´°¿Ú */
         if (pmv != (uint32_t)MAKEDWORD(bmx, bmy)) {
-            DIA_ITER(bmx, bmy);
+            DIA_ITER8(bmx, bmy);
         }
 
         // early termination algorithm
-        EARLY_TERMINATION(p_me->pred_sad);
+        EARLY_TERMINATION8(p_me->pred_sad);
 
         // umh_step_1:
         /* UMH 1. Unsymmetrical-cross search £¨·Ç¶Ô³ÆÊ®×ÖËÑË÷£© */
@@ -1072,26 +1553,26 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
         omx = bmx;
         omy = bmy;
         for (i = 1; i <= me_range; i += 2) {
-            ME_COST_IPEL(omx + i, omy);
-            ME_COST_IPEL(omx - i, omy);
+            ME_COST_IPEL8(omx + i, omy);
+            ME_COST_IPEL8(omx - i, omy);
         }
         for (j = 1; j <= me_range / 2; j += 2) {
-            ME_COST_IPEL(omx, omy + j);
-            ME_COST_IPEL(omx, omy - j);
+            ME_COST_IPEL8(omx, omy + j);
+            ME_COST_IPEL8(omx, omy - j);
         }
 
         // early termination algorithm
-        EARLY_TERMINATION(p_me->pred_sad);
+        EARLY_TERMINATION8(p_me->pred_sad);
 
         /* UMH 2. Spiral search £¨ÂÝÐýËÑË÷£© */
         omx = bmx;
         omy = bmy;
         for (i = 0; i < 24; i++) {
-            ME_COST_IPEL(omx + GRID[i][0], omy + GRID[i][1]);
+            ME_COST_IPEL8(omx + GRID[i][0], omy + GRID[i][1]);
         }
 
         // early termination algorithm
-        EARLY_TERMINATION(p_me->pred_sad);
+        EARLY_TERMINATION8(p_me->pred_sad);
 
         // big hexagon
         if (h->UMH_big_hex_level) {
@@ -1099,22 +1580,22 @@ dist_t xavs2_me_search(xavs2_t *h, xavs2_me_t *p_me, int16_t(*mvc)[2], int i_mvc
                 omx = bmx;
                 omy = bmy;
                 for (i = 0; i < umh_1_3_step; i++) {
-                    ME_COST_IPEL(omx + search_patern[i][0] * j, omy + search_patern[i][1] * j);
+                    ME_COST_IPEL8(omx + search_patern[i][0] * j, omy + search_patern[i][1] * j);
                 }
                 if (bmx != omx || bmy != omy) {
-                    EARLY_TERMINATION(p_me->pred_sad);
+                    EARLY_TERMINATION8(p_me->pred_sad);
                 }
             }
         }
         /* !!! NO break statement here */
     case XAVS2_ME_HEX:        /* hexagon search */
-umh_step_2 :                  /* UMH 3. Uneven Multi-Hexagon-grid Search £¨²»¹æÂÉÁù±ßÐÎÄ£°åËÑË÷£© */
+umh_step8_2 :                  /* UMH 3. Uneven Multi-Hexagon-grid Search £¨²»¹æÂÉÁù±ßÐÎÄ£°åËÑË÷£© */
         // g_me_time[3]++;
         dir = 0;                                        /*   6   5   */
         omx = bmx;                                      /*           */
         omy = bmy;                                      /* 1   *   4 */
-        ME_COST_IPEL_X3_DIR(-1,-2,6,  1,-2,5, -2,0,1);  /*           */
-        ME_COST_IPEL_X3_DIR( 2, 0,4, -1, 2,2,  1,2,3);  /*   2   3   */
+        ME_COST_IPEL8_X3_DIR(-1,-2,6,  1,-2,5, -2,0,1);  /*           */
+        ME_COST_IPEL8_X3_DIR( 2, 0,4, -1, 2,2,  1,2,3);  /*   2   3   */
 
         if (dir) {
             const int8_t (*hex)[2];
@@ -1126,7 +1607,7 @@ umh_step_2 :                  /* UMH 3. Uneven Multi-Hexagon-grid Search £¨²»¹æÂ
                 omx = bmx;
                 omy = bmy;
                 hex = &HEX2[idx];
-                ME_COST_IPEL_X3_DIR(hex[0][0],hex[0][1],1, hex[1][0],hex[1][1],2, hex[2][0],hex[2][1],3);
+                ME_COST_IPEL8_X3_DIR(hex[0][0],hex[0][1],1, hex[1][0],hex[1][1],2, hex[2][0],hex[2][1],3);
                 if (!dir) {
                     break;      /* early terminate */
                 }
@@ -1135,12 +1616,12 @@ umh_step_2 :                  /* UMH 3. Uneven Multi-Hexagon-grid Search £¨²»¹æÂ
         }
         /* !!! NO break statement here */
     case XAVS2_ME_DIA:        /* diamond search */
-umh_step_3:                   /* UMH 5. the third step with a small search pattern £¨Ð¡ÁâÐÎÄ£°å·´¸´ËÑË÷£© */
+umh_step8_3:                   /* UMH 5. the third step with a small search pattern £¨Ð¡ÁâÐÎÄ£°å·´¸´ËÑË÷£© */
         dir = 0;
         if (CHECK_MV_RANGE(bmx, bmy)) {
             omx = bmx;                                          /*    4    */
             omy = bmy;                                          /*  1 * 3  */
-            ME_COST_IPEL_X4_DIR(0,-1,4, -1,0,1, 1,0,3, 0,1,2);  /*    2    */
+            ME_COST_IPEL8_X4_DIR(0,-1,4, -1,0,1, 1,0,3, 0,1,2);  /*    2    */
         }
         if (dir) {
             const int8_t (*dia)[2];
@@ -1151,7 +1632,7 @@ umh_step_3:                   /* UMH 5. the third step with a small search patte
                 omx = bmx;
                 omy = bmy;
                 dia = &DIA1[idx];
-                ME_COST_IPEL_X3_DIR(dia[0][0],dia[0][1],1, dia[1][0],dia[1][1],2, dia[2][0],dia[2][1],3);
+                ME_COST_IPEL8_X3_DIR(dia[0][0],dia[0][1],1, dia[1][0],dia[1][1],2, dia[2][0],dia[2][1],3);
                 if (!dir) {
                     break;      /* early terminate */
                 }
@@ -1164,7 +1645,7 @@ umh_step_3:                   /* UMH 5. the third step with a small search patte
         omy = bmy;
         for (j = -me_range; j < me_range; j++) {
             for (i = -me_range; i < me_range; i++) {
-                ME_COST_IPEL(omx + i, omy + j);
+                ME_COST_IPEL8(omx + i, omy + j);
             }
         }
         break;
@@ -1184,8 +1665,283 @@ umh_step_3:                   /* UMH 5. the third step with a small search patte
         bcost = me_subpel_refine(h, p_me);
     }
 
-_me_error:
+_me_error8:
     return bcost;
+    } else {
+    pel10_t *p_org = p_me->p_fenc10;
+    pel10_t *p_fref = p_me->p_fref_1st->planes10[IMG_Y] + p_me->i_bias;
+    for (i = 0; i < i_mvc; i++) {
+        int mx = mvc[i][0];
+        int my = mvc[i][1];
+        ME_COST_IPEL10(mx, my);
+    }
+
+    if (bcost == MAX_DISTORTION) {
+        goto _me_error10;         /* me failed */
+    }
+
+    /* -------------------------------------------------------------
+     * search using different method */
+
+    switch (h->param->me_method) {
+    case XAVS2_ME_TZ: {       /* TZ */
+        const int RasterDistance = 16;
+        const int MaxIters = 32;
+        const int EarlyExitIters = 3;
+        dist_t bdist;
+        int mv1_x, mv1_y, mv2_x, mv2_y;
+        mv_info mvinfo;
+
+        omx = bmx;
+        omy = bmy;
+        ME_COST_IPEL10_X3(-2, 0, -1,  2,  1,  2);
+        ME_COST_IPEL10_X3( 2, 0,  1, -2, -1, -2);
+
+        if (CHECK_MV_RANGE(bmx, bmy)) {
+            DIA_ITER10(bmx, bmy);
+        }
+
+        mvinfo.bcost = bcost;
+        mvinfo.bdist = 0;
+        mvinfo.bmx   = bmx;
+        mvinfo.bmy   = bmy;
+        mvinfo.bdir  = 0;
+        tz_pattern_search10(h, p_me, p_org, p_fref, &mvinfo, mv_x_min, mv_y_min, mv_x_max, mv_y_max, i_pixel, i_fref, EarlyExitIters, me_range);
+        bcost = mvinfo.bcost;
+        bdist = mvinfo.bdist;
+        bmx   = mvinfo.bmx;
+        bmy   = mvinfo.bmy;
+        dir   = mvinfo.bdir;
+
+        if (bdist == 1) {
+            if (!dir) {
+                break;
+            }
+
+            /* if best distance was only 1, check two missing points.
+             * for a given direction 1 to 8, check nearest two outer X pixels*/
+            mv1_x = bmx + offsets[(dir - 1) * 2    ][0];    /*     X   X     */
+            mv1_y = bmy + offsets[(dir - 1) * 2    ][1];    /*   X 1 2 3 X   */
+            mv2_x = bmx + offsets[(dir - 1) * 2 + 1][0];    /*     4 * 5     */
+            mv2_y = bmy + offsets[(dir - 1) * 2 + 1][1];    /*   X 6 7 8 X   */
+            if (CHECK_MV_RANGE(mv1_x, mv1_y)) {             /*     X   X     */
+                ME_COST_IPEL10(mv1_x, mv1_y);
+            }
+            if (CHECK_MV_RANGE(mv2_x, mv2_y)) {
+                ME_COST_IPEL10(mv2_x, mv2_y);
+            }
+
+            /* if no new point is found, stop */
+            if (bcost == mvinfo.bcost) {
+                break;      /* the bcost is not changed */
+            }
+        }
+
+        /* raster search refinement if original search distance was too big */
+        if (bdist > RasterDistance) {
+            const int iRasterDist  = RasterDistance >> 1;
+            const int iRasterDist2 = RasterDistance >> 2;
+            int rmv_y_min = XAVS2_MAX(mv_y_min, bmy - RasterDistance + 2);
+            int rmv_y_max = XAVS2_MIN(mv_y_max, bmy + RasterDistance - 2);
+            int rmv_x_min = XAVS2_MAX(mv_x_min, bmx - RasterDistance + 2);
+            int rmv_x_max = XAVS2_MIN(mv_x_max, bmx + RasterDistance - 2);
+            for (j = rmv_y_min; j < rmv_y_max; j += iRasterDist) {
+                for (i = rmv_x_min; i < rmv_x_max; i += iRasterDist) {
+                    ME_COST_IPEL10_X4(i, j, i, j + iRasterDist2, i + iRasterDist2, j, i + iRasterDist2, j + iRasterDist2);
+                }
+            }
+        }
+
+        while (bdist > 0) {
+            // center a new search around current best
+            mvinfo.bcost = bcost;
+            mvinfo.bdist = 0;
+            mvinfo.bmx   = bmx;
+            mvinfo.bmy   = bmy;
+            mvinfo.bdir  = 0;
+            tz_pattern_search10(h, p_me, p_org, p_fref, &mvinfo, mv_x_min, mv_y_min, mv_x_max, mv_y_max, i_pixel, i_fref, MaxIters, me_range);
+            bcost = mvinfo.bcost;
+            bdist = mvinfo.bdist;
+            bmx   = mvinfo.bmx;
+            bmy   = mvinfo.bmy;
+            dir   = mvinfo.bdir;
+
+            if (bdist == 1) {
+                /* for a given direction 1 to 8, check nearest 2 outer X pixels */
+                if (dir) {                                       /*    X   X    */
+                    mv1_x = bmx + offsets[(dir - 1) * 2    ][0]; /*  X 1 2 3 X  */
+                    mv1_y = bmy + offsets[(dir - 1) * 2    ][1]; /*    4 * 5    */
+                    mv2_x = bmx + offsets[(dir - 1) * 2 + 1][0]; /*  X 6 7 8 X  */
+                    mv2_y = bmy + offsets[(dir - 1) * 2 + 1][1]; /*    X   X    */
+                    if (CHECK_MV_RANGE(mv1_x, mv1_y)) {
+                        ME_COST_IPEL10(mv1_x, mv1_y);
+                    }
+                    if (CHECK_MV_RANGE(mv2_x, mv2_y)) {
+                        ME_COST_IPEL10(mv2_x, mv2_y);
+                    }
+                }
+                break;
+            }
+        }
+
+        /* equivalent to the above, but eliminates duplicate candidates */
+        goto umh_step10_2;
+    }
+    case XAVS2_ME_UMH:        /* UMH */
+        /* http://www.cnblogs.com/TaigaCon/archive/2014/06/16/3788984.html
+         * 0. ³õÊ¼µãËÑË÷ */
+        DIA_ITER10(mvc[0][0], mvc[0][1]);
+        if (pmv && (bmx != mvc[0][0] || bmy != mvc[0][1])) {
+            DIA_ITER10(bmx, bmy);
+            pmv = MAKEDWORD(bmx, bmy);
+        }
+
+        // select different step according to the different cost from upper layer
+        if (p_me->mvp1.v != 0) {
+            int mx = IPEL(p_me->mvp1.x);
+            int my = IPEL(p_me->mvp1.y);
+            ME_COST_IPEL10(mx, my);
+        }
+        EARLY_TERMINATION10(p_me->pred_sad_uplayer);
+        // g_me_time[1]++;
+
+        // prediction using mv of last ref_idx motion vector
+        if (p_me->i_ref_idx > 0) {
+            ME_COST_IPEL10(IPEL(p_me->mvp2.x), IPEL(p_me->mvp2.y));
+        }
+        if (p_me->mvp3.v != 0) {
+            ME_COST_IPEL10(IPEL(p_me->mvp3.x), IPEL(p_me->mvp3.y));
+        }
+
+        /* µ±Ç°×îÓÅMV²»ÊÇ MVP£¬ËÑË÷ÆäÖÜÎ§Ò»¸öÐ¡´°¿Ú */
+        if (pmv != (uint32_t)MAKEDWORD(bmx, bmy)) {
+            DIA_ITER10(bmx, bmy);
+        }
+
+        // early termination algorithm
+        EARLY_TERMINATION10(p_me->pred_sad);
+
+        // umh_step_1:
+        /* UMH 1. Unsymmetrical-cross search £¨·Ç¶Ô³ÆÊ®×ÖËÑË÷£© */
+        // g_me_time[2]++;
+        omx = bmx;
+        omy = bmy;
+        for (i = 1; i <= me_range; i += 2) {
+            ME_COST_IPEL10(omx + i, omy);
+            ME_COST_IPEL10(omx - i, omy);
+        }
+        for (j = 1; j <= me_range / 2; j += 2) {
+            ME_COST_IPEL10(omx, omy + j);
+            ME_COST_IPEL10(omx, omy - j);
+        }
+
+        // early termination algorithm
+        EARLY_TERMINATION10(p_me->pred_sad);
+
+        /* UMH 2. Spiral search £¨ÂÝÐýËÑË÷£© */
+        omx = bmx;
+        omy = bmy;
+        for (i = 0; i < 24; i++) {
+            ME_COST_IPEL10(omx + GRID[i][0], omy + GRID[i][1]);
+        }
+
+        // early termination algorithm
+        EARLY_TERMINATION10(p_me->pred_sad);
+
+        // big hexagon
+        if (h->UMH_big_hex_level) {
+            for (j = 1; j <= me_range / 4; j++) {
+                omx = bmx;
+                omy = bmy;
+                for (i = 0; i < umh_1_3_step; i++) {
+                    ME_COST_IPEL10(omx + search_patern[i][0] * j, omy + search_patern[i][1] * j);
+                }
+                if (bmx != omx || bmy != omy) {
+                    EARLY_TERMINATION10(p_me->pred_sad);
+                }
+            }
+        }
+        /* !!! NO break statement here */
+    case XAVS2_ME_HEX:        /* hexagon search */
+umh_step10_2 :                  /* UMH 3. Uneven Multi-Hexagon-grid Search £¨²»¹æÂÉÁù±ßÐÎÄ£°åËÑË÷£© */
+        // g_me_time[3]++;
+        dir = 0;                                        /*   6   5   */
+        omx = bmx;                                      /*           */
+        omy = bmy;                                      /* 1   *   4 */
+        ME_COST_IPEL10_X3_DIR(-1,-2,6,  1,-2,5, -2,0,1);  /*           */
+        ME_COST_IPEL10_X3_DIR( 2, 0,4, -1, 2,2,  1,2,3);  /*   2   3   */
+
+        if (dir) {
+            const int8_t (*hex)[2];
+            /* UMH 4. Extended Hexagon-based Search £¨Áù±ßÐÎÄ£°å·´¸´ËÑË÷£© */
+            idx = dir - 1;      /* start array index */
+            /* half hexagon, not overlapping the previous iteration */
+            for (i = 0; i < me_range && CHECK_MV_RANGE(bmx, bmy); i++) {
+                dir = 0;
+                omx = bmx;
+                omy = bmy;
+                hex = &HEX2[idx];
+                ME_COST_IPEL10_X3_DIR(hex[0][0],hex[0][1],1, hex[1][0],hex[1][1],2, hex[2][0],hex[2][1],3);
+                if (!dir) {
+                    break;      /* early terminate */
+                }
+                idx = M1MOD6[dir + idx - 1];    /* next start array index */
+            }
+        }
+        /* !!! NO break statement here */
+    case XAVS2_ME_DIA:        /* diamond search */
+umh_step10_3:                   /* UMH 5. the third step with a small search pattern £¨Ð¡ÁâÐÎÄ£°å·´¸´ËÑË÷£© */
+        dir = 0;
+        if (CHECK_MV_RANGE(bmx, bmy)) {
+            omx = bmx;                                          /*    4    */
+            omy = bmy;                                          /*  1 * 3  */
+            ME_COST_IPEL10_X4_DIR(0,-1,4, -1,0,1, 1,0,3, 0,1,2);  /*    2    */
+        }
+        if (dir) {
+            const int8_t (*dia)[2];
+            idx = dir - 1;      /* start array index */
+            /* half diamond, not overlapping the previous iteration */
+            for (i = 0; i < me_range && CHECK_MV_RANGE(bmx, bmy); i++) {
+                dir = 0;
+                omx = bmx;
+                omy = bmy;
+                dia = &DIA1[idx];
+                ME_COST_IPEL10_X3_DIR(dia[0][0],dia[0][1],1, dia[1][0],dia[1][1],2, dia[2][0],dia[2][1],3);
+                if (!dir) {
+                    break;      /* early terminate */
+                }
+                idx = M1MOD4[dir + idx - 1];    /* next start array index */
+            }
+        }
+        break;
+    default:                    /* XAVS2_ME_FS: full search */
+        omx = bmx;
+        omy = bmy;
+        for (j = -me_range; j < me_range; j++) {
+            for (i = -me_range; i < me_range; i++) {
+                ME_COST_IPEL10(omx + i, omy + j);
+            }
+        }
+        break;
+    }
+
+    /* -------------------------------------------------------------
+     * store the results of fullpel search */
+    p_me->bmv.v  = MAKEDWORD(FPEL(bmx), FPEL(bmy));
+    p_me->bmv2.v = MAKEDWORD(bmx, bmy);
+    p_me->bcost  = bcost;
+    p_me->bcost2 = bcost;
+    p_me->mvcost[PDIR_FWD] = MV_COST_IPEL(bmx, bmy);
+
+    /* -------------------------------------------------------------
+     * sub-pel refine */
+    if (h->use_fractional_me) {
+        bcost = me_subpel_refine(h, p_me);
+    }
+
+_me_error10:
+    return bcost;
+    }
 }
 
 
@@ -1193,13 +1949,13 @@ _me_error:
  * find motion vector for forward dual hypothesis prediction (sub-pel search)
  * return minimum motion cost after search
  */
-dist_t xavs2_me_search_sym(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, mv_t *mv)
+dist_t xavs2_me_search_sym8(xavs2_t *h, xavs2_me_t *p_me, pel8_t *buf_pixel_temp, mv_t *mv)
 {
     const int search_pos2 = 5;  // search positions for    half-pel search  (default: 9)
     const int search_pos4 = 5;  // search positions for quarter-pel search  (default: 9)
-    pel_t **p_filtered1 = p_me->p_fref_1st->filtered;
-    pel_t **p_filtered2 = p_me->p_fref_2nd->filtered;
-    pel_t *p_org = p_me->p_fenc;
+    pel8_t **p_filtered1 = p_me->p_fref_1st->filtered8;
+    pel8_t **p_filtered2 = p_me->p_fref_2nd->filtered8;
+    pel8_t *p_org = p_me->p_fenc8;
     int distance_fwd = p_me->i_distance_1st;
     int distance_bwd = p_me->i_distance_2nd;
     int i_pixel  = p_me->i_pixel;
@@ -1228,7 +1984,7 @@ dist_t xavs2_me_search_sym(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
         mx = mv->x;
         my = mv->y;
 
-        ME_COST_QPEL_SYM;
+        ME_COST_QPEL8_SYM;
         bcost = cost;
         bmv.v = MAKEDWORD(mx, my);
         return bcost;
@@ -1239,7 +1995,7 @@ dist_t xavs2_me_search_sym(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
         mx = mv->x + (Spiral[pos][0] << 1);    // quarter-pel units
         my = mv->y + (Spiral[pos][1] << 1);    // quarter-pel units
 
-        ME_COST_QPEL_SYM;
+        ME_COST_QPEL8_SYM;
         if (cost < bcost) {
             bcost = cost;
             bmv.v = MAKEDWORD(mx, my);
@@ -1263,7 +2019,92 @@ dist_t xavs2_me_search_sym(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
                 my = mv->y + Spiral[pos][1];    // quarter-pel units
             }
 
-            ME_COST_QPEL_SYM;
+            ME_COST_QPEL8_SYM;
+            if (cost < bcost) {
+                bcost = cost;
+                bmv.v = MAKEDWORD(mx, my);
+            }
+        }
+    }
+
+    mv->v = bmv.v;
+    p_me->mvcost[PDIR_SYM] = MV_COST_FPEL(bmv.x, bmv.y);
+
+    // return minimum motion cost
+    return bcost;
+}
+
+dist_t xavs2_me_search_sym10(xavs2_t *h, xavs2_me_t *p_me, pel10_t *buf_pixel_temp, mv_t *mv)
+{
+    const int search_pos2 = 5;  // search positions for    half-pel search  (default: 9)
+    const int search_pos4 = 5;  // search positions for quarter-pel search  (default: 9)
+    pel10_t **p_filtered1 = p_me->p_fref_1st->filtered10;
+    pel10_t **p_filtered2 = p_me->p_fref_2nd->filtered10;
+    pel10_t *p_org = p_me->p_fenc10;
+    int distance_fwd = p_me->i_distance_1st;
+    int distance_bwd = p_me->i_distance_2nd;
+    int i_pixel  = p_me->i_pixel;
+    int i_offset = p_me->i_bias;
+    int ctr_x    = (p_me->mvp1.x >> 1) << 1;
+    int ctr_y    = (p_me->mvp1.y >> 1) << 1;
+    int mv_x_min = p_me->mv_min[0];
+    int mv_y_min = p_me->mv_min[1];
+    int mv_x_max = p_me->mv_max[0];
+    int mv_y_max = p_me->mv_max[1];
+    int lambda   = h->i_lambda_factor;
+    int min_pos2 = (h->param->enable_hadamard ? 0 : 1);
+    int max_pos2 = (h->param->enable_hadamard ? XAVS2_MAX(1, search_pos2) : search_pos2);
+    const uint32_t mv_min = pack16to32_mask2(-mv_x_min, -mv_y_min);
+    const uint32_t mv_max = pack16to32_mask2(mv_x_max, mv_y_max) | 0x8000;
+    const uint16_t *p_cost_mvx = h->mvbits - p_me->mvp.x;
+    const uint16_t *p_cost_mvy = h->mvbits - p_me->mvp.y;
+    mv_t bmv = *mv;  // best mv
+    dist_t bcost = MAX_DISTORTION;
+    dist_t cost;
+    int pos;
+    int mx, my;
+    int i_fref = p_me->p_fref_1st->i_stride[IMG_Y];
+
+    if (!h->use_fractional_me) {
+        mx = mv->x;
+        my = mv->y;
+
+        ME_COST_QPEL10_SYM;
+        bcost = cost;
+        bmv.v = MAKEDWORD(mx, my);
+        return bcost;
+    }
+
+    // loop over search positions
+    for (pos = min_pos2; pos < max_pos2; pos++) {
+        mx = mv->x + (Spiral[pos][0] << 1);    // quarter-pel units
+        my = mv->y + (Spiral[pos][1] << 1);    // quarter-pel units
+
+        ME_COST_QPEL10_SYM;
+        if (cost < bcost) {
+            bcost = cost;
+            bmv.v = MAKEDWORD(mx, my);
+        }
+    }
+
+    mv->v = bmv.v;
+
+    /* -------------------------------------------------------------
+     * quarter-pel refine */
+
+    // loop over search positions
+    if (h->use_fractional_me >= 2) {
+        for (pos = 1; pos < search_pos4; pos++) {
+            if (h->param->enable_pmvr) {
+                if (pmvr_adapt_mv(&mx, &my, ctr_x, ctr_y, mv->x, mv->y, Spiral[pos][0], Spiral[pos][1])) {
+                    continue;
+                }
+            } else {
+                mx = mv->x + Spiral[pos][0];    // quarter-pel units
+                my = mv->y + Spiral[pos][1];    // quarter-pel units
+            }
+
+            ME_COST_QPEL10_SYM;
             if (cost < bcost) {
                 bcost = cost;
                 bmv.v = MAKEDWORD(mx, my);
@@ -1281,11 +2122,11 @@ dist_t xavs2_me_search_sym(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
 /* ---------------------------------------------------------------------------
  * return minimum motion cost after search (sub-pel search)
  */
-dist_t xavs2_me_search_bid(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, mv_t *fwd_mv, mv_t *bwd_mv, cu_parallel_t *p_enc)
+dist_t xavs2_me_search_bid8(xavs2_t *h, xavs2_me_t *p_me, pel8_t *buf_pixel_temp, mv_t *fwd_mv, mv_t *bwd_mv, cu_parallel_t *p_enc)
 {
-    pel_t **p_filtered1 = p_me->p_fref_1st->filtered;
-    pel_t **p_filtered2 = p_me->p_fref_2nd->filtered;
-    pel_t *p_org = p_me->p_fenc;
+    pel8_t **p_filtered1 = p_me->p_fref_1st->filtered8;
+    pel8_t **p_filtered2 = p_me->p_fref_2nd->filtered8;
+    pel8_t *p_org = p_me->p_fenc8;
     const int search_pos2 = 9;  // search positions for    half-pel search  (default: 9)
     const int search_pos4 = 9;  // search positions for quarter-pel search  (default: 9)
     int i_pixel  = p_me->i_pixel;
@@ -1326,28 +2167,28 @@ dist_t xavs2_me_search_bid(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
     mv_bid_bit = MV_COST_FPEL_BID(mx_bid, my_bid);
 
     if (CHECK_MV_RANGE(mx_bid, my_bid)) {
-        pel_t *p_src2 = p_filtered2[((my_bid & 3) << 2) + (mx_bid & 3)];
+        pel8_t *p_src2 = p_filtered2[((my_bid & 3) << 2) + (mx_bid & 3)];
 
         if (p_src2 != NULL) {
             p_src2 += i_offset + yy2 * i_fref + xx2;
-            g_funcs.pixf.sub_ps[i_pixel](cur_blk, block_w, p_org, p_src2, FENC_STRIDE, i_fref);//M-A
+            g_funcs.pixf.sub_ps8[i_pixel](cur_blk, block_w, p_org, p_src2, FENC_STRIDE, i_fref);//M-A
         } else {
-            ALIGN32(pel_t tmp_pred[MAX_CU_SIZE * MAX_CU_SIZE]);
+            ALIGN32(pel8_t tmp_pred8[MAX_CU_SIZE * MAX_CU_SIZE]);
             mv_t mvt;
             mvt.x = (int16_t)mx_bid;
             mvt.y = (int16_t)my_bid;
             get_mv_for_mc(h, &mvt, p_me->i_pix_x, p_me->i_pix_y, block_w, p_me->i_block_h);
-            mc_luma(tmp_pred, MAX_CU_SIZE, mvt.x, mvt.y, block_w, p_me->i_block_h, p_me->p_fref_2nd);
-            g_funcs.pixf.sub_ps[i_pixel](cur_blk, block_w, p_org, tmp_pred, FENC_STRIDE, MAX_CU_SIZE);//M-A
+            mc_luma8(h, tmp_pred8, MAX_CU_SIZE, mvt.x, mvt.y, block_w, p_me->i_block_h, p_me->p_fref_2nd);
+            g_funcs.pixf.sub_ps8[i_pixel](cur_blk, block_w, p_org, tmp_pred8, FENC_STRIDE, MAX_CU_SIZE);//M-A
         }
-        g_funcs.pixf.add_ps[i_pixel](buf_pixel_temp, MAX_CU_SIZE, p_org, cur_blk, FENC_STRIDE, block_w);//M-A+M
+        g_funcs.pixf.add_ps8[i_pixel](h, buf_pixel_temp, MAX_CU_SIZE, p_org, cur_blk, FENC_STRIDE, block_w);//M-A+M
     }
 
     if (!h->use_fractional_me) {
         mx = fwd_mv->x;
         my = fwd_mv->y;
 
-        ME_COST_QPEL_BID;
+        ME_COST_QPEL8_BID;
         bcost = cost;
         bmv.v = MAKEDWORD(mx, my);
         return bcost;
@@ -1358,7 +2199,7 @@ dist_t xavs2_me_search_bid(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
         mx = fwd_mv->x + (Spiral[pos][0] << 1);    // quarter-pel units
         my = fwd_mv->y + (Spiral[pos][1] << 1);    // quarter-pel units
 
-        ME_COST_QPEL_BID;
+        ME_COST_QPEL8_BID;
         if (cost < bcost) {
             bcost = cost;
             bmv.v = MAKEDWORD(mx, my);
@@ -1382,7 +2223,123 @@ dist_t xavs2_me_search_bid(xavs2_t *h, xavs2_me_t *p_me, pel_t *buf_pixel_temp, 
                 my = fwd_mv->y + Spiral[pos][1];    // quarter-pel units
             }
 
-            ME_COST_QPEL_BID;
+            ME_COST_QPEL8_BID;
+            if (cost < bcost) {
+                bcost = cost;
+                bmv.v = MAKEDWORD(mx, my);
+            }
+        }
+    }
+
+    fwd_mv->v = bmv.v;
+    p_me->mvcost[PDIR_BID] = MV_COST_FPEL(bmv.x, bmv.y) + MV_COST_FPEL_BID(mx_bid, my_bid);
+
+    // return minimum motion cost
+    return bcost;
+}
+
+dist_t xavs2_me_search_bid10(xavs2_t *h, xavs2_me_t *p_me, pel10_t *buf_pixel_temp, mv_t *fwd_mv, mv_t *bwd_mv, cu_parallel_t *p_enc)
+{
+    pel10_t **p_filtered1 = p_me->p_fref_1st->filtered10;
+    pel10_t **p_filtered2 = p_me->p_fref_2nd->filtered10;
+    pel10_t *p_org = p_me->p_fenc10;
+    const int search_pos2 = 9;  // search positions for    half-pel search  (default: 9)
+    const int search_pos4 = 9;  // search positions for quarter-pel search  (default: 9)
+    int i_pixel  = p_me->i_pixel;
+    int i_offset = p_me->i_bias;
+    int ctr_x    = (p_me->mvp1.x >> 1) << 1;
+    int ctr_y    = (p_me->mvp1.y >> 1) << 1;
+    int mv_x_min = p_me->mv_min[0];
+    int mv_y_min = p_me->mv_min[1];
+    int mv_x_max = p_me->mv_max[0];
+    int mv_y_max = p_me->mv_max[1];
+    int lambda   = h->i_lambda_factor;
+    int min_pos2 = (h->param->enable_hadamard ? 0 : 1);
+    int max_pos2 = (h->param->enable_hadamard ? XAVS2_MAX(1, search_pos2) : search_pos2);
+    int block_w = p_me->i_block_w;
+    int xx2;
+    int yy2;
+    int mv_bid_bit;
+    const uint32_t mv_min = pack16to32_mask2(-mv_x_min, -mv_y_min);
+    const uint32_t mv_max = pack16to32_mask2(mv_x_max, mv_y_max) | 0x8000;
+    const uint16_t *p_cost_mvx = h->mvbits - p_me->mvp1.x;
+    const uint16_t *p_cost_mvy = h->mvbits - p_me->mvp1.y;
+    const uint16_t *p_cost_bix = h->mvbits - p_me->mvp2.x;
+    const uint16_t *p_cost_biy = h->mvbits - p_me->mvp2.y;
+    mv_t bmv = *fwd_mv; // best mv
+    dist_t bcost = MAX_DISTORTION;
+    dist_t cost;
+    int mx, my, mx_bid, my_bid;
+    int pos;
+    int i_fref = p_me->p_fref_1st->i_stride[IMG_Y];
+    coeff_t *cur_blk = p_enc->coeff_blk;
+
+    mx_bid = bwd_mv->x;
+    my_bid = bwd_mv->y;
+
+    //ÔÚÕâÀï°Ñ±àÂëÖµÓëÔ¤²âÖµµÄ¼ÆËã¹«Ê½»»ËãÎª2±¶±àÂëÖµ-ºóÏòÔ¤²âÖµ
+    xx2 = mx_bid >> 2;
+    yy2 = my_bid >> 2;
+    mv_bid_bit = MV_COST_FPEL_BID(mx_bid, my_bid);
+
+    if (CHECK_MV_RANGE(mx_bid, my_bid)) {
+        pel10_t *p_src2 = p_filtered2[((my_bid & 3) << 2) + (mx_bid & 3)];
+
+        if (p_src2 != NULL) {
+            p_src2 += i_offset + yy2 * i_fref + xx2;
+            g_funcs.pixf.sub_ps10[i_pixel](cur_blk, block_w, p_org, p_src2, FENC_STRIDE, i_fref);//M-A
+        } else {
+            ALIGN32(pel10_t tmp_pred10[MAX_CU_SIZE * MAX_CU_SIZE]);
+            mv_t mvt;
+            mvt.x = (int16_t)mx_bid;
+            mvt.y = (int16_t)my_bid;
+            get_mv_for_mc(h, &mvt, p_me->i_pix_x, p_me->i_pix_y, block_w, p_me->i_block_h);
+            mc_luma10(h, tmp_pred10, MAX_CU_SIZE, mvt.x, mvt.y, block_w, p_me->i_block_h, p_me->p_fref_2nd);
+            g_funcs.pixf.sub_ps10[i_pixel](cur_blk, block_w, p_org, tmp_pred10, FENC_STRIDE, MAX_CU_SIZE);//M-A
+        }
+        g_funcs.pixf.add_ps10[i_pixel](h, buf_pixel_temp, MAX_CU_SIZE, p_org, cur_blk, FENC_STRIDE, block_w);//M-A+M
+    }
+
+    if (!h->use_fractional_me) {
+        mx = fwd_mv->x;
+        my = fwd_mv->y;
+
+        ME_COST_QPEL10_BID;
+        bcost = cost;
+        bmv.v = MAKEDWORD(mx, my);
+        return bcost;
+    }
+
+    // loop over search positions
+    for (pos = min_pos2; pos < max_pos2; pos++) {
+        mx = fwd_mv->x + (Spiral[pos][0] << 1);    // quarter-pel units
+        my = fwd_mv->y + (Spiral[pos][1] << 1);    // quarter-pel units
+
+        ME_COST_QPEL10_BID;
+        if (cost < bcost) {
+            bcost = cost;
+            bmv.v = MAKEDWORD(mx, my);
+        }
+    }
+
+    fwd_mv->v = bmv.v;
+
+    /* -------------------------------------------------------------
+     * quarter-pel refine */
+
+    // loop over search positions
+    if (h->use_fractional_me >= 2) {
+        for (pos = 1; pos < search_pos4; pos++) {
+            if (h->param->enable_pmvr) {
+                if (pmvr_adapt_mv(&mx, &my, ctr_x, ctr_y, fwd_mv->x, fwd_mv->y, Spiral[pos][0], Spiral[pos][1])) {
+                    continue;
+                }
+            } else {
+                mx = fwd_mv->x + Spiral[pos][0];    // quarter-pel units
+                my = fwd_mv->y + Spiral[pos][1];    // quarter-pel units
+            }
+
+            ME_COST_QPEL10_BID;
             if (cost < bcost) {
                 bcost = cost;
                 bmv.v = MAKEDWORD(mx, my);

@@ -58,7 +58,9 @@ void xavs2_frame_destroy_objects(xavs2_handler_t *h_mgr, xavs2_frame_t *frame);
 void xavs2_frame_copy_planes(xavs2_t *h, xavs2_frame_t *dst, xavs2_frame_t *src);
 
 #define xavs2_frame_expand_border_frame FPFX(frame_expand_border_frame)
-void plane_expand_border(pel_t *p_pix, int i_stride, int i_width, int i_height,
+void plane_expand_border8(pel8_t *p_pix, int i_stride, int i_width, int i_height,
+                         int i_padh, int i_padv, int b_pad_top, int b_pad_bottom);
+void plane_expand_border10(pel10_t *p_pix, int i_stride, int i_width, int i_height,
                          int i_padh, int i_padv, int b_pad_top, int b_pad_bottom);
 void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame);
 #define xavs2_frame_expand_border_lcurow FPFX(frame_expand_border_lcurow)

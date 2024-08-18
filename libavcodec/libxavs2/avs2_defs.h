@@ -256,7 +256,7 @@ enum sao_class_e {
 #define XAVS2_MIN3(a, b, c)   XAVS2_MIN((a), XAVS2_MIN((b),(c)))
 #define XAVS2_MAX3(a, b, c)   XAVS2_MAX((a), XAVS2_MAX((b),(c)))
 
-#define XAVS2_CLIP1(a)        ((a) > max_pel_value ? max_pel_value : ((a) < 0 ? 0 : (a)))
+//#define XAVS2_CLIP1(a)        ((a) > max_pel_value ? max_pel_value : ((a) < 0 ? 0 : (a)))
 #define XAVS2_CLIP3F(L, H, v) (((v) < (L)) ? (L) : (((v) > (H)) ? (H) : (v)))
 #define XAVS2_CLIP3(L, H, v)  xavs2_clip3(L, H, v)
 #define XAVS2_ABS(A)          ((A) < 0 ? (-(A)) : (A))    // abs macro, faster than procedure
@@ -281,9 +281,9 @@ static void XAVS2_SWAP_PTR(T *&x, T *&y)
  * global variables
  * ===========================================================================
  */
-static const int g_bit_depth   = BIT_DEPTH;
-static const int max_pel_value = (1 << BIT_DEPTH) - 1;
-static const int g_dc_value    = (1 << BIT_DEPTH) >> 1;
+//static const int g_bit_depth   = BIT_DEPTH;
+//static const int max_pel_value = (1 << BIT_DEPTH) - 1;
+//static const int g_dc_value    = (1 << BIT_DEPTH) >> 1;
 
 /**
  * ===========================================================================
@@ -291,10 +291,10 @@ static const int g_dc_value    = (1 << BIT_DEPTH) >> 1;
  * ===========================================================================
  */
 
-static ALWAYS_INLINE pel_t xavs2_clip_pixel(int x)
+/*static ALWAYS_INLINE pel_t xavs2_clip_pixel(int x)
 {
     return (pel_t)((x & ~max_pel_value) ? (-x) >> 31 & max_pel_value : x);
-}
+}*/
 
 static ALWAYS_INLINE int xavs2_clip3(int i_min, int i_max, int v)
 {

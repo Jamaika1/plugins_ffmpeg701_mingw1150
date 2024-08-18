@@ -147,11 +147,12 @@ size_t xavs2_frame_buffer_size(const xavs2_param_t *param, int alloc_type)
     }
 
     /* compute space size and alloc memory */
+    if (param->input_sample_bit_depth == 8) {
     mem_size = sizeof(xavs2_frame_t)                + /* M0, size of frame handle */
                i_nal_info_size                             + /* M1, size of nal_info buffer */
                cmp_size + cmp_buf_size                     + /* M2, size of frame complexity buffer */
                bs_size                                     + /* M3, size of bitstream buffer */
-               planes_size * sizeof(pel_t)                 + /* M4, size of planes buffer: Y+U+V */
+               planes_size * sizeof(pel8_t)                 + /* M4, size of planes buffer: Y+U+V */
                frame_size_in_mvstore * sizeof(int8_t)      + /* M5, size of pu reference index buffer */
                frame_size_in_mvstore * sizeof(mv_t)        + /* M6, size of pu motion vector buffer */
 #if SAVE_CU_INFO
@@ -159,11 +160,28 @@ size_t xavs2_frame_buffer_size(const xavs2_param_t *param, int alloc_type)
 #endif
                (img_h_l >> MIN_CU_SIZE_IN_BIT) * sizeof(int)+ /* M8, line status array */
                CACHE_LINE_SIZE * 10;
-
     /* align to CACHE_LINE_SIZE */
     mem_size = (mem_size + CACHE_LINE_SIZE - 1) & (~(uint32_t)(CACHE_LINE_SIZE - 1));
 
     return mem_size;
+    } else {
+    mem_size = sizeof(xavs2_frame_t)                + /* M0, size of frame handle */
+               i_nal_info_size                             + /* M1, size of nal_info buffer */
+               cmp_size + cmp_buf_size                     + /* M2, size of frame complexity buffer */
+               bs_size                                     + /* M3, size of bitstream buffer */
+               planes_size * sizeof(pel10_t)                 + /* M4, size of planes buffer: Y+U+V */
+               frame_size_in_mvstore * sizeof(int8_t)      + /* M5, size of pu reference index buffer */
+               frame_size_in_mvstore * sizeof(mv_t)        + /* M6, size of pu motion vector buffer */
+#if SAVE_CU_INFO
+               frame_size_in_mincu * sizeof(int8_t) * 3    + /* M7, size of cu mode/cbp/level buffers */
+#endif
+               (img_h_l >> MIN_CU_SIZE_IN_BIT) * sizeof(int)+ /* M8, line status array */
+               CACHE_LINE_SIZE * 10;
+    /* align to CACHE_LINE_SIZE */
+    mem_size = (mem_size + CACHE_LINE_SIZE - 1) & (~(uint32_t)(CACHE_LINE_SIZE - 1));
+
+    return mem_size;
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -189,7 +207,6 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
     int frame_size_in_mincu = 0;
 #endif
     int frame_size_in_mvstore = 0;  /* reference information size */
-    uint8_t *mem_ptr;
 
     /* compute stride and the plane size */
     switch (alloc_type) {
@@ -236,11 +253,13 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
     }
 
     /* compute space size and alloc memory */
+    if (h->param->input_sample_bit_depth == 8) {
+    uint8_t *mem_ptr;
     mem_size = sizeof(xavs2_frame_t)                + /* M0, size of frame handle */
                i_nal_info_size                             + /* M1, size of nal_info buffer */
                cmp_size + cmp_buf_size                     + /* M2, size of frame complexity buffer */
                bs_size                                     + /* M3, size of bitstream buffer */
-               planes_size * sizeof(pel_t)                 + /* M4, size of planes buffer: Y+U+V */
+               planes_size * sizeof(pel8_t)                 + /* M4, size of planes buffer: Y+U+V */
                frame_size_in_mvstore * sizeof(int8_t)      + /* M5, size of pu reference index buffer */
                frame_size_in_mvstore * sizeof(mv_t)        + /* M6, size of pu motion vector buffer */
 #if SAVE_CU_INFO
@@ -248,12 +267,11 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
 #endif
                h->i_height_in_lcu * sizeof(int)            + /* M8, line status array */
                CACHE_LINE_SIZE * 10;
-
     /* align to CACHE_LINE_SIZE */
     mem_size = (mem_size + CACHE_LINE_SIZE - 1) & (~(uint32_t)(CACHE_LINE_SIZE - 1));
 
     if (mem_base == NULL) {
-        CHECKED_MALLOC(mem_ptr, uint8_t *, mem_size);
+        CHECKED_MALLOC8(mem_ptr, uint8_t *, mem_size);
     } else {
         mem_ptr = *mem_base;
     }
@@ -305,54 +323,54 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
     }
 
     /* M3, buffer for planes: Y+U+V */
-    frame->plane_buf = (pel_t *)mem_ptr;
-    frame->size_plane_buf = (size_l + 2 * size_c) * sizeof(pel_t);
+    frame->plane_buf8 = (pel8_t *)mem_ptr;
+    frame->size_plane_buf = (size_l + 2 * size_c) * sizeof(pel8_t);
 
-    frame->planes[0] = (pel_t *)mem_ptr;
-    frame->planes[1] = frame->planes[0] + size_l;
-    frame->planes[2] = frame->planes[1] + size_c;
-    mem_ptr         += (size_l + size_c * 2) * sizeof(pel_t);
+    frame->planes8[0] = (pel8_t *)mem_ptr;
+    frame->planes8[1] = frame->planes8[0] + size_l;
+    frame->planes8[2] = frame->planes8[1] + size_c;
+    mem_ptr         += (size_l + size_c * 2) * sizeof(pel8_t);
 
     if (alloc_type == FT_DEC || alloc_type == FT_TEMP) {
         uint8_t *p_align;
         /* point to plane data area */
-        frame->planes[0] += frame->i_stride[0] * (XAVS2_PAD    ) + (XAVS2_PAD    );
-        frame->planes[1] += frame->i_stride[1] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
-        frame->planes[2] += frame->i_stride[2] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
+        frame->planes8[0] += frame->i_stride[0] * (XAVS2_PAD    ) + (XAVS2_PAD    );
+        frame->planes8[1] += frame->i_stride[1] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
+        frame->planes8[2] += frame->i_stride[2] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
 
         /* make sure the pointers are aligned */
-        p_align = (uint8_t *)frame->planes[0];
+        p_align = (uint8_t *)frame->planes8[0];
         ALIGN_POINTER(p_align);
-        frame->planes[0] = (pel_t *)p_align;
-        p_align = (uint8_t *)frame->planes[1];
+        frame->planes8[0] = (pel8_t *)p_align;
+        p_align = (uint8_t *)frame->planes8[1];
         ALIGN_POINTER(p_align);
-        frame->planes[1] = (pel_t *)p_align;
-        p_align = (uint8_t *)frame->planes[2];
+        frame->planes8[1] = (pel8_t *)p_align;
+        p_align = (uint8_t *)frame->planes8[2];
         ALIGN_POINTER(p_align);
-        frame->planes[2] = (pel_t *)p_align;
+        frame->planes8[2] = (pel8_t *)p_align;
     }
 
     if (alloc_type == FT_DEC) {
         /* buffer for luma interpolated planes */
-        frame->filtered[0] = frame->planes[0];  // full pel plane, reused
+        frame->filtered8[0] = frame->planes8[0];  // full pel plane, reused
         for (i = 1; i < 16; i++) {
-            frame->filtered[i] = NULL;
+            frame->filtered8[i] = NULL;
         }
 #if ENABLE_FRAME_SUBPEL_INTPL
         switch (h->use_fractional_me) {
         case 1:
-            frame->filtered[2]  = (pel_t *)mem_ptr;
-            mem_ptr            += size_l * sizeof(pel_t);
-            frame->filtered[8]  = (pel_t *)mem_ptr;
-            mem_ptr            += size_l * sizeof(pel_t);
-            frame->filtered[10] = (pel_t *)mem_ptr;
-            mem_ptr            += size_l * sizeof(pel_t);
+            frame->filtered8[2]  = (pel8_t *)mem_ptr;
+            mem_ptr            += size_l * sizeof(pel8_t);
+            frame->filtered8[8]  = (pel8_t *)mem_ptr;
+            mem_ptr            += size_l * sizeof(pel8_t);
+            frame->filtered8[10] = (pel8_t *)mem_ptr;
+            mem_ptr            += size_l * sizeof(pel8_t);
 
             break;
         case 2:
             for (i = 1; i < 16; i++) {
-                frame->filtered[i] = (pel_t *)mem_ptr;
-                mem_ptr           += size_l * sizeof(pel_t);
+                frame->filtered8[i] = (pel8_t *)mem_ptr;
+                mem_ptr           += size_l * sizeof(pel8_t);
             }
             break;
         default:
@@ -361,8 +379,8 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
 #endif
         /* point to plane data area */
         for (i = 1; i < 16; i++) {
-            if (frame->filtered[i] != NULL) {
-                frame->filtered[i] += frame->i_stride[0] * XAVS2_PAD + XAVS2_PAD;
+            if (frame->filtered8[i] != NULL) {
+                frame->filtered8[i] += frame->i_stride[0] * XAVS2_PAD + XAVS2_PAD;
             }
         }
         ALIGN_POINTER(mem_ptr);
@@ -400,7 +418,7 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
 
     if (mem_ptr - (uint8_t *)frame > mem_size) {
         xavs2_log(NULL, XAVS2_LOG_ERROR, "Failed to alloc one frame, type %d\n", alloc_type);
-        goto fail;
+        goto fail8;
     }
 
     /* update mem_base */
@@ -414,17 +432,208 @@ xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type)
 
     /* initialize signals */
     if (xavs2_thread_mutex_init(&frame->mutex, NULL)) {
-        goto fail;
+        goto fail8;
     }
     if (xavs2_thread_cond_init(&frame->cond, NULL)) {
-        goto fail;
+        goto fail8;
     }
 
     return frame;
 
-fail:
+fail8:
     xavs2_free(mem_ptr);
     return NULL;
+    } else {
+    uint8_t *mem_ptr;
+    mem_size = sizeof(xavs2_frame_t)                + /* M0, size of frame handle */
+               i_nal_info_size                             + /* M1, size of nal_info buffer */
+               cmp_size + cmp_buf_size                     + /* M2, size of frame complexity buffer */
+               bs_size                                     + /* M3, size of bitstream buffer */
+               planes_size * sizeof(pel10_t)                 + /* M4, size of planes buffer: Y+U+V */
+               frame_size_in_mvstore * sizeof(int8_t)      + /* M5, size of pu reference index buffer */
+               frame_size_in_mvstore * sizeof(mv_t)        + /* M6, size of pu motion vector buffer */
+#if SAVE_CU_INFO
+               frame_size_in_mincu * sizeof(int8_t) * 3    + /* M7, size of cu mode/cbp/level buffers */
+#endif
+               h->i_height_in_lcu * sizeof(int)            + /* M8, line status array */
+               CACHE_LINE_SIZE * 10;
+    /* align to CACHE_LINE_SIZE */
+    mem_size = (mem_size + CACHE_LINE_SIZE - 1) & (~(uint32_t)(CACHE_LINE_SIZE - 1));
+
+    if (mem_base == NULL) {
+        CHECKED_MALLOC10(mem_ptr, uint8_t *, mem_size);
+    } else {
+        mem_ptr = /*(uint16_t*)*/*mem_base;
+    }
+
+    /* M0, frame handle */
+    frame    = (xavs2_frame_t *)mem_ptr;
+    mem_ptr += sizeof(xavs2_frame_t);
+    ALIGN_POINTER(mem_ptr);
+
+    /* set frame properties */
+    frame->i_plane     = 3;           /* planes: Y+U+V */
+    frame->i_width [0] = img_w_l;
+    frame->i_lines [0] = img_h_l;
+    frame->i_stride[0] = stride_l;
+    frame->i_width [1] = frame->i_width [2] = img_w_c;
+    frame->i_lines [1] = frame->i_lines [2] = img_h_c;
+    frame->i_stride[1] = frame->i_stride[2] = stride_c;
+
+    /* the default setting of a frame */
+    frame->i_frame   = -1;
+    frame->i_frm_coi = -1;
+    frame->i_gop_idr_coi = -1;
+
+    if (h->param->chroma_format == CHROMA_400) {
+        frame->i_plane = 1;
+    }
+
+    frame->i_frm_type = XAVS2_TYPE_AUTO;
+    frame->i_pts  = -1;
+    frame->i_dts  = -1;
+    frame->b_enable_intra = (h->param->enable_intra);
+
+    /* buffer for fenc */
+    if (alloc_type == FT_ENC) {
+#if XAVS2_ADAPT_LAYER
+        /* M1, nal_info buffer */
+        frame->nal_info = (xavs2_nal_info_t *)mem_ptr;
+        frame->i_nal    = 0;
+        mem_ptr        += i_nal_info_size;
+        ALIGN_POINTER(mem_ptr);
+#endif
+
+        /* M2, set the bit stream buffer pointer and length
+         * NOTE: the size of bitstream buffer is big enough, no need to reallocate
+         *       memory in function encoder_encapsulate_nals */
+        frame->p_bs_buf = mem_ptr;
+        frame->i_bs_buf = bs_size;     /* the length is long enough */
+        mem_ptr        += bs_size;
+    }
+
+    /* M3, buffer for planes: Y+U+V */
+    frame->plane_buf10 = (pel10_t *)mem_ptr;
+    frame->size_plane_buf = (size_l + 2 * size_c) * sizeof(pel10_t);
+
+    frame->planes10[0] = (pel10_t *)mem_ptr;
+    frame->planes10[1] = frame->planes10[0] + size_l;
+    frame->planes10[2] = frame->planes10[1] + size_c;
+    mem_ptr         += (size_l + size_c * 2) * sizeof(pel10_t);
+
+    if (alloc_type == FT_DEC || alloc_type == FT_TEMP) {
+        uint8_t *p_align;
+        /* point to plane data area */
+        frame->planes10[0] += frame->i_stride[0] * (XAVS2_PAD    ) + (XAVS2_PAD    );
+        frame->planes10[1] += frame->i_stride[1] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
+        frame->planes10[2] += frame->i_stride[2] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
+
+        /* make sure the pointers are aligned */
+        p_align = (uint8_t *)frame->planes10[0];
+        ALIGN_POINTER(p_align);
+        frame->planes10[0] = (pel10_t *)p_align;
+        p_align = (uint8_t *)frame->planes10[1];
+        ALIGN_POINTER(p_align);
+        frame->planes10[1] = (pel10_t *)p_align;
+        p_align = (uint8_t *)frame->planes10[2];
+        ALIGN_POINTER(p_align);
+        frame->planes10[2] = (pel10_t *)p_align;
+    }
+
+    if (alloc_type == FT_DEC) {
+        /* buffer for luma interpolated planes */
+        frame->filtered10[0] = frame->planes10[0];  // full pel plane, reused
+        for (i = 1; i < 16; i++) {
+            frame->filtered10[i] = NULL;
+        }
+#if ENABLE_FRAME_SUBPEL_INTPL
+        switch (h->use_fractional_me) {
+        case 1:
+            frame->filtered10[2]  = (pel10_t *)mem_ptr;
+            mem_ptr            += size_l * sizeof(pel10_t);
+            frame->filtered10[8]  = (pel10_t *)mem_ptr;
+            mem_ptr            += size_l * sizeof(pel10_t);
+            frame->filtered10[10] = (pel10_t *)mem_ptr;
+            mem_ptr            += size_l * sizeof(pel10_t);
+
+            break;
+        case 2:
+            for (i = 1; i < 16; i++) {
+                frame->filtered10[i] = (pel10_t *)mem_ptr;
+                mem_ptr           += size_l * sizeof(pel10_t);
+            }
+            break;
+        default:
+            break;
+        }
+#endif
+        /* point to plane data area */
+        for (i = 1; i < 16; i++) {
+            if (frame->filtered10[i] != NULL) {
+                frame->filtered10[i] += frame->i_stride[0] * XAVS2_PAD + XAVS2_PAD;
+            }
+        }
+        ALIGN_POINTER(mem_ptr);
+
+        /* M4, reference index buffer */
+        frame->pu_ref = (int8_t *)mem_ptr;
+        mem_ptr      += frame_size_in_mvstore * sizeof(int8_t);
+        ALIGN_POINTER(mem_ptr);
+
+        /* M5, pu motion vector buffer */
+        frame->pu_mv  = (mv_t *)mem_ptr;
+        mem_ptr += frame_size_in_mvstore * sizeof(mv_t);
+        ALIGN_POINTER(mem_ptr);
+
+#if SAVE_CU_INFO
+        /* M6, cu mode/cbp/level buffers */
+        frame->cu_mode  = (int8_t *)mem_ptr;
+        mem_ptr        += frame_size_in_mincu * sizeof(int8_t);
+        ALIGN_POINTER(mem_ptr);
+        frame->cu_cbp   = (int8_t *)mem_ptr;
+        mem_ptr        += frame_size_in_mincu * sizeof(int8_t);
+        ALIGN_POINTER(mem_ptr);
+        frame->cu_level = (int8_t *)mem_ptr;
+        mem_ptr        += frame_size_in_mincu * sizeof(int8_t);
+        ALIGN_POINTER(mem_ptr);
+#endif
+
+        /* M7, line status array */
+        frame->num_lcu_coded_in_row = (int *)mem_ptr;
+        mem_ptr                    += h->i_height_in_lcu * sizeof(int);
+        ALIGN_POINTER(mem_ptr);
+
+        memset(frame->num_lcu_sao_off, 0, sizeof(frame->num_lcu_sao_off));
+    }
+
+    if (mem_ptr - (uint8_t *)frame > mem_size) {
+        xavs2_log(NULL, XAVS2_LOG_ERROR, "Failed to alloc one frame, type %d\n", alloc_type);
+        goto fail10;
+    }
+
+    /* update mem_base */
+    if (mem_base != NULL) {
+        *mem_base = /*(uint8_t**)*/mem_ptr;
+    }
+
+    /* initialize default value */
+    frame->i_qpplus1     = 0;
+    frame->cnt_refered   = 0;
+
+    /* initialize signals */
+    if (xavs2_thread_mutex_init(&frame->mutex, NULL)) {
+        goto fail10;
+    }
+    if (xavs2_thread_cond_init(&frame->cond, NULL)) {
+        goto fail10;
+    }
+
+    return frame;
+
+fail10:
+    xavs2_free(mem_ptr);
+    return NULL;
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -468,11 +677,11 @@ void xavs2_frame_destroy_objects(xavs2_handler_t *h_mgr, xavs2_frame_t *frame)
 /* ---------------------------------------------------------------------------
  */
 void
-plane_expand_border(pel_t *p_pix, int i_stride, int i_width, int i_height,
+plane_expand_border8(pel8_t *p_pix, int i_stride, int i_width, int i_height,
                     int i_padh, int i_padv, int b_pad_top, int b_pad_bottom)
 {
-    pel_t *pix = p_pix;
-    pel_t *row;
+    pel8_t *pix = p_pix;
+    pel8_t *row;
     int y;
 
     /* --- horizontal ----------------------------------------------
@@ -492,7 +701,7 @@ plane_expand_border(pel_t *p_pix, int i_stride, int i_width, int i_height,
         pix = row = p_pix - i_padh;   /* start row position */
         for (y = 0; y < i_padv; y++) {
             pix -= i_stride;
-            memcpy(pix, row, i_width * sizeof(pel_t));
+            memcpy(pix, row, i_width * sizeof(pel8_t));
         }
     }
 
@@ -501,7 +710,46 @@ plane_expand_border(pel_t *p_pix, int i_stride, int i_width, int i_height,
         pix = row = p_pix + (i_height - 1) * i_stride - i_padh;
         for (y = 0; y < i_padv; y++) {
             pix += i_stride;
-            memcpy(pix, row, i_width * sizeof(pel_t));
+            memcpy(pix, row, i_width * sizeof(pel8_t));
+        }
+    }
+}
+
+void
+plane_expand_border10(pel10_t *p_pix, int i_stride, int i_width, int i_height,
+                    int i_padh, int i_padv, int b_pad_top, int b_pad_bottom)
+{
+    pel10_t *pix = p_pix;
+    pel10_t *row;
+    int y;
+
+    /* --- horizontal ----------------------------------------------
+     */
+    for (y = 0; y < i_height; y++) {
+        g_funcs.mem_repeat_p(pix - i_padh,  pix[0          ], i_padh);    /* left  band */
+        g_funcs.mem_repeat_p(pix + i_width, pix[i_width - 1], i_padh);    /* right band */
+        pix += i_stride;
+    }
+
+    /* --- vertical ------------------------------------------------
+     */
+    i_width += (i_padh << 1);
+
+    /* upper band */
+    if (b_pad_top) {
+        pix = row = p_pix - i_padh;   /* start row position */
+        for (y = 0; y < i_padv; y++) {
+            pix -= i_stride;
+            memcpy(pix, row, i_width * sizeof(pel10_t));
+        }
+    }
+
+    /* lower band */
+    if (b_pad_bottom) {
+        pix = row = p_pix + (i_height - 1) * i_stride - i_padh;
+        for (y = 0; y < i_padv; y++) {
+            pix += i_stride;
+            memcpy(pix, row, i_width * sizeof(pel10_t));
         }
     }
 }
@@ -515,9 +763,10 @@ void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame)
     int b_frame_start = 1;
     int b_frame_end   = 1;
     int i;
-    pel_t *pix;
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *pix;
 
-    UNUSED_PARAMETER(h);
+    //UNUSED_PARAMETER(h);
 
     for (i = 0; i < frame->i_plane; i++) {
         int chroma = !!i;
@@ -527,8 +776,27 @@ void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame)
         int pad_h  = XAVS2_PAD >> chroma;
         int pad_v  = XAVS2_PAD >> chroma;
 
-        pix = frame->planes[i] + (slice_start_y >> chroma) * stride;
-        plane_expand_border(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
+        pix = frame->planes8[i] + (slice_start_y >> chroma) * stride;
+
+        plane_expand_border8(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
+    }
+    } else {
+    pel10_t *pix;
+
+    //UNUSED_PARAMETER(h);
+
+    for (i = 0; i < frame->i_plane; i++) {
+        int chroma = !!i;
+        int stride = frame->i_stride[i];
+        int width  = frame->i_width[i];
+        int height = slice_height >> chroma;
+        int pad_h  = XAVS2_PAD >> chroma;
+        int pad_v  = XAVS2_PAD >> chroma;
+
+        pix = frame->planes10[i] + (slice_start_y >> chroma) * stride;
+
+        plane_expand_border10(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
+    }
     }
 }
 
@@ -553,7 +821,8 @@ void xavs2_frame_expand_border_lcurow(xavs2_t *h, xavs2_frame_t *frame, int i_lc
         int y_start = ((i_lcu_y + 0) << (i_lcu_level - chroma_shift));
         int y_end   = ((i_lcu_y + 1) << (i_lcu_level - chroma_shift));
         int height;
-        pel_t *pix;
+        if (h->param->input_sample_bit_depth == 8) {
+        pel8_t *pix;
 
         if (i_lcu_y != h->slices[h->i_slice_index]->i_first_lcu_y) {
             y_start -= UP_SHIFT;
@@ -569,8 +838,30 @@ void xavs2_frame_expand_border_lcurow(xavs2_t *h, xavs2_frame_t *frame, int i_lc
         //               h->fenc->i_frame, h->i_slice_index, i_lcu_y, y_start, y_end);
         // }
 
-        pix = frame->planes[i] + y_start * stride;
-        plane_expand_border(pix, stride, width, height, padh, padv, b_start, b_end);
+        pix = frame->planes8[i] + y_start * stride;
+
+        plane_expand_border8(pix, stride, width, height, padh, padv, b_start, b_end);
+        } else {
+        pel10_t *pix;
+
+        if (i_lcu_y != h->slices[h->i_slice_index]->i_first_lcu_y) {
+            y_start -= UP_SHIFT;
+        }
+        if (i_lcu_y != h->slices[h->i_slice_index]->i_last_lcu_y) {
+            y_end -= UP_SHIFT;
+        }
+
+        y_end = XAVS2_MIN(frame->i_lines[i], y_end);
+        height = y_end - y_start;
+        // if (i == 0) {
+        //     xavs2_log(NULL, XAVS2_LOG_DEBUG, "Pad   POC [%3d], Slice %2d, Row %2d, [%3d, %3d)\n",
+        //               h->fenc->i_frame, h->i_slice_index, i_lcu_y, y_start, y_end);
+        // }
+
+        pix = frame->planes10[i] + y_start * stride;
+
+        plane_expand_border10(pix, stride, width, height, padh, padv, b_start, b_end);
+        }
     }
 }
 
@@ -588,9 +879,10 @@ void xavs2_frame_expand_border_mod8(xavs2_t *h, xavs2_frame_t *frame)
         int i_pady   = (h->i_height - h->param->org_height) >> i_scale;
         int i_stride = frame->i_stride[i];
 
+        if (h->param->input_sample_bit_depth == 8) {
         /* expand right border */
         if (i_padx) {
-            pel_t *pix = frame->planes[i] + i_width;
+            pel8_t *pix = frame->planes8[i] + i_width;
             for (y = 0; y < i_height; y++) {
                 memset(pix, pix[-1], i_padx);
                 pix += i_stride;
@@ -599,13 +891,33 @@ void xavs2_frame_expand_border_mod8(xavs2_t *h, xavs2_frame_t *frame)
 
         /* expand bottom border */
         if (i_pady) {
-            int rowlen = (i_width + i_padx) * sizeof(pel_t);
-            pel_t *row = frame->planes[i] + (i_height - 1) * i_stride;
-            pel_t *pix = frame->planes[i] + (i_height    ) * i_stride;
+            int rowlen = (i_width + i_padx) * sizeof(pel8_t);
+            pel8_t *row = frame->planes8[i] + (i_height - 1) * i_stride;
+            pel8_t *pix = frame->planes8[i] + (i_height    ) * i_stride;
             for (y = i_height; y < i_height + i_pady; y++) {
                 memcpy(pix, row, rowlen);
                 pix += i_stride;
             }
+        }
+        } else {
+        if (i_padx) {
+            pel10_t *pix = frame->planes10[i] + i_width;
+            for (y = 0; y < i_height; y++) {
+                memset(pix, pix[-1], i_padx);
+                pix += i_stride;
+            }
+        }
+
+        /* expand bottom border */
+        if (i_pady) {
+            int rowlen = (i_width + i_padx) * sizeof(pel10_t);
+            pel10_t *row = frame->planes10[i] + (i_height - 1) * i_stride;
+            pel10_t *pix = frame->planes10[i] + (i_height    ) * i_stride;
+            for (y = i_height; y < i_height + i_pady; y++) {
+                memcpy(pix, row, rowlen);
+                pix += i_stride;
+            }
+        }
         }
     }
 }
@@ -617,14 +929,24 @@ void xavs2_frame_copy_planes(xavs2_t *h, xavs2_frame_t *dst, xavs2_frame_t *src)
 {
     int k;
 
-    UNUSED_PARAMETER(h);
+    //UNUSED_PARAMETER(h);
     if (dst->size_plane_buf == src->size_plane_buf && dst->i_width[0] == src->i_width[0]) {
-        g_funcs.fast_memcpy(dst->plane_buf, src->plane_buf, src->size_plane_buf);
+        if (h->param->input_sample_bit_depth == 8) {
+        g_funcs.fast_memcpy(dst->plane_buf8, src->plane_buf8, src->size_plane_buf);
+        } else {
+        g_funcs.fast_memcpy(dst->plane_buf10, src->plane_buf10, src->size_plane_buf);
+        }
     } else {
         for (k = 0; k < dst->i_plane; k++) {
-            g_funcs.plane_copy(dst->planes[k], dst->i_stride[k],
-                               src->planes[k], src->i_stride[k],
+            if (h->param->input_sample_bit_depth == 8) {
+            g_funcs.plane_copy8(h, dst->planes8[k], dst->i_stride[k],
+                               src->planes8[k], src->i_stride[k],
                                src->i_width[k], src->i_lines[k]);
+            } else {
+            g_funcs.plane_copy10(h, dst->planes10[k], dst->i_stride[k],
+                               src->planes10[k], src->i_stride[k],
+                               src->i_width[k], src->i_lines[k]);
+            }
         }
     }
 }

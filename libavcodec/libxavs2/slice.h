@@ -55,17 +55,28 @@ extern slice_row_index_t g_slice_lcu_row_order[1024];
  * 初始化Slice级的buffer指针
  */
 static ALWAYS_INLINE
-void slice_init_bufer(xavs2_t *h, slice_t *slice)
+void slice_init_bufer8(xavs2_t *h, slice_t *slice)
 {
     /* init slice buffers */
     h->ipredmode         = slice->slice_ipredmode;
-    h->intra_border[0]   = slice->slice_intra_border[0];
-    h->intra_border[1]   = slice->slice_intra_border[1];
-    h->intra_border[2]   = slice->slice_intra_border[2];
+    h->intra_border8[0]   = slice->slice_intra_border8[0];
+    h->intra_border8[1]   = slice->slice_intra_border8[1];
+    h->intra_border8[2]   = slice->slice_intra_border8[2];
     h->p_deblock_flag[0] = slice->slice_deblock_flag[0];
     h->p_deblock_flag[1] = slice->slice_deblock_flag[1];
 }
 
+static ALWAYS_INLINE
+void slice_init_bufer10(xavs2_t *h, slice_t *slice)
+{
+    /* init slice buffers */
+    h->ipredmode         = slice->slice_ipredmode;
+    h->intra_border10[0]   = slice->slice_intra_border10[0];
+    h->intra_border10[1]   = slice->slice_intra_border10[1];
+    h->intra_border10[2]   = slice->slice_intra_border10[2];
+    h->p_deblock_flag[0] = slice->slice_deblock_flag[0];
+    h->p_deblock_flag[1] = slice->slice_deblock_flag[1];
+}
 
 /* ---------------------------------------------------------------------------
  * 等待一行LCU编码完指定数量的LCU

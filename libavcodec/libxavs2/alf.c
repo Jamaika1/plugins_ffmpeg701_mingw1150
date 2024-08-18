@@ -231,7 +231,7 @@ void copyALFparam(ALFParam *dst, ALFParam *src, int componentID)
  * calculate the correlation matrix for Luma
  */
 static
-void calcCorrOneCompRegionLuma(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *org, int i_org, pel_t *rec, int i_rec,
+void calcCorrOneCompRegionLuma8(xavs2_t *h, alf_ctx_t *Enc_ALF, pel8_t *org, int i_org, pel8_t *rec, int i_rec,
                                int yPos, int xPos, int height, int width,
                                long long int m_autoCorr[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                                double m_crossCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
@@ -245,13 +245,112 @@ void calcCorrOneCompRegionLuma(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *org, int i
     int endPosLuma   = isBelowAvail ? (yPos + height - 4) : (yPos + height);
     int xOffSetLeft  = isLeftAvail  ? -3 : 0;
     int xOffSetRight = isRightAvail ?  3 : 0;
-    pel_t *imgPad = rec;
-    pel_t *imgOrg = org;
+    pel8_t *imgPad = rec;
+    pel8_t *imgOrg = org;
     int yUp, yBottom;
     int xLeft, xRight;
 
     int ELocal[ALF_MAX_NUM_COEF];
-    pel_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
+    pel8_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
+    int i, j, k, l, yLocal, varInd;
+    long long int(*E)[9];
+    double *yy;
+
+    imgPad += startPosLuma * i_rec;
+    imgOrg += startPosLuma * i_org;
+
+    varInd = Enc_ALF->tab_lcu_region[(yPos >> h->i_lcu_level) * h->i_width_in_lcu + (xPos >> h->i_lcu_level)];
+    int step = 1;
+    if (IS_ALG_ENABLE(OPT_FAST_ALF)) {
+        step = 2;
+    }
+    for (i = startPosLuma; i < endPosLuma; i += step) {
+        yUp     = XAVS2_CLIP3(startPosLuma, endPosLuma - 1, i - 1);
+        yBottom = XAVS2_CLIP3(startPosLuma, endPosLuma - 1, i + 1);
+        imgPad1 = imgPad + (yBottom - i) * i_rec;
+        imgPad2 = imgPad + (yUp - i) * i_rec;
+
+        yUp     = XAVS2_CLIP3(startPosLuma, endPosLuma - 1, i - 2);
+        yBottom = XAVS2_CLIP3(startPosLuma, endPosLuma - 1, i + 2);
+        imgPad3 = imgPad + (yBottom - i) * i_rec;
+        imgPad4 = imgPad + (yUp - i) * i_rec;
+
+        yUp     = XAVS2_CLIP3(startPosLuma, endPosLuma - 1, i - 3);
+        yBottom = XAVS2_CLIP3(startPosLuma, endPosLuma - 1, i + 3);
+        imgPad5 = imgPad + (yBottom - i) * i_rec;
+        imgPad6 = imgPad + (yUp - i) * i_rec;
+
+        for (j = xPos; j < xPosEnd; j += step) {
+            memset(ELocal, 0, N * sizeof(int));
+
+            ELocal[0] = (imgPad5[j] + imgPad6[j]);
+            ELocal[1] = (imgPad3[j] + imgPad4[j]);
+
+            xLeft  = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j - 1);
+            xRight = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j + 1);
+            ELocal[2] = (imgPad1[xRight] + imgPad2[xLeft]);
+            ELocal[3] = (imgPad1[j  ] + imgPad2[j  ]);
+            ELocal[4] = (imgPad1[xLeft] + imgPad2[xRight]);
+            ELocal[7] = (imgPad[xRight] + imgPad[xLeft]);
+
+            xLeft  = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j - 2);
+            xRight = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j + 2);
+            ELocal[6] = (imgPad[xRight] + imgPad[xLeft]);
+
+            xLeft  = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j - 3);
+            xRight = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j + 3);
+            ELocal[5] = (imgPad[xRight] + imgPad[xLeft]);
+            ELocal[8] = (imgPad[j  ]);
+
+            yLocal = imgOrg[j];
+            pixAcc[varInd] += (yLocal * yLocal);
+            E  = m_autoCorr[varInd];
+            yy = m_crossCorr[varInd];
+
+            for (k = 0; k < N; k++) {
+                for (l = k; l < N; l++) {
+                    E[k][l] += (ELocal[k] * ELocal[l]);
+                }
+                yy[k] += (double)(ELocal[k] * yLocal);
+            }
+        }
+
+        imgPad += i_rec;
+        imgOrg += i_org;
+    }
+
+    for (varInd = 0; varInd < NO_VAR_BINS; varInd++) {
+        E = m_autoCorr[varInd];
+        for (k = 1; k < N; k++) {
+            for (l = 0; l < k; l++) {
+                E[k][l] = E[l][k];
+            }
+        }
+    }
+}
+
+static
+void calcCorrOneCompRegionLuma10(xavs2_t *h, alf_ctx_t *Enc_ALF, pel10_t *org, int i_org, pel10_t *rec, int i_rec,
+                               int yPos, int xPos, int height, int width,
+                               long long int m_autoCorr[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+                               double m_crossCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+                               double *pixAcc,
+                               int isLeftAvail, int isRightAvail, int isAboveAvail, int isBelowAvail)
+{
+    int xPosEnd = xPos + width;
+    int N = ALF_MAX_NUM_COEF; //m_sqrFiltLengthTab[0];
+
+    int startPosLuma = isAboveAvail ? (yPos - 4) : yPos;
+    int endPosLuma   = isBelowAvail ? (yPos + height - 4) : (yPos + height);
+    int xOffSetLeft  = isLeftAvail  ? -3 : 0;
+    int xOffSetRight = isRightAvail ?  3 : 0;
+    pel10_t *imgPad = rec;
+    pel10_t *imgOrg = org;
+    int yUp, yBottom;
+    int xLeft, xRight;
+
+    int ELocal[ALF_MAX_NUM_COEF];
+    pel10_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
     int i, j, k, l, yLocal, varInd;
     long long int(*E)[9];
     double *yy;
@@ -333,7 +432,7 @@ void calcCorrOneCompRegionLuma(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *org, int i
  * calculate the correlation matrix for Chroma
  */
 static
-void calcCorrOneCompRegionChma(xavs2_t *h, pel_t *org, int i_org, pel_t *rec, int i_rec, int yPos, int xPos, int height, int width,
+void calcCorrOneCompRegionChma8(xavs2_t *h, pel8_t *org, int i_org, pel8_t *rec, int i_rec, int yPos, int xPos, int height, int width,
                                long long int m_autoCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *m_crossCorr,
                                int isLeftAvail, int isRightAvail, int isAboveAvail, int isBelowAvail)
 {
@@ -344,13 +443,102 @@ void calcCorrOneCompRegionChma(xavs2_t *h, pel_t *org, int i_org, pel_t *rec, in
     int endPosChroma   = isBelowAvail ? (yPos + height - 4) : (yPos + height);
     int xOffSetLeft    = isLeftAvail  ? -3 : 0;
     int xOffSetRight   = isRightAvail ?  3 : 0;
-    pel_t *imgPad = rec;
-    pel_t *imgOrg = org;
+    pel8_t *imgPad = rec;
+    pel8_t *imgOrg = org;
     int yUp, yBottom;
     int xLeft, xRight;
 
     int ELocal[ALF_MAX_NUM_COEF];
-    pel_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
+    pel8_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
+    int i, j, k, l, yLocal;
+
+    imgPad += startPosChroma * i_rec;
+    imgOrg += startPosChroma * i_org;
+
+    int step = 1;
+    if (IS_ALG_ENABLE(OPT_FAST_ALF)) {
+        step = 2;
+    }
+    for (i = startPosChroma; i < endPosChroma; i += step) {
+        yUp     = XAVS2_CLIP3(startPosChroma, endPosChroma - 1, i - 1);
+        yBottom = XAVS2_CLIP3(startPosChroma, endPosChroma - 1, i + 1);
+        imgPad1 = imgPad + (yBottom - i) * i_rec;
+        imgPad2 = imgPad + (yUp - i) * i_rec;
+
+        yUp     = XAVS2_CLIP3(startPosChroma, endPosChroma - 1, i - 2);
+        yBottom = XAVS2_CLIP3(startPosChroma, endPosChroma - 1, i + 2);
+        imgPad3 = imgPad + (yBottom - i) * i_rec;
+        imgPad4 = imgPad + (yUp - i) * i_rec;
+
+        yUp     = XAVS2_CLIP3(startPosChroma, endPosChroma - 1, i - 3);
+        yBottom = XAVS2_CLIP3(startPosChroma, endPosChroma - 1, i + 3);
+        imgPad5 = imgPad + (yBottom - i) * i_rec;
+        imgPad6 = imgPad + (yUp - i) * i_rec;
+
+        for (j = xPos; j < xPosEnd; j += step) {
+            memset(ELocal, 0, N * sizeof(int));
+
+            ELocal[0] = (imgPad5[j] + imgPad6[j]);
+            ELocal[1] = (imgPad3[j] + imgPad4[j]);
+
+            xLeft  = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j - 1);
+            xRight = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j + 1);
+            ELocal[2] = (imgPad1[xRight] + imgPad2[xLeft]);
+            ELocal[3] = (imgPad1[j  ] + imgPad2[j  ]);
+            ELocal[4] = (imgPad1[xLeft] + imgPad2[xRight]);
+            ELocal[7] = (imgPad[xRight] + imgPad[xLeft]);
+
+            xLeft  = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j - 2);
+            xRight = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j + 2);
+            ELocal[6] = (imgPad[xRight] + imgPad[xLeft]);
+
+            xLeft  = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j - 3);
+            xRight = XAVS2_CLIP3(xPos + xOffSetLeft, xPosEnd - 1 + xOffSetRight, j + 3);
+            ELocal[5] = (imgPad[xRight] + imgPad[xLeft]);
+            ELocal[8] = (imgPad[j  ]);
+
+            yLocal = (int)imgOrg[j];
+
+            for (k = 0; k < N; k++) {
+                m_autoCorr[k][k] += ELocal[k] * ELocal[k];
+                for (l = k + 1; l < N; l++) {
+                    m_autoCorr[k][l] += ELocal[k] * ELocal[l];
+                }
+
+                m_crossCorr[k] += yLocal * ELocal[k];
+            }
+        }
+
+        imgPad += i_rec;
+        imgOrg += i_org;
+    }
+
+    for (j = 0; j < N - 1; j++) {
+        for (i = j + 1; i < N; i++) {
+            m_autoCorr[i][j] = m_autoCorr[j][i];
+        }
+    }
+}
+
+static
+void calcCorrOneCompRegionChma10(xavs2_t *h, pel10_t *org, int i_org, pel10_t *rec, int i_rec, int yPos, int xPos, int height, int width,
+                               long long int m_autoCorr[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], double *m_crossCorr,
+                               int isLeftAvail, int isRightAvail, int isAboveAvail, int isBelowAvail)
+{
+    int xPosEnd = xPos + width;
+    const int N = ALF_MAX_NUM_COEF; //m_sqrFiltLengthTab[0];
+
+    int startPosChroma = isAboveAvail ? (yPos - 4) : yPos;
+    int endPosChroma   = isBelowAvail ? (yPos + height - 4) : (yPos + height);
+    int xOffSetLeft    = isLeftAvail  ? -3 : 0;
+    int xOffSetRight   = isRightAvail ?  3 : 0;
+    pel10_t *imgPad = rec;
+    pel10_t *imgOrg = org;
+    int yUp, yBottom;
+    int xLeft, xRight;
+
+    int ELocal[ALF_MAX_NUM_COEF];
+    pel10_t *imgPad1, *imgPad2, *imgPad3, *imgPad4, *imgPad5, *imgPad6;
     int i, j, k, l, yLocal;
 
     imgPad += startPosChroma * i_rec;
@@ -514,8 +702,9 @@ void alf_get_statistics_lcu(xavs2_t *h, int lcu_x, int lcu_y,
 
     reset_alfCorr(alfCorr, compIdx);
     formatShift = 1;
-    calcCorrOneCompRegionChma(h, p_org->planes[compIdx], p_org->i_stride[compIdx],
-                              p_rec->planes[compIdx], p_rec->i_stride[compIdx],
+    if (h->param->input_sample_bit_depth == 8) {
+    calcCorrOneCompRegionChma8(h, p_org->planes8[compIdx], p_org->i_stride[compIdx],
+                              p_rec->planes8[compIdx], p_rec->i_stride[compIdx],
                               ctuYPos >> formatShift, ctuXPos >> formatShift,
                               ctuHeight >> formatShift, ctuWidth >> formatShift,
                               alfCorr->m_autoCorr[0], alfCorr->m_crossCorr[0],
@@ -524,9 +713,9 @@ void alf_get_statistics_lcu(xavs2_t *h, int lcu_x, int lcu_y,
     compIdx = IMG_V;
     alfCorr = &Enc_ALF->m_alfCorr[compIdx][ctu];
     reset_alfCorr(alfCorr, compIdx);
-    //VÂàÜÈáèÁöÑypos, xpos, height, widthÂõõ‰∏™ÂÄº‰∏éUÂàÜÈáè‰∏ÄÊ†∑Ôºå‰∏çÈúÄË¶Å‰øÆÊîπ
-    calcCorrOneCompRegionChma(h, p_org->planes[compIdx], p_org->i_stride[compIdx],
-                              p_rec->planes[compIdx], p_rec->i_stride[compIdx],
+    //V∑÷¡øµƒypos, xpos, height, widthÀƒ∏ˆ÷µ”ÎU∑÷¡ø“ª—˘£¨≤ª–Ë“™–ﬁ∏ƒ
+    calcCorrOneCompRegionChma8(h, p_org->planes8[compIdx], p_org->i_stride[compIdx],
+                              p_rec->planes8[compIdx], p_rec->i_stride[compIdx],
                               ctuYPos >> formatShift, ctuXPos >> formatShift,
                               ctuHeight >> formatShift, ctuWidth >> formatShift,
                               alfCorr->m_autoCorr[0], alfCorr->m_crossCorr[0],
@@ -536,12 +725,42 @@ void alf_get_statistics_lcu(xavs2_t *h, int lcu_x, int lcu_y,
     alfCorr = &Enc_ALF->m_alfCorr[compIdx][ctu];
     reset_alfCorr(alfCorr, compIdx);
     formatShift = 0;
-    calcCorrOneCompRegionLuma(h, Enc_ALF, p_org->planes[compIdx], p_org->i_stride[compIdx],
-                              p_rec->planes[compIdx], p_rec->i_stride[compIdx],
+    calcCorrOneCompRegionLuma8(h, Enc_ALF, p_org->planes8[compIdx], p_org->i_stride[compIdx],
+                              p_rec->planes8[compIdx], p_rec->i_stride[compIdx],
                               ctuYPos >> formatShift, ctuXPos >> formatShift,
                               ctuHeight >> formatShift, ctuWidth >> formatShift,
                               alfCorr->m_autoCorr, alfCorr->m_crossCorr, alfCorr->pixAcc,
                               isLeftAvail, isRightAvail, isAboveAvail, isBelowAvail);
+    } else {
+    calcCorrOneCompRegionChma10(h, p_org->planes10[compIdx], p_org->i_stride[compIdx],
+                              p_rec->planes10[compIdx], p_rec->i_stride[compIdx],
+                              ctuYPos >> formatShift, ctuXPos >> formatShift,
+                              ctuHeight >> formatShift, ctuWidth >> formatShift,
+                              alfCorr->m_autoCorr[0], alfCorr->m_crossCorr[0],
+                              isLeftAvail, isRightAvail, isAboveAvail, isBelowAvail);
+
+    compIdx = IMG_V;
+    alfCorr = &Enc_ALF->m_alfCorr[compIdx][ctu];
+    reset_alfCorr(alfCorr, compIdx);
+    //V∑÷¡øµƒypos, xpos, height, widthÀƒ∏ˆ÷µ”ÎU∑÷¡ø“ª—˘£¨≤ª–Ë“™–ﬁ∏ƒ
+    calcCorrOneCompRegionChma10(h, p_org->planes10[compIdx], p_org->i_stride[compIdx],
+                              p_rec->planes10[compIdx], p_rec->i_stride[compIdx],
+                              ctuYPos >> formatShift, ctuXPos >> formatShift,
+                              ctuHeight >> formatShift, ctuWidth >> formatShift,
+                              alfCorr->m_autoCorr[0], alfCorr->m_crossCorr[0],
+                              isLeftAvail, isRightAvail, isAboveAvail, isBelowAvail);
+
+    compIdx = IMG_Y;
+    alfCorr = &Enc_ALF->m_alfCorr[compIdx][ctu];
+    reset_alfCorr(alfCorr, compIdx);
+    formatShift = 0;
+    calcCorrOneCompRegionLuma10(h, Enc_ALF, p_org->planes10[compIdx], p_org->i_stride[compIdx],
+                              p_rec->planes10[compIdx], p_rec->i_stride[compIdx],
+                              ctuYPos >> formatShift, ctuXPos >> formatShift,
+                              ctuHeight >> formatShift, ctuWidth >> formatShift,
+                              alfCorr->m_autoCorr, alfCorr->m_crossCorr, alfCorr->pixAcc,
+                              isLeftAvail, isRightAvail, isAboveAvail, isBelowAvail);
+    }
 }
 
 
@@ -711,13 +930,13 @@ long estimateFilterDistortion(alf_ctx_t *Enc_ALF, int compIdx, AlfCorrData *alfC
 /* ---------------------------------------------------------------------------
  */
 static
-dist_t calcAlfLCUDist(xavs2_t *h, alf_ctx_t *Enc_ALF, int compIdx,
+dist_t calcAlfLCUDist8(xavs2_t *h, alf_ctx_t *Enc_ALF, int compIdx,
                       int ypos, int xpos, int height, int width, int isAboveAvail,
-                      pel_t *picSrc, int i_src, pel_t *picCmp, int i_cmp)
+                      pel8_t *picSrc, int i_src, pel8_t *picCmp, int i_cmp)
 {
     dist_t dist = 0;
-    pel_t *pelCmp = picCmp;
-    pel_t *pelSrc = picSrc;
+    pel8_t *pelCmp = picCmp;
+    pel8_t *pelSrc = picSrc;
 
     int notSkipLinesRightVB = TRUE;
     int notSkipLinesBelowVB = TRUE;
@@ -762,9 +981,69 @@ dist_t calcAlfLCUDist(xavs2_t *h, alf_ctx_t *Enc_ALF, int compIdx,
     }
     if (PART_INDEX(width, height) == LUMA_INVALID) {
         uint32_t uiShift = Enc_ALF->m_uiBitIncrement << 1;
-        dist += g_funcs.pixf.ssd_block(pelSrc, i_src, pelCmp, i_cmp, width, height) >> uiShift;
+        dist += g_funcs.pixf.ssd_block8(pelSrc, i_src, pelCmp, i_cmp, width, height) >> uiShift;
     } else {
-        dist += g_funcs.pixf.ssd[PART_INDEX(width, height)](pelSrc, i_src, pelCmp, i_cmp);
+        dist += g_funcs.pixf.ssd8[PART_INDEX(width, height)](pelSrc, i_src, pelCmp, i_cmp);
+    }
+
+    return dist;
+}
+
+static
+dist_t calcAlfLCUDist10(xavs2_t *h, alf_ctx_t *Enc_ALF, int compIdx,
+                      int ypos, int xpos, int height, int width, int isAboveAvail,
+                      pel10_t *picSrc, int i_src, pel10_t *picCmp, int i_cmp)
+{
+    dist_t dist = 0;
+    pel10_t *pelCmp = picCmp;
+    pel10_t *pelSrc = picSrc;
+
+    int notSkipLinesRightVB = TRUE;
+    int notSkipLinesBelowVB = TRUE;
+    //int NumCUsInFrame, numLCUInPicWidth, numLCUInPicHeight;
+
+    //numLCUInPicHeight  = h->i_height_in_lcu;
+    //numLCUInPicWidth   = h->i_width_in_lcu;
+    //NumCUsInFrame      = numLCUInPicHeight * numLCUInPicWidth;
+
+    switch (compIdx) {
+    case IMG_U:
+    case IMG_V:
+        if (!notSkipLinesBelowVB) {
+            height = height - (int)(DF_CHANGED_SIZE >> 1) - (int)(ALF_FOOTPRINT_SIZE >> 1);
+        }
+
+        if (!notSkipLinesRightVB) {
+            width = width - (int)(DF_CHANGED_SIZE >> 1) - (int)(ALF_FOOTPRINT_SIZE >> 1);
+        }
+
+        if (isAboveAvail) {
+            pelSrc += ((ypos - 4) * i_src) + xpos;
+            pelCmp += ((ypos - 4) * i_cmp) + xpos;
+        } else {
+            pelSrc += (ypos * i_src) + xpos;
+            pelCmp += (ypos * i_cmp) + xpos;
+        }
+        break;
+    default:
+        // case IMG_Y:
+        if (!notSkipLinesBelowVB) {
+            height = height - (int)(DF_CHANGED_SIZE)-(int)(ALF_FOOTPRINT_SIZE >> 1);
+        }
+
+        if (!notSkipLinesRightVB) {
+            width = width - (int)(DF_CHANGED_SIZE)-(int)(ALF_FOOTPRINT_SIZE >> 1);
+        }
+
+        pelCmp = picCmp + (ypos * i_cmp) + xpos;
+        pelSrc = picSrc + (ypos * i_src) + xpos;
+        break;
+    }
+    if (PART_INDEX(width, height) == LUMA_INVALID) {
+        uint32_t uiShift = Enc_ALF->m_uiBitIncrement << 1;
+        dist += g_funcs.pixf.ssd_block10(pelSrc, i_src, pelCmp, i_cmp, width, height) >> uiShift;
+    } else {
+        dist += g_funcs.pixf.ssd10[PART_INDEX(width, height)](pelSrc, i_src, pelCmp, i_cmp);
     }
 
     return dist;
@@ -774,7 +1053,7 @@ dist_t calcAlfLCUDist(xavs2_t *h, alf_ctx_t *Enc_ALF, int compIdx,
  * ALF filter on CTB
  */
 static
-void filterOneCTB(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *p_dst, int i_dst, pel_t *p_src, int i_src,
+void filterOneCTB8(xavs2_t *h, alf_ctx_t *Enc_ALF, pel8_t *p_dst, int i_dst, pel8_t *p_src, int i_src,
                   int compIdx, ALFParam *alfParam, int ypos, int height, int xpos, int width,
                   int isAboveAvail, int isBelowAvail)
 {
@@ -792,11 +1071,37 @@ void filterOneCTB(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *p_dst, int i_dst, pel_t
         coef = Enc_ALF->m_filterCoeffSym[0];
     }
 
-
-    g_funcs.alf_flt[0](p_dst, i_dst, p_src, i_src,
+    g_funcs.alf_flt8[0](h, p_dst, i_dst, p_src, i_src,
                        xpos, ypos, width, height, coef,
                        isAboveAvail, isBelowAvail);
-    g_funcs.alf_flt[1](p_dst, i_dst, p_src, i_src,
+    g_funcs.alf_flt8[1](h, p_dst, i_dst, p_src, i_src,
+                       xpos, ypos, width, height, coef,
+                       isAboveAvail, isBelowAvail);
+}
+
+static
+void filterOneCTB10(xavs2_t *h, alf_ctx_t *Enc_ALF, pel10_t *p_dst, int i_dst, pel10_t *p_src, int i_src,
+                  int compIdx, ALFParam *alfParam, int ypos, int height, int xpos, int width,
+                  int isAboveAvail, int isBelowAvail)
+{
+    int *coef;
+
+    //reconstruct coefficients to m_filterCoeffSym and m_varIndTab
+    reconstructCoefInfo(compIdx, alfParam, Enc_ALF->m_filterCoeffSym, Enc_ALF->m_varIndTab); //reconstruct ALF coefficients & related parameters
+
+    //derive CTB start positions, width, and height. If the boundary is not available, skip boundary samples.
+
+    if (compIdx == IMG_Y) {
+        int var = Enc_ALF->tab_lcu_region[(ypos >> h->i_lcu_level) * h->i_width_in_lcu + (xpos >> h->i_lcu_level)];
+        coef = Enc_ALF->m_filterCoeffSym[Enc_ALF->m_varIndTab[var]];
+    } else {
+        coef = Enc_ALF->m_filterCoeffSym[0];
+    }
+
+    g_funcs.alf_flt10[0](h, p_dst, i_dst, p_src, i_src,
+                       xpos, ypos, width, height, coef,
+                       isAboveAvail, isBelowAvail);
+    g_funcs.alf_flt10[1](h, p_dst, i_dst, p_src, i_src,
                        xpos, ypos, width, height, coef,
                        isAboveAvail, isBelowAvail);
 }
@@ -804,7 +1109,7 @@ void filterOneCTB(xavs2_t *h, alf_ctx_t *Enc_ALF, pel_t *p_dst, int i_dst, pel_t
 /* ---------------------------------------------------------------------------
  */
 static ALWAYS_INLINE
-void copyOneAlfBlk(pel_t *p_dst, int i_dst, pel_t *p_src, int i_src, int ypos, int xpos,
+void copyOneAlfBlk8(xavs2_t *h, pel8_t *p_dst, int i_dst, pel8_t *p_src, int i_src, int ypos, int xpos,
                    int height, int width, int isAboveAvail, int isBelowAvail)
 {
     int startPos  = isAboveAvail ? (ypos          - 4) : ypos;
@@ -812,7 +1117,19 @@ void copyOneAlfBlk(pel_t *p_dst, int i_dst, pel_t *p_src, int i_src, int ypos, i
     p_dst += (startPos * i_dst) + xpos;
     p_src += (startPos * i_src) + xpos;
 
-    g_funcs.plane_copy(p_dst, i_dst, p_src, i_src, width, endPos - startPos);
+    g_funcs.plane_copy8(h, p_dst, i_dst, p_src, i_src, width, endPos - startPos);
+}
+
+static ALWAYS_INLINE
+void copyOneAlfBlk10(xavs2_t *h, pel10_t *p_dst, int i_dst, pel10_t *p_src, int i_src, int ypos, int xpos,
+                   int height, int width, int isAboveAvail, int isBelowAvail)
+{
+    int startPos  = isAboveAvail ? (ypos          - 4) : ypos;
+    int endPos    = isBelowAvail ? (ypos + height - 4) : ypos + height;
+    p_dst += (startPos * i_dst) + xpos;
+    p_src += (startPos * i_src) + xpos;
+
+    g_funcs.plane_copy10(h, p_dst, i_dst, p_src, i_src, width, endPos - startPos);
 }
 
 /* ---------------------------------------------------------------------------
@@ -941,9 +1258,10 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
     int i_org = 0;
     int i_rec_before = 0;
     int i_rec_after = 0;
-    pel_t *p_org_pixel = NULL;
-    pel_t *p_rec_before = NULL;
-    pel_t *p_rec_after = NULL;
+    if (h->param->input_sample_bit_depth == 8) {
+    pel8_t *p_org_pixel = NULL;
+    pel8_t *p_rec_before = NULL;
+    pel8_t *p_rec_after = NULL;
     double lambda_luma, lambda_chroma;
     int img_height, img_width;
     int size_lcu = 1 << h->i_lcu_level;
@@ -988,20 +1306,20 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                 }
 
                 formatShift = (compIdx == IMG_Y) ? 0 : 1;
-                p_org_pixel = p_org->planes[compIdx];
+                p_org_pixel = p_org->planes8[compIdx];
                 i_org = p_org->i_stride[compIdx];
-                p_rec_before = p_rec->planes[compIdx];
+                p_rec_before = p_rec->planes8[compIdx];
                 i_rec_before = p_rec->i_stride[compIdx];
-                p_rec_after = p_dst->planes[compIdx];
+                p_rec_after = p_dst->planes8[compIdx];
                 i_rec_after = p_dst->i_stride[compIdx];
 
                 // ALF on
-                filterOneCTB(h, Enc_ALF, p_rec_after, i_rec_after, p_rec_before, i_rec_before, compIdx,
+                filterOneCTB8(h, Enc_ALF, p_rec_after, i_rec_after, p_rec_before, i_rec_before, compIdx,
                              &alfPictureParam[compIdx], ctuYPos >> formatShift, ctuHeight >> formatShift,
                              ctuXPos >> formatShift, ctuWidth >> formatShift, isAboveAvail, isBelowAvail);
-                distEnc = calcAlfLCUDist(h, Enc_ALF, compIdx, ctuYPos >> formatShift, ctuXPos >> formatShift,
+                distEnc = calcAlfLCUDist8(h, Enc_ALF, compIdx, ctuYPos >> formatShift, ctuXPos >> formatShift,
                                          ctuHeight >> formatShift, ctuWidth >> formatShift, isAboveAvail, p_org_pixel, i_org, p_rec_after, i_rec_after);
-                distEnc -= calcAlfLCUDist(h, Enc_ALF, compIdx, ctuYPos >> formatShift, ctuXPos >> formatShift,
+                distEnc -= calcAlfLCUDist8(h, Enc_ALF, compIdx, ctuYPos >> formatShift, ctuXPos >> formatShift,
                                           ctuHeight >> formatShift, ctuWidth >> formatShift, isAboveAvail, p_org_pixel, i_org, p_rec_before, i_rec_before);
 
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
@@ -1022,7 +1340,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                 h->is_alf_lcu_on[ctu][compIdx] = (costEnc < costOff) ? TRUE : FALSE;
 
                 if (!h->is_alf_lcu_on[ctu][compIdx]) {
-                    copyOneAlfBlk(p_rec_after, i_rec_after, p_rec_before, i_rec_before,
+                    copyOneAlfBlk8(h, p_rec_after, i_rec_after, p_rec_before, i_rec_before,
                                   ctuYPos >> formatShift, ctuXPos >> formatShift, ctuHeight >> formatShift, ctuWidth >> formatShift,
                                   isAboveAvail, isBelowAvail);
                 }
@@ -1060,11 +1378,138 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                     h->is_alf_lcu_on[ctu][compIdx] = FALSE;
                 }
 
-                g_funcs.plane_copy(p_dst->planes[compIdx], p_dst->i_stride[compIdx],
-                                   p_rec->planes[compIdx], p_rec->i_stride[compIdx],
+                g_funcs.plane_copy8(h, p_dst->planes8[compIdx], p_dst->i_stride[compIdx],
+                                   p_rec->planes8[compIdx], p_rec->i_stride[compIdx],
                                    p_rec->i_width[compIdx], p_rec->i_lines[compIdx]);
             }
         }
+    }
+    } else {
+    pel10_t *p_org_pixel = NULL;
+    pel10_t *p_rec_before = NULL;
+    pel10_t *p_rec_after = NULL;
+    double lambda_luma, lambda_chroma;
+    int img_height, img_width;
+    int size_lcu = 1 << h->i_lcu_level;
+    int ctux, ctuy;
+    int NumCUsInFrame, numLCUInPicWidth, numLCUInPicHeight;
+    int rate, noFilters;
+
+    h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_initial);
+    h->copy_aec_state_rdo(&h->cs_data.cs_alf_cu_ctr, p_aec);
+
+    img_height = h->i_height;
+    img_width = h->i_width;
+    numLCUInPicHeight = h->i_height_in_lcu;
+    numLCUInPicWidth = h->i_width_in_lcu;
+    NumCUsInFrame = numLCUInPicHeight * numLCUInPicWidth;
+
+    lambda_luma = lambda; //VKTBD lambda is not correct
+    lambda_chroma = LAMBDA_SCALE_CHROMA * lambda_luma;
+    for (compIdx = 0; compIdx < IMG_CMPNTS; compIdx++) {
+        distBestPic[compIdx] = 0;
+        rateBestPic[compIdx] = 0;
+    }
+
+    for (ctuy = 0, ctu = 0; ctuy < numLCUInPicHeight; ctuy++) {
+        //derive CTU height
+        ctuYPos = ctuy * size_lcu;
+        ctuHeight = XAVS2_MIN(img_height - ctuYPos, size_lcu);
+        for (ctux = 0; ctux < numLCUInPicWidth; ctux++, ctu++) {
+            //derive CTU width
+            ctuXPos = ctux * size_lcu;
+            ctuWidth = XAVS2_MIN(img_width - ctuXPos, size_lcu);
+
+            //derive CTU boundary availabilities
+            deriveBoundaryAvail(h, ctuXPos, ctuYPos,
+                                &isLeftAvail, &isRightAvail, &isAboveAvail, &isBelowAvail);
+
+            for (compIdx = 0; compIdx < IMG_CMPNTS; compIdx++) {
+                //if slice-level enabled flag is 0, set CTB-level enabled flag 0
+                if (alfPictureParam[compIdx].alf_flag == 0) {
+                    h->is_alf_lcu_on[ctu][compIdx] = FALSE;
+                    continue;
+                }
+
+                formatShift = (compIdx == IMG_Y) ? 0 : 1;
+                p_org_pixel = p_org->planes10[compIdx];
+                i_org = p_org->i_stride[compIdx];
+                p_rec_before = p_rec->planes10[compIdx];
+                i_rec_before = p_rec->i_stride[compIdx];
+                p_rec_after = p_dst->planes10[compIdx];
+                i_rec_after = p_dst->i_stride[compIdx];
+
+                // ALF on
+                filterOneCTB10(h, Enc_ALF, p_rec_after, i_rec_after, p_rec_before, i_rec_before, compIdx,
+                             &alfPictureParam[compIdx], ctuYPos >> formatShift, ctuHeight >> formatShift,
+                             ctuXPos >> formatShift, ctuWidth >> formatShift, isAboveAvail, isBelowAvail);
+                distEnc = calcAlfLCUDist10(h, Enc_ALF, compIdx, ctuYPos >> formatShift, ctuXPos >> formatShift,
+                                         ctuHeight >> formatShift, ctuWidth >> formatShift, isAboveAvail, p_org_pixel, i_org, p_rec_after, i_rec_after);
+                distEnc -= calcAlfLCUDist10(h, Enc_ALF, compIdx, ctuYPos >> formatShift, ctuXPos >> formatShift,
+                                          ctuHeight >> formatShift, ctuWidth >> formatShift, isAboveAvail, p_org_pixel, i_org, p_rec_before, i_rec_before);
+
+                h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
+
+                rateEnc = p_aec->binary.write_alf_lcu_ctrl(p_aec, 1);
+
+                costEnc = (double)distEnc + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateEnc;
+
+                // ALF off
+                distOff = 0;
+                //rateOff = 1;
+                h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
+                rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, 0);
+
+                costOff = (double)distOff + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateOff;
+
+                //set CTB-level on/off flag
+                h->is_alf_lcu_on[ctu][compIdx] = (costEnc < costOff) ? TRUE : FALSE;
+
+                if (!h->is_alf_lcu_on[ctu][compIdx]) {
+                    copyOneAlfBlk10(h, p_rec_after, i_rec_after, p_rec_before, i_rec_before,
+                                  ctuYPos >> formatShift, ctuXPos >> formatShift, ctuHeight >> formatShift, ctuWidth >> formatShift,
+                                  isAboveAvail, isBelowAvail);
+                }
+
+                //update CABAC status
+                //cabacCoder->updateAlfCtrlFlagState(m_pcPic->getCU(ctu)->getAlfLCUEnabled(compIdx)?1:0);
+
+                h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
+                rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
+                h->copy_aec_state_rdo(&h->cs_data.cs_alf_cu_ctr, p_aec);
+
+                rateBestPic[compIdx] += (h->is_alf_lcu_on[ctu][compIdx] ? rateEnc : rateOff);
+                distBestPic[compIdx] += (h->is_alf_lcu_on[ctu][compIdx] ? distEnc : distOff);
+
+            } //CTB
+        }
+    } //CTU
+
+    for (compIdx = 0; compIdx < IMG_CMPNTS; compIdx++) {
+        if (alfPictureParam[compIdx].alf_flag == 1) {
+            double Lambda = (compIdx == 0 ? lambda_luma : lambda_chroma);
+            rate = ALFParamBitrateEstimate(&alfPictureParam[compIdx]);
+            if (compIdx == IMG_Y) {
+                noFilters = alfPictureParam[0].filters_per_group - 1;
+                rate += uvlc_bitrate_estimate[noFilters] + (4 * noFilters);
+            }
+            costAlfOn = (double)distBestPic[compIdx] + Lambda *
+                        (rateBestPic[compIdx] + (double)(rate));
+
+            costAlfOff = 0;
+
+            if (costAlfOn >= costAlfOff) {
+                alfPictureParam[compIdx].alf_flag = 0;
+                for (ctu = 0; ctu < NumCUsInFrame; ctu++) {
+                    h->is_alf_lcu_on[ctu][compIdx] = FALSE;
+                }
+
+                g_funcs.plane_copy10(h, p_dst->planes10[compIdx], p_dst->i_stride[compIdx],
+                                   p_rec->planes10[compIdx], p_rec->i_stride[compIdx],
+                                   p_rec->i_width[compIdx], p_rec->i_lines[compIdx]);
+            }
+        }
+    }
     }
 }
 
@@ -1634,7 +2079,8 @@ static double findFilterCoeff(alf_ctx_t *Enc_ALF, long long int EGlobalSeq[][ALF
 
 /* ---------------------------------------------------------------------------
  */
-static void xfindBestFilterVarPred(alf_ctx_t *Enc_ALF, double ySym[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], long long int ESym[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
+static
+void xfindBestFilterVarPred(alf_ctx_t *Enc_ALF, double ySym[ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF], long long int ESym[][ALF_MAX_NUM_COEF][ALF_MAX_NUM_COEF],
                             double *pixAcc, int filterCoeffSym[][ALF_MAX_NUM_COEF], int *filters_per_fr_best, int varIndTab[], double lambda_val, int numMaxFilters)
 {
     int filterCoeffSymQuant[NO_VAR_BINS][ALF_MAX_NUM_COEF];
@@ -1815,7 +2261,7 @@ void deriveFilterInfo(alf_ctx_t *Enc_ALF, ALFParam *alfPictureParam, AlfCorrData
  * Input:
  *    alfPictureParam: The ALF parameter
  *              apsId: The ALF parameter index in the buffer
- *       isNewApsSentÔºöThe New flag index
+ *       isNewApsSent£∫The New flag index
  *       lambda      : The lambda value in the ALF-RD decision
  * Return:
  * ---------------------------------------------------------------------------
@@ -1888,7 +2334,7 @@ int alf_get_buffer_size(const xavs2_param_t *param)
  */
 void alf_init_buffer(xavs2_t *h, uint8_t *mem_base)
 {
-    // Â∏åÂ∞î‰ºØÁâπÊâ´ÊèèÈ°∫Â∫è
+    // œ£∂˚≤ÆÃÿ…®√ËÀ≥–Ú
     static const uint8_t regionTable[NO_VAR_BINS] = {
         0, 1, 4, 5, 15, 2, 3, 6, 14, 11, 10, 7, 13, 12, 9, 8
     }

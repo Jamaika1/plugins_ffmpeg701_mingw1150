@@ -117,10 +117,21 @@ int cu_get_slice_index(xavs2_t *h, int scu_x, int scu_y)
  */
 static ALWAYS_INLINE int cu_get_chroma_qp(xavs2_t *h, int luma_qp, int uv)
 {
-    int QP;
-    UNUSED_PARAMETER(uv);
-    UNUSED_PARAMETER(h);
-    QP = tab_qp_scale_chroma[XAVS2_CLIP3(0, 63, luma_qp)];
+    //printf("luma_qp1: %d\n", luma_qp);
+    int QP = luma_qp + (uv == 0 ? h->param->chroma_quant_param_delta_u : h->param->chroma_quant_param_delta_v);
+    //printf("luma_qp2: %d\n", QP);
+    //UNUSED_PARAMETER(uv);
+    //UNUSED_PARAMETER(h);
+//if (h->param->sample_bit_depth > 8) {
+    const int bit_depth_offset = ((h->param->sample_bit_depth - 8) << 3);
+    QP -= bit_depth_offset;
+    //printf("bit_depth_offset: %d\n", bit_depth_offset);
+    QP = QP < 0 ? QP : tab_qp_scale_chroma[QP];
+    //printf("QP: %d\n", QP);
+    QP = tab_qp_scale_chroma[XAVS2_CLIP3(0, 63 + bit_depth_offset, QP + bit_depth_offset)];
+//} else {
+    //QP = tab_qp_scale_chroma[XAVS2_CLIP3(0, 63, luma_qp)];
+//}
     return QP;
 }
 

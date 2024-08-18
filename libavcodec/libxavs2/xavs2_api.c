@@ -57,7 +57,24 @@
 static xavs2_api_t api_default = {
     XVERSION_STR,
     VER_MAJOR * 10 + VER_MINOR,
-    BIT_DEPTH,
+    8,
+    xavs2_encoder_opt_help,
+    xavs2_encoder_opt_alloc,
+    xavs2_encoder_opt_set,
+    xavs2_encoder_opt_set2,
+    xavs2_encoder_opt_get,
+    xavs2_encoder_opt_destroy,
+    xavs2_encoder_get_buffer,
+    xavs2_encoder_create,
+    xavs2_encoder_destroy,
+    xavs2_encoder_encode,
+    xavs2_encoder_packet_unref,
+};
+
+static xavs2_api_t api_default10 = {
+    XVERSION_STR,
+    VER_MAJOR * 10 + VER_MINOR,
+    10,
     xavs2_encoder_opt_help,
     xavs2_encoder_opt_alloc,
     xavs2_encoder_opt_set,
@@ -116,10 +133,12 @@ xavs2_api_get(int bit_depth)
     const char* method_name = "xavs2_api_get";
 
     switch (bit_depth) {
-    case BIT_DEPTH:
+    case 8:
         return &api_default;
+    case 10:
+        return &api_default10;
     default:
-        sprintf(s_lib_name, "libxavs2-%d-%dbit.%s", VER_MAJOR * 10 + VER_MINOR, bit_depth, ext_dyn_lib);
+        sprintf(s_lib_name, "libxavs2-%d-%dbit", VER_MAJOR * 10 + VER_MINOR, bit_depth);
         return xavs2_load_new_module(s_lib_name, method_name, bit_depth);
     }
 }

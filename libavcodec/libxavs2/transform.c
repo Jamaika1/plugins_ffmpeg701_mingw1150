@@ -1061,9 +1061,9 @@ static void xTr2nd_4_1d_Inv_Hor(coeff_t *coeff, int i_coeff, int i_shift, int cl
 
 /* ---------------------------------------------------------------------------
  */
-static void transform_4x4_2nd_c(coeff_t *coeff, int i_coeff)
+static void transform_4x4_2nd_c(xavs2_t *h, coeff_t *coeff, int i_coeff)
 {
-    const int shift1 = B4X4_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT + 1;
+    const int shift1 = B4X4_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT + 1;
     const int shift2 = B4X4_IN_BIT + FACTO_BIT + 1;
 
     xTr2nd_4_1d_Hor(coeff, i_coeff, shift1, g_2T_C);
@@ -1072,11 +1072,11 @@ static void transform_4x4_2nd_c(coeff_t *coeff, int i_coeff)
 
 /* ---------------------------------------------------------------------------
  */
-static void inv_transform_4x4_2nd_c(coeff_t *coeff, int i_coeff)
+static void inv_transform_4x4_2nd_c(xavs2_t *h, coeff_t *coeff, int i_coeff)
 {
     const int shift1 = 5;
-    const int shift2 = 20 - g_bit_depth + 2;
-    const int clip_depth2 = g_bit_depth + 1;
+    const int shift2 = 20 - h->param->input_sample_bit_depth + 2;
+    const int clip_depth2 = h->param->input_sample_bit_depth + 1;
 
     xTr2nd_4_1d_Inv_Ver(coeff, i_coeff, shift1, g_2T_C);
     xTr2nd_4_1d_Inv_Hor(coeff, i_coeff, shift2, clip_depth2, g_2T_C);
@@ -1120,12 +1120,12 @@ static void inv_transform_2nd_c(coeff_t *coeff, int i_coeff, int i_mode, int b_t
 
 /* ---------------------------------------------------------------------------
  */
-static void dct_4x4_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_4x4_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE   4
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
-    int shift1 = B4X4_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT;   // 0
+    int shift1 = B4X4_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT;   // 0
     int shift2 = B4X4_IN_BIT + FACTO_BIT;                               // 7
     int i;
 
@@ -1142,15 +1142,15 @@ static void dct_4x4_c(const coeff_t *src, coeff_t *dst, int i_src)
 
 /* ---------------------------------------------------------------------------
  */
-static void idct_4x4_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_4x4_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE   4
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth;
+    int shift2 = 20 - h->param->input_sample_bit_depth;
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1;
+    int clip_depth2 = h->param->input_sample_bit_depth + 1;
     int i;
 
     partialButterflyInverse4(src,   coeff, shift1, BSIZE, clip_depth1);
@@ -1164,12 +1164,12 @@ static void idct_4x4_c(const coeff_t *src, coeff_t *dst, int i_dst)
 
 /* ---------------------------------------------------------------------------
  */
-static void dct_8x8_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_8x8_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE   8
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
-    int shift1 = B8X8_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT;
+    int shift1 = B8X8_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT;
     int shift2 = B8X8_IN_BIT + FACTO_BIT;
     int i;
 
@@ -1184,15 +1184,15 @@ static void dct_8x8_c(const coeff_t *src, coeff_t *dst, int i_src)
 
 /* ---------------------------------------------------------------------------
  */
-static void idct_8x8_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_8x8_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE   8
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth;
+    int shift2 = 20 - h->param->input_sample_bit_depth;
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1;
+    int clip_depth2 = h->param->input_sample_bit_depth + 1;
     int i;
 
     partialButterflyInverse8(src,   coeff, shift1, BSIZE, clip_depth1);
@@ -1206,12 +1206,12 @@ static void idct_8x8_c(const coeff_t *src, coeff_t *dst, int i_dst)
 
 /* ---------------------------------------------------------------------------
  */
-static void dct_16x16_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_16x16_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE   16
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
-    int shift1 = B16X16_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT;
+    int shift1 = B16X16_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT;
     int shift2 = B16X16_IN_BIT + FACTO_BIT;
     int i;
 
@@ -1226,15 +1226,15 @@ static void dct_16x16_c(const coeff_t *src, coeff_t *dst, int i_src)
 
 /* ---------------------------------------------------------------------------
  */
-static void idct_16x16_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_16x16_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE   16
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth;
+    int shift2 = 20 - h->param->input_sample_bit_depth;
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1;
+    int clip_depth2 = h->param->input_sample_bit_depth + 1;
     int i;
 
     partialButterflyInverse16(src,   coeff, shift1, BSIZE, clip_depth1);
@@ -1250,12 +1250,12 @@ static void idct_16x16_c(const coeff_t *src, coeff_t *dst, int i_dst)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_32x32_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_32x32_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE   32
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
-    int shift1 = B32X32_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT + (i_src & 0x01);
+    int shift1 = B32X32_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT + (i_src & 0x01);
     int shift2 = B32X32_IN_BIT + FACTO_BIT;
     int i;
 
@@ -1273,10 +1273,10 @@ static void dct_32x32_c(const coeff_t *src, coeff_t *dst, int i_src)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_32x32_half_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_32x32_half_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
     int i;
-    dct_32x32_c(src, dst, i_src);
+    dct_32x32_c(h, src, dst, i_src);
 
     for (i = 0; i < 16; i++) {
         memset(dst + 16, 0, 16 * sizeof(coeff_t));
@@ -1289,16 +1289,16 @@ static void dct_32x32_half_c(const coeff_t *src, coeff_t *dst, int i_src)
  * NOTE:
  * i_dst - the stride of dst (the lowest bit is additional wavelet flag)
  */
-static void idct_32x32_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_32x32_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE   32
     ALIGN32(coeff_t coeff[BSIZE * BSIZE]);
     ALIGN32(coeff_t block[BSIZE * BSIZE]);
     int a_flag = i_dst & 0x01;
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth - a_flag;
+    int shift2 = 20 - h->param->input_sample_bit_depth - a_flag;
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1 + a_flag;
+    int clip_depth2 = h->param->input_sample_bit_depth + 1 + a_flag;
     int i;
 
     i_dst &= 0xFE;    /* remember to remove the flag bit */
@@ -1313,13 +1313,13 @@ static void idct_32x32_c(const coeff_t *src, coeff_t *dst, int i_dst)
 
 /* ---------------------------------------------------------------------------
  */
-static void dct_16x4_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_16x4_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE_H   16
 #define BSIZE_V   4
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
-    int shift1 = B16X16_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT;
+    int shift1 = B16X16_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT;
     int shift2 = B16X16_IN_BIT + FACTO_BIT - 2;
     int i;
 
@@ -1335,16 +1335,16 @@ static void dct_16x4_c(const coeff_t *src, coeff_t *dst, int i_src)
 
 /* ---------------------------------------------------------------------------
  */
-static void idct_16x4_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_16x4_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE_H   16
 #define BSIZE_V   4
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth;
+    int shift2 = 20 - h->param->input_sample_bit_depth;
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1;
+    int clip_depth2 = h->param->input_sample_bit_depth + 1;
     int i;
 
     partialButterflyInverse4 (src,   coeff, shift1, BSIZE_H, clip_depth1);
@@ -1359,13 +1359,13 @@ static void idct_16x4_c(const coeff_t *src, coeff_t *dst, int i_dst)
 
 /* ---------------------------------------------------------------------------
  */
-static void dct_4x16_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_4x16_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE_H   4
 #define BSIZE_V   16
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
-    int shift1 = B16X16_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT - 2;
+    int shift1 = B16X16_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT - 2;
     int shift2 = B16X16_IN_BIT + FACTO_BIT;
     int i;
 
@@ -1381,16 +1381,16 @@ static void dct_4x16_c(const coeff_t *src, coeff_t *dst, int i_src)
 
 /* ---------------------------------------------------------------------------
  */
-static void idct_4x16_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_4x16_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE_H   4
 #define BSIZE_V   16
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth;
+    int shift2 = 20 - h->param->input_sample_bit_depth;
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1;
+    int clip_depth2 = h->param->input_sample_bit_depth + 1;
     int i;
 
     partialButterflyInverse16(src,   coeff, shift1, BSIZE_H, clip_depth1);
@@ -1407,13 +1407,13 @@ static void idct_4x16_c(const coeff_t *src, coeff_t *dst, int i_dst)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_32x8_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_32x8_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE_H   32
 #define BSIZE_V   8
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
-    int shift1 = B32X32_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT;
+    int shift1 = B32X32_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT;
     int shift2 = B32X32_IN_BIT + FACTO_BIT - 2 - (i_src & 0x01);
     int i;
 
@@ -1432,16 +1432,16 @@ static void dct_32x8_c(const coeff_t *src, coeff_t *dst, int i_src)
  * NOTE:
  * i_dst - the stride of dst (the lowest bit is additional wavelet flag)
  */
-static void idct_32x8_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_32x8_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE_H   32
 #define BSIZE_V   8
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth - (i_dst & 0x01);
+    int shift2 = 20 - h->param->input_sample_bit_depth - (i_dst & 0x01);
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1 + (i_dst & 0x01);
+    int clip_depth2 = h->param->input_sample_bit_depth + 1 + (i_dst & 0x01);
     int i;
 
     partialButterflyInverse8 (src,   coeff, shift1, BSIZE_H, clip_depth1);
@@ -1459,13 +1459,13 @@ static void idct_32x8_c(const coeff_t *src, coeff_t *dst, int i_dst)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_8x32_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_8x32_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
 #define BSIZE_H   8
 #define BSIZE_V   32
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
-    int shift1 = B32X32_IN_BIT + FACTO_BIT + g_bit_depth + 1 - LIMIT_BIT - 2 + (i_src & 0x01);
+    int shift1 = B32X32_IN_BIT + FACTO_BIT + h->param->input_sample_bit_depth + 1 - LIMIT_BIT - 2 + (i_src & 0x01);
     int shift2 = B32X32_IN_BIT + FACTO_BIT;
     int i;
 
@@ -1484,16 +1484,16 @@ static void dct_8x32_c(const coeff_t *src, coeff_t *dst, int i_src)
  * NOTE:
  * i_dst - the stride of dst (the lowest bit is additional wavelet flag)
  */
-static void idct_8x32_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_8x32_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
 #define BSIZE_H   8
 #define BSIZE_V   32
     ALIGN32(coeff_t coeff[BSIZE_H * BSIZE_V]);
     ALIGN32(coeff_t block[BSIZE_H * BSIZE_V]);
     int shift1 = 5;
-    int shift2 = 20 - g_bit_depth - (i_dst & 0x01);
+    int shift2 = 20 - h->param->input_sample_bit_depth - (i_dst & 0x01);
     int clip_depth1 = LIMIT_BIT;
-    int clip_depth2 = g_bit_depth + 1 + (i_dst & 0x01);
+    int clip_depth2 = h->param->input_sample_bit_depth + 1 + (i_dst & 0x01);
     int i;
 
     partialButterflyInverse32(src,   coeff, shift1, BSIZE_H, clip_depth1);
@@ -1511,22 +1511,22 @@ static void idct_8x32_c(const coeff_t *src, coeff_t *dst, int i_dst)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_64x64_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_64x64_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
     UNUSED_PARAMETER(i_src);
     wavelet_64x64_c(src, dst);
-    dct_32x32_c(dst, dst, 32 | 0x01);  /* 32x32 dct */
+    dct_32x32_c(h, dst, dst, 32 | 0x01);  /* 32x32 dct */
 }
 
 /* ---------------------------------------------------------------------------
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_64x64_half_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_64x64_half_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
     UNUSED_PARAMETER(i_src);
     wavelet_64x64_c(src, dst);
-    dct_32x32_half_c(dst, dst, 32 | 0x01);  /* 32x32 dct */
+    dct_32x32_half_c(h, dst, dst, 32 | 0x01);  /* 32x32 dct */
 }
 
 
@@ -1534,10 +1534,10 @@ static void dct_64x64_half_c(const coeff_t *src, coeff_t *dst, int i_src)
  * NOTE:
  * i_dst - the stride of dst (the lowest bit is additional wavelet flag)
  */
-static void idct_64x64_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_64x64_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
     UNUSED_PARAMETER(i_dst);
-    idct_32x32_c(src, dst, 32 | 0x01); /* 32x32 idct */
+    idct_32x32_c(h, src, dst, 32 | 0x01); /* 32x32 idct */
     inv_wavelet_64x64_c(dst);
 }
 
@@ -1545,21 +1545,21 @@ static void idct_64x64_c(const coeff_t *src, coeff_t *dst, int i_dst)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_64x16_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_64x16_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
     UNUSED_PARAMETER(i_src);
     wavelet_64x16_c(src, dst);
-    dct_32x8_c(dst, dst, 32 | 0x01);
+    dct_32x8_c(h, dst, dst, 32 | 0x01);
 }
 
 /* ---------------------------------------------------------------------------
  * NOTE:
  * i_dst - the stride of dst (the lowest bit is additional wavelet flag)
  */
-static void idct_64x16_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_64x16_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
     UNUSED_PARAMETER(i_dst);
-    idct_32x8_c(src, dst, 32 | 0x01);
+    idct_32x8_c(h, src, dst, 32 | 0x01);
     inv_wavelet_64x16_c(dst);
 }
 
@@ -1568,21 +1568,21 @@ static void idct_64x16_c(const coeff_t *src, coeff_t *dst, int i_dst)
  * NOTE:
  * i_src - the stride of src (the lowest bit is additional wavelet flag)
  */
-static void dct_16x64_c(const coeff_t *src, coeff_t *dst, int i_src)
+static void dct_16x64_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_src)
 {
     UNUSED_PARAMETER(i_src);
     wavelet_16x64_c(src, dst);
-    dct_8x32_c(dst, dst, 8 | 0x01);
+    dct_8x32_c(h, dst, dst, 8 | 0x01);
 }
 
 /* ---------------------------------------------------------------------------
  * NOTE:
  * i_dst - the stride of dst (the lowest bit is additional wavelet flag)
  */
-static void idct_16x64_c(const coeff_t *src, coeff_t *dst, int i_dst)
+static void idct_16x64_c(xavs2_t *h, const coeff_t *src, coeff_t *dst, int i_dst)
 {
     UNUSED_PARAMETER(i_dst);
-    idct_8x32_c(src, dst, 8 | 0x01);
+    idct_8x32_c(h, src, dst, 8 | 0x01);
     inv_wavelet_16x64_c(dst);
 }
 

@@ -290,7 +290,7 @@ uint8_t lf_skip_filter(xavs2_t *h, cu_info_t *MbP, cu_info_t *MbQ, int dir, int 
 
 /* ---------------------------------------------------------------------------
  */
-static void lf_edge_core(pel_t *src, int b_chroma, int ptr_inc, int inc1, int alpha, int beta, uint8_t *flt_flag)
+static void lf_edge_core8(pel8_t *src, int b_chroma, int ptr_inc, int inc1, int alpha, int beta, uint8_t *flt_flag)
 {
     int pel;
     int abs_delta;
@@ -347,26 +347,114 @@ static void lf_edge_core(pel_t *src, int b_chroma, int ptr_inc, int inc1, int al
 
             switch (fs) {
             case 4:
-                src[-inc1] = (pel_t)((L0 + ((L0 + L2) << 3) + L2 + (R0 << 3) + (R2 << 2) + (R2 << 1) + 16) >> 5);   // L0
-                src[-inc2] = (pel_t)(((L0 << 3) - L0 + (L2 << 2) + (L2 << 1) + R0 + (R0 << 1) + 8) >> 4);           // L1
-                src[-inc3] = (pel_t)(((L0 << 2) + L2 + (L2 << 1) + R0 + 4) >> 3);                                   // L2
-                src[    0] = (pel_t)((R0 + ((R0 + R2) << 3) + R2 + (L0 << 3) + (L2 << 2) + (L2 << 1) + 16) >> 5);   // R0
-                src[ inc1] = (pel_t)(((R0 << 3) - R0 + (R2 << 2) + (R2 << 1) + L0 + (L0 << 1) + 8) >> 4);           // R1
-                src[ inc2] = (pel_t)(((R0 << 2) + R2 + (R2 << 1) + L0 + 4) >> 3);                                   // R2
+                src[-inc1] = (pel8_t)((L0 + ((L0 + L2) << 3) + L2 + (R0 << 3) + (R2 << 2) + (R2 << 1) + 16) >> 5);   // L0
+                src[-inc2] = (pel8_t)(((L0 << 3) - L0 + (L2 << 2) + (L2 << 1) + R0 + (R0 << 1) + 8) >> 4);           // L1
+                src[-inc3] = (pel8_t)(((L0 << 2) + L2 + (L2 << 1) + R0 + 4) >> 3);                                   // L2
+                src[    0] = (pel8_t)((R0 + ((R0 + R2) << 3) + R2 + (L0 << 3) + (L2 << 2) + (L2 << 1) + 16) >> 5);   // R0
+                src[ inc1] = (pel8_t)(((R0 << 3) - R0 + (R2 << 2) + (R2 << 1) + L0 + (L0 << 1) + 8) >> 4);           // R1
+                src[ inc2] = (pel8_t)(((R0 << 2) + R2 + (R2 << 1) + L0 + 4) >> 3);                                   // R2
                 break;
             case 3:
-                src[-inc1] = (pel_t)((L2 + (L1 << 2) + (L0 << 2) + (L0 << 1) + (R0 << 2) + R1 + 8) >> 4);   // L0
-                src[    0] = (pel_t)((L1 + (L0 << 2) + (R0 << 2) + (R0 << 1) + (R1 << 2) + R2 + 8) >> 4);   // R0
-                src[-inc2] = (pel_t)((L2 * 3 + L1 * 8 + L0 * 4 + R0 + 8) >> 4);
-                src[ inc1] = (pel_t)((R2 * 3 + R1 * 8 + R0 * 4 + L0 + 8) >> 4);
+                src[-inc1] = (pel8_t)((L2 + (L1 << 2) + (L0 << 2) + (L0 << 1) + (R0 << 2) + R1 + 8) >> 4);   // L0
+                src[    0] = (pel8_t)((L1 + (L0 << 2) + (R0 << 2) + (R0 << 1) + (R1 << 2) + R2 + 8) >> 4);   // R0
+                src[-inc2] = (pel8_t)((L2 * 3 + L1 * 8 + L0 * 4 + R0 + 8) >> 4);
+                src[ inc1] = (pel8_t)((R2 * 3 + R1 * 8 + R0 * 4 + L0 + 8) >> 4);
                 break;
             case 2:
-                src[-inc1] = (pel_t)(((L1 << 1) + L1 + (L0 << 3) + (L0 << 1) + (R0 << 1) + R0 + 8) >> 4);
-                src[    0] = (pel_t)(((L0 << 1) + L0 + (R0 << 3) + (R0 << 1) + (R1 << 1) + R1 + 8) >> 4);
+                src[-inc1] = (pel8_t)(((L1 << 1) + L1 + (L0 << 3) + (L0 << 1) + (R0 << 1) + R0 + 8) >> 4);
+                src[    0] = (pel8_t)(((L0 << 1) + L0 + (R0 << 3) + (R0 << 1) + (R1 << 1) + R1 + 8) >> 4);
                 break;
             case 1:
-                src[-inc1] = (pel_t)((L0 * 3 + R0 + 2) >> 2);
-                src[    0] = (pel_t)((R0 * 3 + L0 + 2) >> 2);
+                src[-inc1] = (pel8_t)((L0 * 3 + R0 + 2) >> 2);
+                src[    0] = (pel8_t)((R0 * 3 + L0 + 2) >> 2);
+                break;
+            default:
+                break;
+            }
+        }
+
+        src += ptr_inc;    // next row or column
+        pel += b_chroma;
+    }
+}
+
+static void lf_edge_core10(pel10_t *src, int b_chroma, int ptr_inc, int inc1, int alpha, int beta, uint8_t *flt_flag)
+{
+    int pel;
+    int abs_delta;
+    int L2, L1, L0, R0, R1, R2;
+    int fs; // fs stands for filtering strength. The larger fs is, the stronger filter is applied.
+    int FlatnessL, FlatnessR;
+    int inc2, inc3;
+    int flag = 0;
+
+    inc2 = inc1 << 1;
+    inc3 = inc1 + inc2;
+    for (pel = 0; pel < MIN_CU_SIZE; pel++) {
+        L2 = src[-inc3];
+        L1 = src[-inc2];
+        L0 = src[-inc1];
+        R0 = src[    0];
+        R1 = src[ inc1];
+        R2 = src[ inc2];
+
+        abs_delta = XAVS2_ABS(R0 - L0);
+        flag = (pel < 4) ? flt_flag[0] : flt_flag[1];
+        if (flag && (abs_delta < alpha) && (abs_delta > 1)) {
+            FlatnessL = (XAVS2_ABS(L1 - L0) < beta) ? 2 : 0;
+            if (XAVS2_ABS(L2 - L0) < beta) {
+                FlatnessL += 1;
+            }
+
+            FlatnessR = (XAVS2_ABS(R0 - R1) < beta) ? 2 : 0;
+            if (XAVS2_ABS(R0 - R2) < beta) {
+                FlatnessR += 1;
+            }
+
+            switch (FlatnessL + FlatnessR) {
+            case 6:
+                fs = (R1 == R0 && L0 == L1) ? 4 : 3;
+                break;
+            case 5:
+                fs = (R1 == R0 && L0 == L1) ? 3 : 2;
+                break;
+            case 4:
+                fs = (FlatnessL == 2) ? 2 : 1;
+                break;
+            case 3:
+                fs = (XAVS2_ABS(L1 - R1) < beta) ? 1 : 0;
+                break;
+            default:
+                fs = 0;
+                break;
+            }
+
+            if (b_chroma && fs > 0) {
+                fs--;
+            }
+
+            switch (fs) {
+            case 4:
+                src[-inc1] = (pel10_t)((L0 + ((L0 + L2) << 3) + L2 + (R0 << 3) + (R2 << 2) + (R2 << 1) + 16) >> 5);   // L0
+                src[-inc2] = (pel10_t)(((L0 << 3) - L0 + (L2 << 2) + (L2 << 1) + R0 + (R0 << 1) + 8) >> 4);           // L1
+                src[-inc3] = (pel10_t)(((L0 << 2) + L2 + (L2 << 1) + R0 + 4) >> 3);                                   // L2
+                src[    0] = (pel10_t)((R0 + ((R0 + R2) << 3) + R2 + (L0 << 3) + (L2 << 2) + (L2 << 1) + 16) >> 5);   // R0
+                src[ inc1] = (pel10_t)(((R0 << 3) - R0 + (R2 << 2) + (R2 << 1) + L0 + (L0 << 1) + 8) >> 4);           // R1
+                src[ inc2] = (pel10_t)(((R0 << 2) + R2 + (R2 << 1) + L0 + 4) >> 3);                                   // R2
+                break;
+            case 3:
+                src[-inc1] = (pel10_t)((L2 + (L1 << 2) + (L0 << 2) + (L0 << 1) + (R0 << 2) + R1 + 8) >> 4);   // L0
+                src[    0] = (pel10_t)((L1 + (L0 << 2) + (R0 << 2) + (R0 << 1) + (R1 << 2) + R2 + 8) >> 4);   // R0
+                src[-inc2] = (pel10_t)((L2 * 3 + L1 * 8 + L0 * 4 + R0 + 8) >> 4);
+                src[ inc1] = (pel10_t)((R2 * 3 + R1 * 8 + R0 * 4 + L0 + 8) >> 4);
+                break;
+            case 2:
+                src[-inc1] = (pel10_t)(((L1 << 1) + L1 + (L0 << 3) + (L0 << 1) + (R0 << 1) + R0 + 8) >> 4);
+                src[    0] = (pel10_t)(((L0 << 1) + L0 + (R0 << 3) + (R0 << 1) + (R1 << 1) + R1 + 8) >> 4);
+                break;
+            case 1:
+                src[-inc1] = (pel10_t)((L0 * 3 + R0 + 2) >> 2);
+                src[    0] = (pel10_t)((R0 * 3 + L0 + 2) >> 2);
                 break;
             default:
                 break;
@@ -380,45 +468,67 @@ static void lf_edge_core(pel_t *src, int b_chroma, int ptr_inc, int inc1, int al
 
 /* ---------------------------------------------------------------------------
  */
-static void deblock_edge_hor(pel_t *src, int stride, int alpha, int beta, uint8_t *flt_flag)
+static void deblock_edge_hor8(xavs2_t *h, pel8_t *src, int stride, int alpha, int beta, uint8_t *flt_flag)
 {
-    lf_edge_core(src, 0, 1, stride, alpha, beta, flt_flag);
+    lf_edge_core8(src, 0, 1, stride, alpha, beta, flt_flag);
+}
+
+static void deblock_edge_hor10(xavs2_t *h, pel10_t *src, int stride, int alpha, int beta, uint8_t *flt_flag)
+{
+    lf_edge_core10(src, 0, 1, stride, alpha, beta, flt_flag);
 }
 
 /* ---------------------------------------------------------------------------
  */
-static void deblock_edge_ver(pel_t *src, int stride, int alpha, int beta, uint8_t *flt_flag)
+static void deblock_edge_ver8(xavs2_t *h, pel8_t *src, int stride, int alpha, int beta, uint8_t *flt_flag)
 {
-    lf_edge_core(src, 0, stride, 1, alpha, beta, flt_flag);
+    lf_edge_core8(src, 0, stride, 1, alpha, beta, flt_flag);
+}
+
+static void deblock_edge_ver10(xavs2_t *h, pel10_t *src, int stride, int alpha, int beta, uint8_t *flt_flag)
+{
+    lf_edge_core10(src, 0, stride, 1, alpha, beta, flt_flag);
 }
 
 /* ---------------------------------------------------------------------------
  */
-static void deblock_edge_ver_c(pel_t *src_u, pel_t *src_v, int stride, int alpha, int beta, uint8_t *flt_flag)
+static void deblock_edge_ver8_c(xavs2_t *h, pel8_t *src_u, pel8_t *src_v, int stride, int alpha, int beta, uint8_t *flt_flag)
 {
-    lf_edge_core(src_u, 1, stride, 1, alpha, beta, flt_flag);
-    lf_edge_core(src_v, 1, stride, 1, alpha, beta, flt_flag);
+    lf_edge_core8(src_u, 1, stride, 1, alpha, beta, flt_flag);
+    lf_edge_core8(src_v, 1, stride, 1, alpha, beta, flt_flag);
+}
+
+static void deblock_edge_ver10_c(xavs2_t *h, pel10_t *src_u, pel10_t *src_v, int stride, int alpha, int beta, uint8_t *flt_flag)
+{
+    lf_edge_core10(src_u, 1, stride, 1, alpha, beta, flt_flag);
+    lf_edge_core10(src_v, 1, stride, 1, alpha, beta, flt_flag);
 }
 
 /* ---------------------------------------------------------------------------
  */
-static void deblock_edge_hor_c(pel_t *src_u, pel_t *src_v, int stride, int alpha, int beta, uint8_t *flt_flag)
+static void deblock_edge_hor8_c(xavs2_t *h, pel8_t *src_u, pel8_t *src_v, int stride, int alpha, int beta, uint8_t *flt_flag)
 {
-    lf_edge_core(src_u, 1, 1, stride, alpha, beta, flt_flag);
-    lf_edge_core(src_v, 1, 1, stride, alpha, beta, flt_flag);
+    lf_edge_core8(src_u, 1, 1, stride, alpha, beta, flt_flag);
+    lf_edge_core8(src_v, 1, 1, stride, alpha, beta, flt_flag);
+}
+
+static void deblock_edge_hor10_c(xavs2_t *h, pel10_t *src_u, pel10_t *src_v, int stride, int alpha, int beta, uint8_t *flt_flag)
+{
+    lf_edge_core10(src_u, 1, 1, stride, alpha, beta, flt_flag);
+    lf_edge_core10(src_v, 1, 1, stride, alpha, beta, flt_flag);
 }
 
 /* ---------------------------------------------------------------------------
  */
 static
-void lf_scu_deblock(xavs2_t *h, pel_t *p_rec[3], int i_stride, int i_stride_c, int scu_x, int scu_y, int dir)
+void lf_scu_deblock8(xavs2_t *h, pel8_t *p_rec[3], int i_stride, int i_stride_c, int scu_x, int scu_y, int dir)
 {
-    static const int max_qp_deblock = 63;
+#define MAX_QP_DEBLOCK  MAX_QP
     cu_info_t *MbQ = &h->cu_info[scu_y * h->i_width_in_mincu + scu_x];  /* current SCU */
     int edge_type = h->p_deblock_flag[dir][(scu_y - h->lcu.i_scu_y) * h->i_width_in_mincu + scu_x];
 
     if (edge_type != EDGE_TYPE_NOFILTER) {
-        pel_t *src_y = p_rec[0] + (scu_y << MIN_CU_SIZE_IN_BIT) * i_stride + (scu_x << MIN_CU_SIZE_IN_BIT);
+        pel8_t *src_y = p_rec[0] + (scu_y << MIN_CU_SIZE_IN_BIT) * i_stride + (scu_x << MIN_CU_SIZE_IN_BIT);
         cu_info_t *MbP = dir ? (MbQ - h->i_width_in_mincu) : (MbQ - 1); /* MbP = Mb of the remote 4x4 block */
         int QP = (cu_get_qp(h, MbP) + cu_get_qp(h, MbQ) + 1) >> 1;                /* average QP of the two blocks */
         int shift = h->param->sample_bit_depth - 8;
@@ -434,25 +544,72 @@ void lf_scu_deblock(xavs2_t *h, pel_t *p_rec[3], int i_stride, int i_stride_c, i
         }
 
         /* deblock luma edge */
-        alpha = tab_deblock_alpha[XAVS2_CLIP3(0, max_qp_deblock, QP - offset + h->param->alpha_c_offset)] << shift;
-        beta  = tab_deblock_beta [XAVS2_CLIP3(0, max_qp_deblock, QP - offset + h->param->beta_offset)] << shift;
+        alpha = tab_deblock_alpha[XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP - offset + h->param->alpha_c_offset)] << shift;
+        beta  = tab_deblock_beta [XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP - offset + h->param->beta_offset)] << shift;
 
-        g_funcs.deblock_luma[dir](src_y, i_stride, alpha, beta, b_filter_edge);
+        g_funcs.deblock_luma8[dir](h, src_y, i_stride, alpha, beta, b_filter_edge);
 
         assert(h->param->chroma_format == CHROMA_420 || h->param->chroma_format == CHROMA_400);   /* only support I420/I400 now */
         /* deblock chroma edge */
         if (edge_type == EDGE_TYPE_BOTH && h->param->chroma_format == CHROMA_420)
             if ((((scu_y & 1) == 0) && dir) || (((scu_x & 1) == 0) && (!dir))) {
-                pel_t *src_u = p_rec[1] + (scu_y << (MIN_CU_SIZE_IN_BIT - 1)) * i_stride_c + (scu_x << (MIN_CU_SIZE_IN_BIT - 1));
-                pel_t *src_v = p_rec[2] + (scu_y << (MIN_CU_SIZE_IN_BIT - 1)) * i_stride_c + (scu_x << (MIN_CU_SIZE_IN_BIT - 1));
+                pel8_t *src_u = p_rec[1] + (scu_y << (MIN_CU_SIZE_IN_BIT - 1)) * i_stride_c + (scu_x << (MIN_CU_SIZE_IN_BIT - 1));
+                pel8_t *src_v = p_rec[2] + (scu_y << (MIN_CU_SIZE_IN_BIT - 1)) * i_stride_c + (scu_x << (MIN_CU_SIZE_IN_BIT - 1));
 
                 int alpha_c, beta_c;
                 QP = cu_get_chroma_qp(h, QP, 0) - offset;
-                alpha_c = tab_deblock_alpha[XAVS2_CLIP3(0, max_qp_deblock, QP + h->param->alpha_c_offset)] << shift;
-                beta_c  = tab_deblock_beta [XAVS2_CLIP3(0, max_qp_deblock, QP + h->param->beta_offset)] << shift;
-                g_funcs.deblock_chroma[dir](src_u, src_v, i_stride_c, alpha_c, beta_c, b_filter_edge);
+                alpha_c = tab_deblock_alpha[XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP + h->param->alpha_c_offset)] << shift;
+                beta_c  = tab_deblock_beta [XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP + h->param->beta_offset)] << shift;
+                g_funcs.deblock_chroma8[dir](h, src_u, src_v, i_stride_c, alpha_c, beta_c, b_filter_edge);
             }
     }
+#undef MAX_QP_DEBLOCK
+}
+
+static
+void lf_scu_deblock10(xavs2_t *h, pel10_t *p_rec[3], int i_stride, int i_stride_c, int scu_x, int scu_y, int dir)
+{
+#define MAX_QP_DEBLOCK  (MAX_QP + (h->param->sample_bit_depth - 8) * 8)
+    cu_info_t *MbQ = &h->cu_info[scu_y * h->i_width_in_mincu + scu_x];  /* current SCU */
+    int edge_type = h->p_deblock_flag[dir][(scu_y - h->lcu.i_scu_y) * h->i_width_in_mincu + scu_x];
+
+    if (edge_type != EDGE_TYPE_NOFILTER) {
+        pel10_t *src_y = p_rec[0] + (scu_y << MIN_CU_SIZE_IN_BIT) * i_stride + (scu_x << MIN_CU_SIZE_IN_BIT);
+        cu_info_t *MbP = dir ? (MbQ - h->i_width_in_mincu) : (MbQ - 1); /* MbP = Mb of the remote 4x4 block */
+        int QP = (cu_get_qp(h, MbP) + cu_get_qp(h, MbQ) + 1) >> 1;                /* average QP of the two blocks */
+        int shift = h->param->sample_bit_depth - 8;
+        int offset = shift << 3;  /* coded as 10/12 bit, QP is added by (8 * (h->param->sample_bit_depth - 8)) in config file */
+        int alpha, beta;
+        uint8_t b_filter_edge[2];
+
+        b_filter_edge[0] = lf_skip_filter(h, MbP, MbQ, dir, (scu_x << 1), (scu_y << 1));
+        b_filter_edge[1] = lf_skip_filter(h, MbP, MbQ, dir, (scu_x << 1) + dir, (scu_y << 1) + !dir);
+
+        if (b_filter_edge[0] == 0 && b_filter_edge[1] == 0) {
+            return;
+        }
+
+        /* deblock luma edge */
+        alpha = tab_deblock_alpha[XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP - offset + h->param->alpha_c_offset)] << shift;
+        beta  = tab_deblock_beta [XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP - offset + h->param->beta_offset)] << shift;
+
+        g_funcs.deblock_luma10[dir](h, src_y, i_stride, alpha, beta, b_filter_edge);
+
+        assert(h->param->chroma_format == CHROMA_420 || h->param->chroma_format == CHROMA_400);   /* only support I420/I400 now */
+        /* deblock chroma edge */
+        if (edge_type == EDGE_TYPE_BOTH && h->param->chroma_format == CHROMA_420)
+            if ((((scu_y & 1) == 0) && dir) || (((scu_x & 1) == 0) && (!dir))) {
+                pel10_t *src_u = p_rec[1] + (scu_y << (MIN_CU_SIZE_IN_BIT - 1)) * i_stride_c + (scu_x << (MIN_CU_SIZE_IN_BIT - 1));
+                pel10_t *src_v = p_rec[2] + (scu_y << (MIN_CU_SIZE_IN_BIT - 1)) * i_stride_c + (scu_x << (MIN_CU_SIZE_IN_BIT - 1));
+
+                int alpha_c, beta_c;
+                QP = cu_get_chroma_qp(h, QP, 0) - offset;
+                alpha_c = tab_deblock_alpha[XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP + h->param->alpha_c_offset)] << shift;
+                beta_c  = tab_deblock_beta [XAVS2_CLIP3(0, MAX_QP_DEBLOCK, QP + h->param->beta_offset)] << shift;
+                g_funcs.deblock_chroma10[dir](h, src_u, src_v, i_stride_c, alpha_c, beta_c, b_filter_edge);
+            }
+    }
+#undef MAX_QP_DEBLOCK
 }
 
 /**
@@ -491,7 +648,11 @@ void xavs2_lcu_deblock(xavs2_t *h, xavs2_frame_t *frm)
     /* deblock all vertical edges in one LCU */
     for (j = 0; j < num_of_scu_ver; j++) {
         for (i = 0; i < num_of_scu_hor; i++) {
-            lf_scu_deblock(h, frm->planes, i_stride, i_stride_c, scu_x + i, scu_y + j, EDGE_VER);
+            if (h->param->input_sample_bit_depth == 8) {
+            lf_scu_deblock8(h, frm->planes8, i_stride, i_stride_c, scu_x + i, scu_y + j, EDGE_VER);
+            } else {
+            lf_scu_deblock10(h, frm->planes10, i_stride, i_stride_c, scu_x + i, scu_y + j, EDGE_VER);
+            }
         }
     }
 
@@ -512,38 +673,70 @@ void xavs2_lcu_deblock(xavs2_t *h, xavs2_frame_t *frm)
     /* deblock all horizontal edges in one LCU */
     for (j = 0; j < num_of_scu_ver; j++) {
         for (i = 0; i < num_of_scu_hor; i++) {
-            lf_scu_deblock(h, frm->planes, i_stride, i_stride_c, scu_x + i, scu_y + j, EDGE_HOR);
+            if (h->param->input_sample_bit_depth == 8) {
+            lf_scu_deblock8(h, frm->planes8, i_stride, i_stride_c, scu_x + i, scu_y + j, EDGE_HOR);
+            } else {
+            lf_scu_deblock10(h, frm->planes10, i_stride, i_stride_c, scu_x + i, scu_y + j, EDGE_HOR);
+            }
         }
     }
 }
 
 /* ---------------------------------------------------------------------------
  */
-void xavs2_deblock_init(uint32_t cpuid, intrinsic_func_t* lf)
+void xavs2_deblock_init(xavs2_param_t* param, uint32_t cpuid, intrinsic_func_t* lf)
 {
-    lf->deblock_luma  [0] = deblock_edge_ver;
-    lf->deblock_luma  [1] = deblock_edge_hor;
-    lf->deblock_chroma[0] = deblock_edge_ver_c;
-    lf->deblock_chroma[1] = deblock_edge_hor_c;
+    if (param->input_sample_bit_depth == 8) {
+    lf->deblock_luma8  [0] = deblock_edge_ver8;
+    lf->deblock_luma8  [1] = deblock_edge_hor8;
+    lf->deblock_chroma8[0] = deblock_edge_ver8_c;
+    lf->deblock_chroma8[1] = deblock_edge_hor8_c;
 
 #if HAVE_MMX
     if (cpuid & XAVS2_CPU_SSE42) {
-        lf->deblock_luma[0] = deblock_edge_ver_sse128;
-        lf->deblock_luma[1] = deblock_edge_hor_sse128;
-        // lf->deblock_chroma[0] = deblock_edge_ver_c_sse128;
-        // lf->deblock_chroma[1] = deblock_edge_hor_c_sse128;
+        lf->deblock_luma8[0] = deblock_edge_ver_sse128;
+        lf->deblock_luma8[1] = deblock_edge_hor_sse128;
+        // lf->deblock_chroma8[0] = deblock_edge_ver_c_sse128;
+        // lf->deblock_chroma8[1] = deblock_edge_hor_c_sse128;
     }
 
 #if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
         // In some machines, avx is slower than SSE
-        // lf->deblock_luma[0]   = deblock_edge_ver_avx2;
-        // lf->deblock_luma[1]   = deblock_edge_hor_avx2;
-        // lf->deblock_chroma[0] = deblock_edge_ver_c_avx2;
-        // lf->deblock_chroma[1] = deblock_edge_hor_c_avx2;
+        // lf->deblock_luma8[0]   = deblock_edge_ver_avx2;
+        // lf->deblock_luma8[1]   = deblock_edge_hor_avx2;
+        // lf->deblock_chroma8[0] = deblock_edge_ver_c_avx2;
+        // lf->deblock_chroma8[1] = deblock_edge_hor_c_avx2;
     }
 #endif
 #else
     UNUSED_PARAMETER(cpuid);
 #endif
+    } else {
+    lf->deblock_luma10  [0] = deblock_edge_ver10;
+    lf->deblock_luma10  [1] = deblock_edge_hor10;
+    lf->deblock_chroma10[0] = deblock_edge_ver10_c;
+    lf->deblock_chroma10[1] = deblock_edge_hor10_c;
+
+#if HAVE_MMX
+    if (cpuid & XAVS2_CPU_SSE42) {
+        lf->deblock_luma10[0] = deblock_edge_ver_sse128;
+        lf->deblock_luma10[1] = deblock_edge_hor_sse128;
+        // lf->deblock_chroma10[0] = deblock_edge_ver_c_sse128;
+        // lf->deblock_chroma10[1] = deblock_edge_hor_c_sse128;
+    }
+
+#if defined(__AVX2__)
+    if (cpuid & XAVS2_CPU_AVX2) {
+        // In some machines, avx is slower than SSE
+        // lf->deblock_luma10[0]   = deblock_edge_ver_avx2;
+        // lf->deblock_luma10[1]   = deblock_edge_hor_avx2;
+        // lf->deblock_chroma10[0] = deblock_edge_ver_c_avx2;
+        // lf->deblock_chroma10[1] = deblock_edge_hor_c_avx2;
+    }
+#endif
+#else
+    UNUSED_PARAMETER(cpuid);
+#endif
+    }
 }

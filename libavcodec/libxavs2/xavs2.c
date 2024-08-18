@@ -280,7 +280,11 @@ void *xavs2_encoder_create(xavs2_param_t *param)
     /* check parameters */
     if (encoder_check_parameters(param) < 0) {
         xavs2_log(NULL, XAVS2_LOG_ERROR, "error encoder parameters\n");
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     size_ratecontrol = xavs2_rc_get_buffer_size(param);      /* rate control */
@@ -294,7 +298,11 @@ void *xavs2_encoder_create(xavs2_param_t *param)
                CACHE_LINE_SIZE * (XAVS2_INPUT_NUM + 4);
 
     /* alloc memory for the encoder wrapper */
-    CHECKED_MALLOC(mem_ptr, uint8_t *, mem_size);
+    if (param->input_sample_bit_depth == 8) {
+    CHECKED_MALLOC8(mem_ptr, uint8_t *, mem_size);
+    } else {
+    CHECKED_MALLOC10(mem_ptr, uint8_t *, mem_size);
+    }
 
     /* M0: assign the wrapper */
     h_mgr = (xavs2_handler_t *)mem_ptr;
@@ -333,12 +341,20 @@ void *xavs2_encoder_create(xavs2_param_t *param)
 #endif
 
     if (xavs2_thread_mutex_init(&h_mgr->mutex, NULL)) {
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     for (i = 0; i < SIG_COUNT; i++) {
         if (xavs2_thread_cond_init(&h_mgr->cond[i], NULL)) {
-            goto fail;
+            if (param->input_sample_bit_depth == 8) {
+            goto fail8;
+            } else {
+            goto fail10;
+            }
         }
     }
 
@@ -357,24 +373,29 @@ void *xavs2_encoder_create(xavs2_param_t *param)
         h_mgr->num_row_contexts = thread_num + h_mgr->i_frm_threads;
 
         /* create the thread pool */
-        if (xavs2_threadpool_init(&h_mgr->threadpool_rdo, thread_num, NULL, NULL)) {
+        if (xavs2_threadpool_init(param, &h_mgr->threadpool_rdo, thread_num, NULL, NULL)) {
             xavs2_log(h_mgr, XAVS2_LOG_ERROR, "Error init thread pool RDO. %d", thread_num);
-            goto fail;
+            goto fail8;
         }
+
         h_mgr->num_pool_threads = thread_num;
     }
 
     /* create AEC thread pool */
     h_mgr->threadpool_aec = NULL;
     if (param->enable_aec_thread) {
-        xavs2_threadpool_init(&h_mgr->threadpool_aec, h_mgr->i_frm_threads, NULL, NULL);
+        xavs2_threadpool_init(param, &h_mgr->threadpool_aec, h_mgr->i_frm_threads, NULL, NULL);
     }
 
     /* init all lists */
     if (xl_init(&h_mgr->list_frames_free)  != 0 ||
         xl_init(&h_mgr->list_frames_output) != 0 ||
         xl_init(&h_mgr->list_frames_ready) != 0) {
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     /* init rate-control buffer */
@@ -385,8 +406,11 @@ void *xavs2_encoder_create(xavs2_param_t *param)
 
     if (xavs2_rc_init(h_mgr->rate_control, param) < 0) {
         xavs2_log(h_mgr, XAVS2_LOG_ERROR, "create rate control fail\n");
-        goto fail;
-
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     /* TD-RDO */
@@ -397,20 +421,32 @@ void *xavs2_encoder_create(xavs2_param_t *param)
 
         if (tdrdo_init(h_mgr->td_rdo, param) != 0) {
             xavs2_log(h_mgr, XAVS2_LOG_ERROR, "init td-rdo fail\n");
-            goto fail;
+            if (param->input_sample_bit_depth == 8) {
+            goto fail8;
+            } else {
+            goto fail10;
+            }
         }
     }
 
     /* create an encoder handler */
     h_mgr->p_coder = encoder_open(param, h_mgr);
     if (h_mgr->p_coder == NULL) {
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     /* create encoder handlers for multi-thread */
     if (h_mgr->i_frm_threads > 1 || h_mgr->i_row_threads > 1) {
         if (encoder_contexts_init(h_mgr->p_coder, h_mgr) < 0) {
-            goto fail;
+            if (param->input_sample_bit_depth == 8) {
+            goto fail8;
+            } else {
+            goto fail10;
+            }
         }
     }
 
@@ -422,7 +458,11 @@ void *xavs2_encoder_create(xavs2_param_t *param)
         if (frm) {
             xl_append(&h_mgr->list_frames_free, frm);
         } else {
-            goto fail;
+            if (param->input_sample_bit_depth == 8) {
+            goto fail8;
+            } else {
+            goto fail10;
+            }
         }
     }
 
@@ -433,7 +473,11 @@ void *xavs2_encoder_create(xavs2_param_t *param)
     /* memory check */
     if ((uintptr_t)(h_mgr) + mem_size < (uintptr_t)mem_ptr) {
         xavs2_log(NULL, XAVS2_LOG_ERROR, "Failed to create input frame buffer.\n");
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     /* init lookahead in the encoder wrapper */
@@ -448,12 +492,20 @@ void *xavs2_encoder_create(xavs2_param_t *param)
     /* create wrapper thread */
     if (xavs2_create_thread(&h_mgr->thread_wrapper, proc_wrapper_thread, h_mgr)) {
         xavs2_log(h_mgr, XAVS2_LOG_ERROR, "create encoding thread\n");
-        goto fail;
+        if (param->input_sample_bit_depth == 8) {
+        goto fail8;
+        } else {
+        goto fail10;
+        }
     }
 
     return h_mgr;
 
-fail:
+    if (param->input_sample_bit_depth == 8) {
+fail8:
+    } else {
+fail10:
+    }
     if (mem_ptr && h_mgr) {
         xavs2_encoder_destroy(h_mgr);
     }
@@ -531,8 +583,9 @@ int xavs2_encoder_get_buffer(void *coder, xavs2_picture_t *pic)
     frame = frame_buffer_get_free_frame_ipb(h_mgr);
 
     /* set properties */
+    //if (param->input_sample_bit_depth == 8) {
     pic->img.in_sample_size  = param->input_sample_bit_depth == 8 ? 1 : 2;
-    pic->img.enc_sample_size = sizeof(pel_t);
+    pic->img.enc_sample_size = param->input_sample_bit_depth == 8 ? sizeof(pel8_t) : sizeof(pel10_t);
     pic->img.i_width[0]      = param->org_width;
     pic->img.i_width[1]      = param->org_width >> 1;
     pic->img.i_width[2]      = param->org_width >> 1;
@@ -541,13 +594,31 @@ int xavs2_encoder_get_buffer(void *coder, xavs2_picture_t *pic)
     pic->img.i_lines[2]      = param->org_height >> (param->chroma_format <= CHROMA_420 ? 1 : 0);
     pic->img.i_csp           = XAVS2_CSP_I420;
     pic->img.i_plane         = frame->i_plane;
-    pic->img.i_stride[0]     = frame->i_stride[0] * sizeof(pel_t);
-    pic->img.i_stride[1]     = frame->i_stride[1] * sizeof(pel_t);
-    pic->img.i_stride[2]     = frame->i_stride[2] * sizeof(pel_t);
-    pic->img.img_planes[0]   = (uint8_t *)frame->planes[0];
-    pic->img.img_planes[1]   = (uint8_t *)frame->planes[1];
-    pic->img.img_planes[2]   = (uint8_t *)frame->planes[2];
-    pic->priv                = frame;   /* keep trace of this frame */
+    pic->img.i_stride[0]     = param->input_sample_bit_depth == 8 ? frame->i_stride[0] * sizeof(pel8_t) : frame->i_stride[0] * sizeof(pel10_t);
+    pic->img.i_stride[1]     = param->input_sample_bit_depth == 8 ? frame->i_stride[1] * sizeof(pel8_t) : frame->i_stride[1] * sizeof(pel10_t);
+    pic->img.i_stride[2]     = param->input_sample_bit_depth == 8 ? frame->i_stride[2] * sizeof(pel8_t) : frame->i_stride[2] * sizeof(pel10_t);
+    pic->img.img8_planes[0]   = param->input_sample_bit_depth == 8 ? (uint8_t *)frame->planes8[0] : (uint8_t *)frame->planes10[0];;
+    pic->img.img8_planes[1]   = param->input_sample_bit_depth == 8 ? (uint8_t *)frame->planes8[1] : (uint8_t *)frame->planes10[1];;
+    pic->img.img8_planes[2]   = param->input_sample_bit_depth == 8 ? (uint8_t *)frame->planes8[2] : (uint8_t *)frame->planes10[2];;
+    /*} else {
+    pic->img.in_sample_size  = param->input_sample_bit_depth == 8 ? 1 : 2;
+    pic->img.enc_sample_size = param->input_sample_bit_depth == 8 ? sizeof(pel8_t) : sizeof(pel10_t);
+    pic->img.i_width[0]      = param->org_width;
+    pic->img.i_width[1]      = param->org_width >> 1;
+    pic->img.i_width[2]      = param->org_width >> 1;
+    pic->img.i_lines[0]      = param->org_height;
+    pic->img.i_lines[1]      = param->org_height >> (param->chroma_format <= CHROMA_420 ? 1 : 0);
+    pic->img.i_lines[2]      = param->org_height >> (param->chroma_format <= CHROMA_420 ? 1 : 0);
+    pic->img.i_csp           = XAVS2_CSP_I420;
+    pic->img.i_plane         = frame->i_plane;
+    pic->img.i_stride[0]     = param->input_sample_bit_depth == 8 ? frame->i_stride[0] * sizeof(pel8_t) : frame->i_stride[0] * sizeof(pel10_t);
+    pic->img.i_stride[1]     = param->input_sample_bit_depth == 8 ? frame->i_stride[1] * sizeof(pel8_t) : frame->i_stride[1] * sizeof(pel10_t);
+    pic->img.i_stride[2]     = param->input_sample_bit_depth == 8 ? frame->i_stride[2] * sizeof(pel8_t) : frame->i_stride[2] * sizeof(pel10_t);
+    pic->img.img10_planes[0]   = (uint16_t *)frame->planes10[0];
+    pic->img.img10_planes[1]   = (uint16_t *)frame->planes10[1];
+    pic->img.img10_planes[2]   = (uint16_t *)frame->planes10[2];
+    }*/
+    pic->priv                 = frame;   /* keep trace of this frame */
 
     return 0;
 }
@@ -590,6 +661,8 @@ int xavs2_encoder_encode(void *coder, xavs2_picture_t *pic, xavs2_outpacket_t *p
 {
     xavs2_handler_t *h_mgr = (xavs2_handler_t *)coder;
     xavs2_frame_t *frame = NULL;
+    xavs2_t         *p_coder = h_mgr->p_coder;
+    const xavs2_param_t *param = p_coder->param;
 
     assert(h_mgr != NULL);
 
@@ -651,3 +724,4 @@ int xavs2_encoder_encode(void *coder, xavs2_picture_t *pic, xavs2_outpacket_t *p
 
     return 0;
 }
+

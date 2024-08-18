@@ -106,18 +106,33 @@
 /* ---------------------------------------------------------------------------
  * memory malloc
  */
-#define CHECKED_MALLOC(var, type, size) \
+#define CHECKED_MALLOC8(var, type, size) \
     MULTI_LINE_MACRO_BEGIN\
     (var) = (type)xavs2_malloc(size);\
     if ((var) == NULL) {\
-        goto fail;\
+        goto fail8;\
     }\
     MULTI_LINE_MACRO_END
 
-#define CHECKED_MALLOCZERO(var, type, size) \
+#define CHECKED_MALLOC10(var, type, size) \
+    MULTI_LINE_MACRO_BEGIN\
+    (var) = (type)xavs2_malloc(size);\
+    if ((var) == NULL) {\
+        goto fail10;\
+    }\
+    MULTI_LINE_MACRO_END
+
+#define CHECKED_MALLOCZERO8(var, type, size) \
     MULTI_LINE_MACRO_BEGIN\
     size_t new_size = ((size + 31) >> 5) << 5; /* align the size to 32 bytes */ \
-    CHECKED_MALLOC(var, type, new_size);\
+    CHECKED_MALLOC8(var, type, new_size);\
+    g_funcs.memzero_aligned(var, new_size); \
+    MULTI_LINE_MACRO_END
+
+#define CHECKED_MALLOCZERO10(var, type, size) \
+    MULTI_LINE_MACRO_BEGIN\
+    size_t new_size = ((size + 31) >> 5) << 5; /* align the size to 32 bytes */ \
+    CHECKED_MALLOC10(var, type, new_size);\
     g_funcs.memzero_aligned(var, new_size); \
     MULTI_LINE_MACRO_END
 
@@ -749,7 +764,8 @@ typedef struct slice_t {
     uint8_t    *p_slice_bs_buf;       /* pointer of bitstream buffer (start address) */
 
     /* slice buffers */
-    pel_t      *slice_intra_border[3];    /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
+    pel8_t      *slice_intra_border8[3];    /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
+    pel10_t      *slice_intra_border10[3];    /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
     uint8_t    *slice_deblock_flag[2];    /* buffer for edge filter flag (of one LCU row), [dir][(scu_y, scu_x)] */
     int8_t     *slice_ipredmode;          /* [(i_height_in_minpu + 1) * (i_width_in_minpu + 16)], prediction intra mode */
 
@@ -808,7 +824,8 @@ struct cu_info_t {
     int         i_scu_x;              /* horizontal position for the first SCU in CU */
     int         i_scu_y;              /* vertical   position for the first SCU in CU */
 
-    pel_t      *p_rec[3];             /* reconstruction pixels for current cu [y/u/v] */
+    pel8_t      *p_rec8[3];             /* reconstruction pixels for current cu [y/u/v] */
+    pel10_t      *p_rec10[3];             /* reconstruction pixels for current cu [y/u/v] */
     coeff_t    *p_coeff[3];           /* residual coefficient  for current cu [y/u/v] */
 
     int8_t      i_level;              /* cu level, 3: 8x8, 4: 16x16, 5: 32x32, 6: 64x64 */
@@ -1046,10 +1063,12 @@ struct xavs2_frame_t {
     int         i_stride[3];          /* stride for Y/U/V */
     int         i_width[3];           /* width  for Y/U/V */
     int         i_lines[3];           /* height for Y/U/V */
-    pel_t      *planes[3];            /* pointers to Y/U/V data buffer */
-    pel_t      *filtered[16];         /* pointers to interpolated luma data buffers */
-
-    pel_t      *plane_buf;
+    pel10_t      *planes10[3];            /* pointers to Y/U/V data buffer */
+    pel10_t      *filtered10[16];         /* pointers to interpolated luma data buffers */
+    pel10_t      *plane_buf10;
+    pel8_t      *planes8[3];            /* pointers to Y/U/V data buffer */
+    pel8_t      *filtered8[16];         /* pointers to interpolated luma data buffers */
+    pel8_t      *plane_buf8;
     int         size_plane_buf;
 
     /* bit stream buffer */
@@ -1106,7 +1125,8 @@ typedef struct xavs2_me_t {
     bool_t      b_search_dmh;         /* is searching for DMH mode */
 
     /* pointers */
-    pel_t         *p_fenc;            /* pointer to the current PU block in source CTU */
+    pel8_t         *p_fenc8;            /* pointer to the current PU block in source CTU */
+    pel10_t         *p_fenc10;            /* pointer to the current PU block in source CTU */
     xavs2_frame_t *p_fref_1st;        /* pointer to the current (1st) reference frame */
     xavs2_frame_t *p_fref_2nd;        /* pointer to the current  2nd  reference frame */
 
@@ -1334,7 +1354,8 @@ typedef struct cu_layer_t {
     rdcost_t         mode_rdcost[MAX_PRED_MODES];   /* min rd-cost for each mode */
     int              mask_md_res_pred;              /* available mode mask */
 
-    pel_t           *p_rec_tmp[3];    /* tmp pointers to ping-pong buffer for swapping */
+    pel8_t           *p_rec8_tmp[3];    /* tmp pointers to ping-pong buffer for swapping */
+    pel10_t           *p_rec10_tmp[3];    /* tmp pointers to ping-pong buffer for swapping */
     coeff_t         *p_coeff_tmp[3];  /* tmp pointers to ping-pong buffer for swapping */
 
     cu_info_t        cu_best;         /* best info for each cu depth */
@@ -1355,16 +1376,21 @@ typedef struct cu_layer_t {
 #define FDEC_BUF_SIZE  (FDEC_STRIDE * (MAX_CU_SIZE + MAX_CU_SIZE / 2))
 #define LCU_BUF_SIZE   (MAX_CU_SIZE * MAX_CU_SIZE)
 
-    ALIGN32(pel_t   rec_buf_y     [3][LCU_BUF_SIZE]);       /* luma   reconstruction buffer     [cur/tmp/best][] */
+    ALIGN32(pel8_t   rec8_buf_y     [3][LCU_BUF_SIZE]);       /* luma   reconstruction buffer     [cur/tmp/best][] */
+    ALIGN32(pel10_t   rec10_buf_y     [3][LCU_BUF_SIZE]);       /* luma   reconstruction buffer     [cur/tmp/best][] */
     ALIGN32(coeff_t coef_buf_y    [3][LCU_BUF_SIZE]);       /* luma   coefficient    buffer     [cur/tmp/best][] */
-    ALIGN32(pel_t   rec_buf_uv [2][3][LCU_BUF_SIZE >> 2]);  /* chroma reconstruction buffer [uv][cur/tmp/best][] */
+    ALIGN32(pel8_t   rec8_buf_uv [2][3][LCU_BUF_SIZE >> 2]);  /* chroma reconstruction buffer [uv][cur/tmp/best][] */
+    ALIGN32(pel10_t   rec10_buf_uv [2][3][LCU_BUF_SIZE >> 2]);  /* chroma reconstruction buffer [uv][cur/tmp/best][] */
     ALIGN32(coeff_t coef_buf_uv[2][3][LCU_BUF_SIZE >> 2]);  /* chroma coefficient    buffer [uv][cur/tmp/best][] */
 
     /* inter prediction buffer */
-    ALIGN32(pel_t   buf_pred_inter_luma[2][LCU_BUF_SIZE]);  /* temporary decoding buffer for inter prediction (luma) */
+    ALIGN32(pel8_t   buf_pred_inter_luma8[2][LCU_BUF_SIZE]);  /* temporary decoding buffer for inter prediction (luma) */
+    ALIGN32(pel10_t   buf_pred_inter_luma10[2][LCU_BUF_SIZE]);  /* temporary decoding buffer for inter prediction (luma) */
     /* Ping-pong buffer for inter prediction */
-    pel_t   *buf_pred_inter;        /* current inter prediction buffer */
-    pel_t   *buf_pred_inter_best;   /* backup of best inter prediction */
+    pel8_t   *buf_pred_inter8;        /* current inter prediction buffer */
+    pel10_t   *buf_pred_inter10;        /* current inter prediction buffer */
+    pel8_t   *buf_pred_inter8_best;   /* backup of best inter prediction */
+    pel10_t   *buf_pred_inter10_best;   /* backup of best inter prediction */
 } cu_layer_t;
 
 /* ---------------------------------------------------------------------------
@@ -1376,13 +1402,18 @@ typedef struct cu_parallel_t {
     ALIGN32(coeff_t coeff_bak[LCU_BUF_SIZE]);
 
     /* buffers used for inter prediction */
-    ALIGN32(pel_t   buf_pred_inter_c[LCU_BUF_SIZE >> 1]);   /* temporary decoding buffer for inter prediction (chroma) */
-    ALIGN32(pel_t   buf_pixel_temp  [LCU_BUF_SIZE]);        /* temporary pixel buffer, used for bi/dual-prediction */
+    ALIGN32(pel8_t   buf_pred_inter8_c[LCU_BUF_SIZE >> 1]);   /* temporary decoding buffer for inter prediction (chroma) */
+    ALIGN32(pel10_t   buf_pred_inter10_c[LCU_BUF_SIZE >> 1]);   /* temporary decoding buffer for inter prediction (chroma) */
+    ALIGN32(pel8_t   buf_pixel_temp8  [LCU_BUF_SIZE]);        /* temporary pixel buffer, used for bi/dual-prediction */
+    ALIGN32(pel10_t   buf_pixel_temp10  [LCU_BUF_SIZE]);        /* temporary pixel buffer, used for bi/dual-prediction */
 
     /* predication buffers for all intra modes */
-    ALIGN32(pel_t   intra_pred  [NUM_INTRA_MODE       ][LCU_BUF_SIZE]);         /* for all 33 luma prediction modes */
-    ALIGN32(pel_t   intra_pred_c[NUM_INTRA_MODE_CHROMA][LCU_BUF_SIZE >> 1]);    /* for all chroma intra prediction modes */
-    ALIGN32(pel_t   buf_edge_pixels[MAX_CU_SIZE << 3]);     /* reference pixels for intra luma/chroma prediction */
+    ALIGN32(pel8_t   intra8_pred  [NUM_INTRA_MODE       ][LCU_BUF_SIZE]);         /* for all 33 luma prediction modes */
+    ALIGN32(pel10_t   intra10_pred  [NUM_INTRA_MODE       ][LCU_BUF_SIZE]);         /* for all 33 luma prediction modes */
+    ALIGN32(pel8_t   intra8_pred_c[NUM_INTRA_MODE_CHROMA][LCU_BUF_SIZE >> 1]);    /* for all chroma intra prediction modes */
+    ALIGN32(pel10_t   intra10_pred_c[NUM_INTRA_MODE_CHROMA][LCU_BUF_SIZE >> 1]);    /* for all chroma intra prediction modes */
+    ALIGN32(pel8_t   buf_edge_pixels8[MAX_CU_SIZE << 3]);     /* reference pixels for intra luma/chroma prediction */
+    ALIGN32(pel10_t   buf_edge_pixels10[MAX_CU_SIZE << 3]);     /* reference pixels for intra luma/chroma prediction */
 
     runlevel_t       runlevel;         /* run level buffer for RDO */
 
@@ -1467,8 +1498,11 @@ struct xavs2_t {
     int         min_mv_range[2];      /* mv range (min) decided by the level id */
     int         max_mv_range[2];      /* mv range (max) decided by the level id */
     /* function pointers */
-    int       (*get_intra_candidates_luma)(xavs2_t *h, cu_t *p_cu, intra_candidate_t *p_candidates,
-                                           pel_t *p_fenc, int mpm[], int blockidx,
+    int       (*get_intra_candidates_luma8)(xavs2_t *h, cu_t *p_cu, intra_candidate_t *p_candidates,
+                                           pel8_t *p_fenc, int mpm[], int blockidx,
+                                           int block_x, int block_y, int block_w, int block_h);
+    int       (*get_intra_candidates_luma10)(xavs2_t *h, cu_t *p_cu, intra_candidate_t *p_candidates,
+                                           pel10_t *p_fenc, int mpm[], int blockidx,
                                            int block_x, int block_y, int block_w, int block_h);
     int       (*get_intra_candidates_chroma)(xavs2_t *h, cu_t *p_cu, int i_level, int pix_y_c, int pix_x_c,
                                              intra_candidate_t *p_candidate_list);
@@ -1518,7 +1552,8 @@ struct xavs2_t {
     int         i_slice_index;        /* slice index for the current thread */
 
     /* 不同Slice不同的buffer */
-    pel_t      *intra_border[3];      /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
+    pel8_t      *intra_border8[3];      /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
+    pel10_t      *intra_border10[3];      /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
     uint8_t    *p_deblock_flag[2];    /* buffer for edge filter flag (of one LCU row), [dir][(scu_y, scu_x)] */
     int8_t     *ipredmode;            /* [(i_height_in_minpu + 1) * (i_width_in_minpu + 16)], prediction intra mode */
 
@@ -1594,8 +1629,11 @@ struct xavs2_t {
         bool_t  b_2nd_rdcost_pass;    /* 2nd pass for RDCost update */
 
         /* function pointers for RDO */
-        int   (*get_intra_dir_for_rdo_luma)(xavs2_t *h, cu_t *p_cu, intra_candidate_t *p_candidates,
-                                            pel_t *p_fenc, int mpm[], int blockidx,
+        int   (*get_intra_dir_for_rdo_luma8)(xavs2_t *h, cu_t *p_cu, intra_candidate_t *p_candidates,
+                                            pel8_t *p_fenc, int mpm[], int blockidx,
+                                            int block_x, int block_y, int block_w, int block_h);
+        int   (*get_intra_dir_for_rdo_luma10)(xavs2_t *h, cu_t *p_cu, intra_candidate_t *p_candidates,
+                                            pel10_t *p_fenc, int mpm[], int blockidx,
                                             int block_x, int block_y, int block_w, int block_h);
         int   (*get_skip_mvs)(xavs2_t *h, cu_t *p_cu);  /* get MVs for skip/direct mode */
 
@@ -1606,8 +1644,10 @@ struct xavs2_t {
         cu_t   *p_ctu;                /* pointer to the top of current CTU */
 
         /* 2, enc/dec/pred Y/U/V pointers */
-        pel_t      *p_fdec[3];        /* [Y/U/V] pointer over lcu of the frame to be reconstructed */
-        pel_t      *p_fenc[3];        /* [Y/U/V] pointer over lcu of the frame to be compressed */
+        pel8_t      *p_fdec8[3];        /* [Y/U/V] pointer over lcu of the frame to be reconstructed */
+        pel10_t      *p_fdec10[3];        /* [Y/U/V] pointer over lcu of the frame to be reconstructed */
+        pel8_t      *p_fenc8[3];        /* [Y/U/V] pointer over lcu of the frame to be compressed */
+        pel10_t      *p_fenc10[3];        /* [Y/U/V] pointer over lcu of the frame to be compressed */
 
         coeff_t    *lcu_coeff[3];     /* [Y/U/V] coefficients of LCU */
 
@@ -1622,12 +1662,19 @@ struct xavs2_t {
         cu_parallel_t   cu_enc  [1];                /* 无CTU内的多线程时，只需要一个 */
 #endif
 
-        ALIGN32(pel_t   fenc_buf[FENC_BUF_SIZE]);   /* encoding buffer (source Y/U/V buffer) */
-        ALIGN32(pel_t   fdec_buf[FDEC_BUF_SIZE]);   /* decoding buffer (Reconstruction Y/U/V buffer) */
-        struct lcu_intra_border_t {
-            ALIGN32(pel_t rec_left[MAX_CU_SIZE]);          /* Left border of current LCU */
-            ALIGN32(pel_t rec_top[MAX_CU_SIZE * 2 + 32]);  /* top-left, top and top-right samples (Reconstruction) of current LCU */
-        } ctu_border[IMG_CMPNTS];                   /* Y, U, V components */
+        ALIGN32(pel8_t   fenc_buf8[FENC_BUF_SIZE]);   /* encoding buffer (source Y/U/V buffer) */
+        ALIGN32(pel8_t   fdec_buf8[FDEC_BUF_SIZE]);   /* decoding buffer (Reconstruction Y/U/V buffer) */
+        ALIGN32(pel10_t   fenc_buf10[FENC_BUF_SIZE]);   /* encoding buffer (source Y/U/V buffer) */
+        ALIGN32(pel10_t   fdec_buf10[FDEC_BUF_SIZE]);   /* decoding buffer (Reconstruction Y/U/V buffer) */
+        struct lcu_intra_border8_t {
+            ALIGN32(pel8_t rec_left[MAX_CU_SIZE]);          /* Left border of current LCU */
+            ALIGN32(pel8_t rec_top[MAX_CU_SIZE * 2 + 32]);  /* top-left, top and top-right samples (Reconstruction) of current LCU */
+        } ctu_border8[IMG_CMPNTS];                   /* Y, U, V components */
+
+        struct lcu_intra_border10_t {
+            ALIGN32(pel10_t rec_left[MAX_CU_SIZE]);          /* Left border of current LCU */
+            ALIGN32(pel10_t rec_top[MAX_CU_SIZE * 2 + 32]);  /* top-left, top and top-right samples (Reconstruction) of current LCU */
+        } ctu_border10[IMG_CMPNTS];                   /* Y, U, V components */
 
         /* buffer for the coding tree units */
         ALIGN16(cu_t    all_cu[85]);                /* all cu: 1(64x64) + 4(32x32) + 16(16x16) + 64(8x8) = 85 */
