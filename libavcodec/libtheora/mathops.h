@@ -1,6 +1,6 @@
 #if !defined(_mathops_H)
 # define _mathops_H (1)
-# include <ogg/ogg.h>
+# include "../libogg/ogg.h"
 
 # if __GNUC_PREREQ(3,4)
 #  include <limits.h>

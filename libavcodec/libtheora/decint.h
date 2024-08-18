@@ -18,7 +18,7 @@
 #include <limits.h>
 #if !defined(_decint_H)
 # define _decint_H (1)
-# include "theora/theoradec.h"
+# include "theoradec.h"
 # include "state.h"
 # include "bitpack.h"
 # include "huffdec.h"

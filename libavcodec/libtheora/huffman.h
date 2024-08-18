@@ -17,7 +17,7 @@
 
 #if !defined(_huffman_H)
 # define _huffman_H (1)
-# include "theora/codec.h"
+# include "codec.h"
 # include "ocintrin.h"
 
 /*The range of valid quantized DCT coefficient values.
