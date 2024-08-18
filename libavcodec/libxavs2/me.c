@@ -190,6 +190,12 @@ static const int i_org = FENC_STRIDE;
                    p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPEL(mx, my);\
         COPY3_IF_LT(bcost, cost, bmx, mx, bmy, my);\
     }
+#define ME_COST_IPELM(mx, my) \
+    if (CHECK_MV_RANGEM(mx, my)) {\
+        int cost = g_funcs.pixf.sad[i_pixel](p_org, i_org,\
+                   p_fref + (my) * i_fref + (mx), i_fref) + MV_COST_IPELM(mx, my);\
+        COPY3_IF_LT(bcost, cost, bmx, mx, bmy, my);\
+    }
 
 /* ---------------------------------------------------------------------------
  */
@@ -248,8 +254,8 @@ static const int i_org = FENC_STRIDE;
             pix_base + (m2y) * i_fref + (m2x),\
             pix_base + (m3y) * i_fref + (m3x),\
             i_fref, costs);\
-        costs[0] += MV_COST_IPEL(omx + (m0x), omy + (m0y));\
-        costs[1] += MV_COST_IPEL(omx + (m1x), omy + (m1y));\
+        costs[0] += MV_COST_IPELM(omx + (m0x), omy + (m0y));\
+        costs[1] += MV_COST_IPELM(omx + (m1x), omy + (m1y));\
         costs[2] += MV_COST_IPEL(omx + (m2x), omy + (m2y));\
         costs[3] += MV_COST_IPEL(omx + (m3x), omy + (m3y));\
         COPY3_IF_LT(bcost, costs[0], bmx, omx + (m0x), bmy, omy + (m0y));\
@@ -257,8 +263,8 @@ static const int i_org = FENC_STRIDE;
         COPY3_IF_LT(bcost, costs[2], bmx, omx + (m2x), bmy, omy + (m2y));\
         COPY3_IF_LT(bcost, costs[3], bmx, omx + (m3x), bmy, omy + (m3y));\
     } else {                    \
-        ME_COST_IPEL(m0x, m0y); \
-        ME_COST_IPEL(m1x, m1y); \
+        ME_COST_IPELM(m0x, m0y); \
+        ME_COST_IPELM(m1x, m1y); \
         ME_COST_IPEL(m2x, m2y); \
         ME_COST_IPEL(m3x, m3y); \
     } \

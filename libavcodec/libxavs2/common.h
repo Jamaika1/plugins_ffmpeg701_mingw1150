@@ -84,7 +84,7 @@
  */
 #define LAMBDA_ACCURACY_BITS    16
 #define LAMBDA_FACTOR(lambda)   ((int)((double)(1<<LAMBDA_ACCURACY_BITS)*lambda+0.5))
-#define WEIGHTED_COST(f, bits)  (((f)*(bits))>>LAMBDA_ACCURACY_BITS)
+#define WEIGHTED_COST(f, bits)  ((f*bits)>>LAMBDA_ACCURACY_BITS)
 
 
 /* ---------------------------------------------------------------------------

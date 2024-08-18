@@ -47,10 +47,12 @@
 
 #define pack16to32_mask(x,y)    (((x) << 16)|((y) & 0xFFFF))
 #define pack16to32_mask2(mx,my) (((mx) << 16) | ((my) & 0x7FFF))
+#define pack16to32_mask3(mx,my) (-((-mx) << 16) | ((my) & 0x7FFF))
 #define CHECK_MV_RANGE(mx,my)   (!(((pack16to32_mask2(mx,my) + mv_min) | (mv_max - pack16to32_mask2(mx,my))) & 0x80004000))
+#define CHECK_MV_RANGEM(mx,my)   (!(((pack16to32_mask3(mx,my) + mv_min) | (mv_max - pack16to32_mask3(mx,my))) & 0x80004000))
 #define CHECK_MV_RANGE_X4(x0,y0,x1,y1,x2,y2,x3,y3) (!((                          \
     (pack16to32_mask2(x0, y0) + mv_min) | (mv_max - pack16to32_mask2(x0, y0)) | \
-    (pack16to32_mask2(x1, y1) + mv_min) | (mv_max - pack16to32_mask2(x1, y1)) | \
+    (pack16to32_mask3(x1, y1) + mv_min) | (mv_max - pack16to32_mask3(x1, y1)) | \
     (pack16to32_mask2(x2, y2) + mv_min) | (mv_max - pack16to32_mask2(x2, y2)) | \
     (pack16to32_mask2(x3, y3) + mv_min) | (mv_max - pack16to32_mask2(x3, y3))   \
     ) & 0x80004000))
@@ -99,7 +101,8 @@
 
 /* ---------------------------------------------------------------------------
  * MV cost */
-#define MV_COST_IPEL(mx,my)     (WEIGHTED_COST(lambda, p_cost_mvx[(mx) << 2] + p_cost_mvy[(my) << 2]))
+#define MV_COST_IPEL(mx,my)     (WEIGHTED_COST(lambda, p_cost_mvx[(mx << 2)] + p_cost_mvy[(my << 2)]))
+#define MV_COST_IPELM(mx,my)     (WEIGHTED_COST(lambda, p_cost_mvx[-(-mx << 2)] + p_cost_mvy[-(-my << 2)]))
 #define MV_COST_FPEL(mx,my)     (WEIGHTED_COST(lambda, p_cost_mvx[mx] + p_cost_mvy[my]))
 #define MV_COST_FPEL_BID(mx,my) (WEIGHTED_COST(lambda, p_cost_bix[mx] + p_cost_biy[my]))
 
