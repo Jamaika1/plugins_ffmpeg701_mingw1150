@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <ogg/ogg.h>
+#include "../libogg/ogg.h"
 #include "dequant.h"
 #include "decint.h"
 

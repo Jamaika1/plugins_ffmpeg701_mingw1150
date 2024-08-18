@@ -19,7 +19,7 @@
 #include "encint.h"
 #include "modedec.h"
 #if defined(OC_COLLECT_METRICS)
-# include "collect.c"
+# include "extra/collect.c"
 #endif
 
 
