@@ -518,9 +518,11 @@ void davs2_alf_init(uint32_t cpuid, ao_funcs_t *fh)
         if (cpuid & DAVS2_CPU_SSE4) {
             fh->alf_block[0] = alf_filter_block_sse128_10bit;
         }
+#if defined(__AVX2__)
         if (cpuid & (DAVS2_CPU_AVX2)) {
             fh->alf_block[0] = alf_filter_block_avx2_10bit;
         }
+#endif
 #else
     if (cpuid & DAVS2_CPU_SSE4) {
         fh->alf_block[0] = alf_filter_block_sse128;
