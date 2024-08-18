@@ -908,11 +908,13 @@ void xavs2_mem_oper_init(uint32_t cpuid, intrinsic_func_t *pf)
         pf->lowres_filter = xavs2_lowres_filter_core_ssse3;
     }
 
+#if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
         pf->memzero_aligned = xavs2_memzero_aligned_c_avx;
         // pf->mem_repeat_i    = xavs2_mem_repeat_i_c_avx;  // TODO: ±ÈC°æ±¾Âý£¬½ûÓÃ
         pf->lowres_filter   = xavs2_lowres_filter_core_avx;
     }
+#endif
 #else
     UNUSED_PARAMETER(cpuid);
 #endif
@@ -968,6 +970,7 @@ void xavs2_mc_init(uint32_t cpuid, intrinsic_func_t *pf)
         pf->intpl_chroma_block_ext = intpl_chroma_block_ext_sse128;
     }
 
+#if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
         pf->intpl_luma_hor = intpl_luma_hor_avx2;
         pf->intpl_luma_ver = intpl_luma_ver_avx2;
@@ -985,6 +988,7 @@ void xavs2_mc_init(uint32_t cpuid, intrinsic_func_t *pf)
         pf->intpl_chroma_block_hor = intpl_chroma_block_hor_avx2;
         pf->intpl_chroma_block_ext = intpl_chroma_block_ext_avx2;
     }
+#endif
 #else
     UNUSED_PARAMETER(cpuid);
 #endif

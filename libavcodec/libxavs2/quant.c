@@ -228,6 +228,7 @@ void xavs2_quant_init(uint32_t cpuid, dct_funcs_t *dctf)
         dctf->add_sign  = add_sign_sse128;
     }
 
+#if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
         dctf->quant     = quant_c_avx2;
         dctf->dequant   = dequant_c_avx2;
@@ -241,6 +242,7 @@ void xavs2_quant_init(uint32_t cpuid, dct_funcs_t *dctf)
         dctf->dequant   = FPFX(dequant_avx2);
 #endif
     }
+#endif
 #else
     UNUSED_PARAMETER(cpuid);
 #endif  // if HAVE_MMX

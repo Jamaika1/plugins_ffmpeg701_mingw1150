@@ -1708,8 +1708,8 @@ void xavs2_dct_init(uint32_t cpuid, dct_funcs_t *dctf)
         dctf->dct[LUMA_8x8   ] = xavs2_dct_8x8_sse4;
     }
 
+#if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
-
         dctf->dct [LUMA_4x4   ] = xavs2_dct_4x4_avx2;
 #if ARCH_X86_64
         dctf->dct [LUMA_8x8   ] = xavs2_dct_8x8_avx2;
@@ -1720,12 +1720,7 @@ void xavs2_dct_init(uint32_t cpuid, dct_funcs_t *dctf)
         dctf->idct[LUMA_8x8   ] = xavs2_idct_8x8_avx2;
         dctf->idct[LUMA_16x16 ] = xavs2_idct_16x16_avx2;
         dctf->idct[LUMA_32x32 ] = xavs2_idct_32x32_avx2;
-#endif
-    }
 
-
-#if ARCH_X86_64
-    if (cpuid & XAVS2_CPU_AVX2) {
         // dctf->dct[LUMA_4x4 ] = dct_c_4x4_avx2;   /* futl: dct_4x4_avx2的速度比dct_4x4_sse128略慢一点 */
         // dctf->dct[LUMA_8x8 ] = dct_c_8x8_avx2;   /* futl: dct_8x8_avx2的速度比xavs2_dct_8x8_avx2慢 */
         // dctf->dct[LUMA_4x16] = dct_c_4x16_avx2; /* futl: dct_4x16_avx2的速度比dct_4x16_sse128慢 */
@@ -1749,8 +1744,9 @@ void xavs2_dct_init(uint32_t cpuid, dct_funcs_t *dctf)
 
         dctf->dct_half[LUMA_32x32] = dct_c_32x32_half_avx2;
         dctf->dct_half[LUMA_64x64] = dct_c_64x64_half_avx2;
-    }
 #endif  // ARCH_X86_64
+    }
+#endif
 #else
     UNUSED_PARAMETER(cpuid);
 #endif  // if HAVE_MMX

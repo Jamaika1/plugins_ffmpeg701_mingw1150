@@ -533,6 +533,8 @@ void xavs2_deblock_init(uint32_t cpuid, intrinsic_func_t* lf)
         // lf->deblock_chroma[0] = deblock_edge_ver_c_sse128;
         // lf->deblock_chroma[1] = deblock_edge_hor_c_sse128;
     }
+
+#if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
         // In some machines, avx is slower than SSE
         // lf->deblock_luma[0]   = deblock_edge_ver_avx2;
@@ -540,6 +542,7 @@ void xavs2_deblock_init(uint32_t cpuid, intrinsic_func_t* lf)
         // lf->deblock_chroma[0] = deblock_edge_ver_c_avx2;
         // lf->deblock_chroma[1] = deblock_edge_hor_c_avx2;
     }
+#endif
 #else
     UNUSED_PARAMETER(cpuid);
 #endif

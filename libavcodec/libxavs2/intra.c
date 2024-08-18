@@ -1962,6 +1962,7 @@ void xavs2_intra_pred_init(uint32_t cpuid, intrinsic_func_t *pf)
     }
 
     /* 8/10bit assemble*/
+#if defined(__AVX2__)
     if (cpuid & XAVS2_CPU_AVX2) {
         ipred[DC_PRED        ] = intra_pred_dc_avx;
         ipred[HOR_PRED       ] = intra_pred_hor_avx;
@@ -1996,6 +1997,7 @@ void xavs2_intra_pred_init(uint32_t cpuid, intrinsic_func_t *pf)
         ipred[INTRA_ANG_Y_32 ] = intra_pred_ang_y_32_avx;
 
     }
+#endif
 #endif //if HAVE_MMX
 #undef ANG_X_OFFSET
 #undef ANG_XY_OFFSET

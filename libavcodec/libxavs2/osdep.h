@@ -216,7 +216,7 @@
 #define ALIGNED_ARRAY_64(...)   EXPAND(ALIGNED_ARRAY_EMU(63, __VA_ARGS__))
 
 /* For AVX2 */
-#if ARCH_X86 || ARCH_X86_64
+#if defined(__AVX__) && (ARCH_X86 || ARCH_X86_64)
 #define NATIVE_ALIGN            32
 #define ALIGNED_N               ALIGN32
 #define ALIGNED_ARRAY_N         ALIGNED_ARRAY_32
