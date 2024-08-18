@@ -15,10 +15,10 @@ extern "C" {
 
  */
 
-typedef struct kiss_fftr_state *kiss_fftr_cfg;
+typedef struct speex_kiss_fftr_state *speex_kiss_fftr_cfg;
 
 
-kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem, size_t * lenmem);
+speex_kiss_fftr_cfg speex_kiss_fftr_alloc(int nfft,int inverse_fft,void * mem, size_t * lenmem);
 /*
  nfft must be even
 
@@ -26,24 +26,24 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem, size_t * lenm
 */
 
 
-void kiss_fftr(kiss_fftr_cfg cfg,const kiss_fft_scalar *timedata,kiss_fft_cpx *freqdata);
+void speex_kiss_fftr(speex_kiss_fftr_cfg cfg,const speex_kiss_fft_scalar *timedata, speex_kiss_fft_cpx *freqdata);
 /*
  input timedata has nfft scalar points
  output freqdata has nfft/2+1 complex points
 */
 
-void kiss_fftr2(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_scalar *freqdata);
+void speex_kiss_fftr2(speex_kiss_fftr_cfg st, const speex_kiss_fft_scalar *timedata, speex_kiss_fft_scalar *freqdata);
 
-void kiss_fftri(kiss_fftr_cfg cfg,const kiss_fft_cpx *freqdata,kiss_fft_scalar *timedata);
+void speex_kiss_fftri(speex_kiss_fftr_cfg cfg, const speex_kiss_fft_cpx *freqdata, speex_kiss_fft_scalar *timedata);
 
-void kiss_fftri2(kiss_fftr_cfg st,const kiss_fft_scalar *freqdata, kiss_fft_scalar *timedata);
+void speex_kiss_fftri2(speex_kiss_fftr_cfg st, const speex_kiss_fft_scalar *freqdata, speex_kiss_fft_scalar *timedata);
 
 /*
  input freqdata has  nfft/2+1 complex points
  output timedata has nfft scalar points
 */
 
-#define kiss_fftr_free speex_free
+#define speex_kiss_fftr_free speex_free
 
 #ifdef __cplusplus
 }

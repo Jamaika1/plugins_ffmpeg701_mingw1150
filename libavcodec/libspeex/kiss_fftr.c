@@ -20,19 +20,19 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "kiss_fftr.h"
 #include "_kiss_fft_guts.h"
 
-struct kiss_fftr_state{
-    kiss_fft_cfg substate;
-    kiss_fft_cpx * tmpbuf;
-    kiss_fft_cpx * super_twiddles;
+struct speex_kiss_fftr_state{
+    speex_kiss_fft_cfg substate;
+    speex_kiss_fft_cpx * tmpbuf;
+    speex_kiss_fft_cpx * super_twiddles;
 #ifdef USE_SIMD
     long pad;
 #endif
 };
 
-kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem)
+speex_kiss_fftr_cfg speex_kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem)
 {
     int i;
-    kiss_fftr_cfg st = NULL;
+    speex_kiss_fftr_cfg st = NULL;
     size_t subsize, memneeded;
 
     if (nfft & 1) {
@@ -41,23 +41,23 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenme
     }
     nfft >>= 1;
 
-    kiss_fft_alloc (nfft, inverse_fft, NULL, &subsize);
-    memneeded = sizeof(struct kiss_fftr_state) + subsize + sizeof(kiss_fft_cpx) * ( nfft * 2);
+    speex_kiss_fft_alloc (nfft, inverse_fft, NULL, &subsize);
+    memneeded = sizeof(struct speex_kiss_fftr_state) + subsize + sizeof(speex_kiss_fft_cpx) * ( nfft * 2);
 
     if (lenmem == NULL) {
-        st = (kiss_fftr_cfg) KISS_FFT_MALLOC (memneeded);
+        st = (speex_kiss_fftr_cfg) KISS_FFT_MALLOC (memneeded);
     } else {
         if (*lenmem >= memneeded)
-            st = (kiss_fftr_cfg) mem;
+            st = (speex_kiss_fftr_cfg) mem;
         *lenmem = memneeded;
     }
     if (!st)
         return NULL;
 
-    st->substate = (kiss_fft_cfg) (st + 1); /*just beyond kiss_fftr_state struct */
-    st->tmpbuf = (kiss_fft_cpx *) (((char *) st->substate) + subsize);
+    st->substate = (speex_kiss_fft_cfg) (st + 1); /*just beyond kiss_fftr_state struct */
+    st->tmpbuf = (speex_kiss_fft_cpx *) (((char *) st->substate) + subsize);
     st->super_twiddles = st->tmpbuf + nfft;
-    kiss_fft_alloc(nfft, inverse_fft, st->substate, &subsize);
+    speex_kiss_fft_alloc(nfft, inverse_fft, st->substate, &subsize);
 
 #ifdef FIXED_POINT
     for (i=0;i<nfft;++i) {
@@ -78,11 +78,11 @@ kiss_fftr_cfg kiss_fftr_alloc(int nfft,int inverse_fft,void * mem,size_t * lenme
     return st;
 }
 
-void kiss_fftr(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_cpx *freqdata)
+void speex_kiss_fftr(speex_kiss_fftr_cfg st,const speex_kiss_fft_scalar *timedata, speex_kiss_fft_cpx *freqdata)
 {
     /* input buffer timedata is stored row-wise */
     int k,ncfft;
-    kiss_fft_cpx fpnk,fpk,f1k,f2k,tw,tdc;
+    speex_kiss_fft_cpx fpnk,fpk,f1k,f2k,tw,tdc;
 
     if ( st->substate->inverse) {
         speex_fatal("kiss fft usage error: improper alloc\n");
@@ -91,7 +91,7 @@ void kiss_fftr(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_cpx *fr
     ncfft = st->substate->nfft;
 
     /*perform the parallel fft of two real signals packed in real,imag*/
-    kiss_fft( st->substate , (const kiss_fft_cpx*)timedata, st->tmpbuf );
+    speex_kiss_fft( st->substate , (const speex_kiss_fft_cpx*)timedata, st->tmpbuf );
     /* The real part of the DC element of the frequency spectrum in st->tmpbuf
      * contains the sum of the even-numbered elements of the input time sequence
      * The imag part is the sum of the odd-numbered elements
@@ -133,7 +133,7 @@ void kiss_fftr(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_cpx *fr
     }
 }
 
-void kiss_fftri(kiss_fftr_cfg st,const kiss_fft_cpx *freqdata, kiss_fft_scalar *timedata)
+void speex_kiss_fftri(speex_kiss_fftr_cfg st,const speex_kiss_fft_cpx *freqdata, speex_kiss_fft_scalar *timedata)
 {
     /* input buffer timedata is stored row-wise */
     int k, ncfft;
@@ -149,7 +149,7 @@ void kiss_fftri(kiss_fftr_cfg st,const kiss_fft_cpx *freqdata, kiss_fft_scalar *
     /*C_FIXDIV(st->tmpbuf[0],2);*/
 
     for (k = 1; k <= ncfft / 2; ++k) {
-        kiss_fft_cpx fk, fnkc, fek, fok, tmp;
+        speex_kiss_fft_cpx fk, fnkc, fek, fok, tmp;
         fk = freqdata[k];
         fnkc.r = freqdata[ncfft - k].r;
         fnkc.i = -freqdata[ncfft - k].i;
@@ -167,14 +167,14 @@ void kiss_fftri(kiss_fftr_cfg st,const kiss_fft_cpx *freqdata, kiss_fft_scalar *
         st->tmpbuf[ncfft - k].i *= -1;
 #endif
     }
-    kiss_fft (st->substate, st->tmpbuf, (kiss_fft_cpx *) timedata);
+    speex_kiss_fft (st->substate, st->tmpbuf, (speex_kiss_fft_cpx *) timedata);
 }
 
-void kiss_fftr2(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_scalar *freqdata)
+void speex_kiss_fftr2(speex_kiss_fftr_cfg st,const speex_kiss_fft_scalar *timedata, speex_kiss_fft_scalar *freqdata)
 {
    /* input buffer timedata is stored row-wise */
    int k,ncfft;
-   kiss_fft_cpx f2k,tdc;
+   speex_kiss_fft_cpx f2k,tdc;
    spx_word32_t f1kr, f1ki, twr, twi;
 
    if ( st->substate->inverse) {
@@ -184,7 +184,7 @@ void kiss_fftr2(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_scalar
    ncfft = st->substate->nfft;
 
    /*perform the parallel fft of two real signals packed in real,imag*/
-   kiss_fft( st->substate , (const kiss_fft_cpx*)timedata, st->tmpbuf );
+   speex_kiss_fft( st->substate , (const speex_kiss_fft_cpx*)timedata, st->tmpbuf );
     /* The real part of the DC element of the frequency spectrum in st->tmpbuf
    * contains the sum of the even-numbered elements of the input time sequence
    * The imag part is the sum of the odd-numbered elements
@@ -258,7 +258,7 @@ void kiss_fftr2(kiss_fftr_cfg st,const kiss_fft_scalar *timedata,kiss_fft_scalar
    }
 }
 
-void kiss_fftri2(kiss_fftr_cfg st,const kiss_fft_scalar *freqdata,kiss_fft_scalar *timedata)
+void speex_kiss_fftri2(speex_kiss_fftr_cfg st, const speex_kiss_fft_scalar *freqdata, speex_kiss_fft_scalar *timedata)
 {
    /* input buffer timedata is stored row-wise */
    int k, ncfft;
@@ -274,7 +274,7 @@ void kiss_fftri2(kiss_fftr_cfg st,const kiss_fft_scalar *freqdata,kiss_fft_scala
    /*C_FIXDIV(st->tmpbuf[0],2);*/
 
    for (k = 1; k <= ncfft / 2; ++k) {
-      kiss_fft_cpx fk, fnkc, fek, fok, tmp;
+      speex_kiss_fft_cpx fk, fnkc, fek, fok, tmp;
       fk.r = freqdata[2*k-1];
       fk.i = freqdata[2*k];
       fnkc.r = freqdata[2*(ncfft - k)-1];
@@ -293,5 +293,5 @@ void kiss_fftri2(kiss_fftr_cfg st,const kiss_fft_scalar *freqdata,kiss_fft_scala
       st->tmpbuf[ncfft - k].i *= -1;
 #endif
    }
-   kiss_fft (st->substate, st->tmpbuf, (kiss_fft_cpx *) timedata);
+   speex_kiss_fft (st->substate, st->tmpbuf, (speex_kiss_fft_cpx *) timedata);
 }

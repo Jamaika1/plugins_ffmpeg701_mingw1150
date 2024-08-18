@@ -27,20 +27,20 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  */
 
 static void kf_bfly2(
-        kiss_fft_cpx * Fout,
+        speex_kiss_fft_cpx * Fout,
         const size_t fstride,
-        const kiss_fft_cfg st,
+        const speex_kiss_fft_cfg st,
         int m,
         int N,
         int mm
         )
 {
-    kiss_fft_cpx * Fout2;
-    kiss_fft_cpx * tw1;
-    kiss_fft_cpx t;
+    speex_kiss_fft_cpx * Fout2;
+    speex_kiss_fft_cpx * tw1;
+    speex_kiss_fft_cpx t;
     if (!st->inverse) {
        int i,j;
-       kiss_fft_cpx * Fout_beg = Fout;
+       speex_kiss_fft_cpx * Fout_beg = Fout;
        for (i=0;i<N;i++)
        {
           Fout = Fout_beg + i*mm;
@@ -64,7 +64,7 @@ static void kf_bfly2(
        }
     } else {
        int i,j;
-       kiss_fft_cpx * Fout_beg = Fout;
+       speex_kiss_fft_cpx * Fout_beg = Fout;
        for (i=0;i<N;i++)
        {
           Fout = Fout_beg + i*mm;
@@ -84,23 +84,23 @@ static void kf_bfly2(
 }
 
 static void kf_bfly4(
-        kiss_fft_cpx * Fout,
+        speex_kiss_fft_cpx * Fout,
         const size_t fstride,
-        const kiss_fft_cfg st,
+        const speex_kiss_fft_cfg st,
         int m,
         int N,
         int mm
         )
 {
-    kiss_fft_cpx *tw1,*tw2,*tw3;
-    kiss_fft_cpx scratch[6];
+    speex_kiss_fft_cpx *tw1,*tw2,*tw3;
+    speex_kiss_fft_cpx scratch[6];
     const size_t m2=2*m;
     const size_t m3=3*m;
     int i, j;
 
     if (st->inverse)
     {
-       kiss_fft_cpx * Fout_beg = Fout;
+       speex_kiss_fft_cpx * Fout_beg = Fout;
        for (i=0;i<N;i++)
        {
           Fout = Fout_beg + i*mm;
@@ -130,7 +130,7 @@ static void kf_bfly4(
        }
     } else
     {
-       kiss_fft_cpx * Fout_beg = Fout;
+       speex_kiss_fft_cpx * Fout_beg = Fout;
        for (i=0;i<N;i++)
        {
           Fout = Fout_beg + i*mm;
@@ -166,17 +166,17 @@ static void kf_bfly4(
 }
 
 static void kf_bfly3(
-         kiss_fft_cpx * Fout,
+         speex_kiss_fft_cpx * Fout,
          const size_t fstride,
-         const kiss_fft_cfg st,
+         const speex_kiss_fft_cfg st,
          size_t m
          )
 {
      size_t k=m;
      const size_t m2 = 2*m;
-     kiss_fft_cpx *tw1,*tw2;
-     kiss_fft_cpx scratch[5];
-     kiss_fft_cpx epi3;
+     speex_kiss_fft_cpx *tw1,*tw2;
+     speex_kiss_fft_cpx scratch[5];
+     speex_kiss_fft_cpx epi3;
      epi3 = st->twiddles[fstride*m];
 
      tw1=tw2=st->twiddles;
@@ -212,18 +212,18 @@ static void kf_bfly3(
 }
 
 static void kf_bfly5(
-        kiss_fft_cpx * Fout,
+        speex_kiss_fft_cpx * Fout,
         const size_t fstride,
-        const kiss_fft_cfg st,
+        const speex_kiss_fft_cfg st,
         int m
         )
 {
-    kiss_fft_cpx *Fout0,*Fout1,*Fout2,*Fout3,*Fout4;
+    speex_kiss_fft_cpx *Fout0,*Fout1,*Fout2,*Fout3,*Fout4;
     int u;
-    kiss_fft_cpx scratch[13];
-    kiss_fft_cpx * twiddles = st->twiddles;
-    kiss_fft_cpx *tw;
-    kiss_fft_cpx ya,yb;
+    speex_kiss_fft_cpx scratch[13];
+    speex_kiss_fft_cpx * twiddles = st->twiddles;
+    speex_kiss_fft_cpx *tw;
+    speex_kiss_fft_cpx ya,yb;
     ya = twiddles[fstride*m];
     yb = twiddles[fstride*2*m];
 
@@ -276,17 +276,17 @@ static void kf_bfly5(
 
 /* perform the butterfly for one stage of a mixed radix FFT */
 static void kf_bfly_generic(
-        kiss_fft_cpx * Fout,
+        speex_kiss_fft_cpx * Fout,
         const size_t fstride,
-        const kiss_fft_cfg st,
+        const speex_kiss_fft_cfg st,
         int m,
         int p
         )
 {
     int u,k,q1,q;
-    kiss_fft_cpx * twiddles = st->twiddles;
-    kiss_fft_cpx t;
-    kiss_fft_cpx scratchbuf[17];
+    speex_kiss_fft_cpx * twiddles = st->twiddles;
+    speex_kiss_fft_cpx t;
+    speex_kiss_fft_cpx scratchbuf[17];
     int Norig = st->nfft;
 
     /*CHECKBUF(scratchbuf,nscratchbuf,p);*/
@@ -320,12 +320,12 @@ static void kf_bfly_generic(
 
 static
 void kf_shuffle(
-         kiss_fft_cpx * Fout,
-         const kiss_fft_cpx * f,
+         speex_kiss_fft_cpx * Fout,
+         const speex_kiss_fft_cpx * f,
          const size_t fstride,
          int in_stride,
          int * factors,
-         const kiss_fft_cfg st
+         const speex_kiss_fft_cfg st
             )
 {
    const int p=*factors++; /* the radix  */
@@ -353,19 +353,19 @@ void kf_shuffle(
 
 static
 void kf_work(
-        kiss_fft_cpx * Fout,
-        const kiss_fft_cpx * f,
+        speex_kiss_fft_cpx * Fout,
+        const speex_kiss_fft_cpx * f,
         const size_t fstride,
         int in_stride,
         int * factors,
-        const kiss_fft_cfg st,
+        const speex_kiss_fft_cfg st,
         int N,
         int s2,
         int m2
         )
 {
    int i;
-    kiss_fft_cpx * Fout_beg=Fout;
+    speex_kiss_fft_cpx * Fout_beg=Fout;
     const int p=*factors++; /* the radix  */
     const int m=*factors++; /* stage's fft length/p */
 #if 0
@@ -405,7 +405,7 @@ void kf_work(
        {
           int j;
           Fout = Fout_beg+i*m2;
-          const kiss_fft_cpx * f2 = f+i*s2;
+          const speex_kiss_fft_cpx * f2 = f+i*s2;
           for (j=0;j<p;j++)
           {
              *Fout++ = *f2;
@@ -459,19 +459,19 @@ void kf_factor(int n,int * facbuf)
  * User-callable function to allocate all necessary storage space for the fft.
  *
  * The return value is a contiguous block of memory, allocated with malloc.  As such,
- * It can be freed with free(), rather than a kiss_fft-specific function.
+ * It can be freed with free(), rather than a speex_kiss_fft-specific function.
  * */
-kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem )
+speex_kiss_fft_cfg speex_kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem )
 {
-    kiss_fft_cfg st=NULL;
-    size_t memneeded = sizeof(struct kiss_fft_state)
-        + sizeof(kiss_fft_cpx)*(nfft-1); /* twiddle factors*/
+    speex_kiss_fft_cfg st=NULL;
+    size_t memneeded = sizeof(struct speex_kiss_fft_state)
+        + sizeof(speex_kiss_fft_cpx)*(nfft-1); /* twiddle factors*/
 
     if ( lenmem==NULL ) {
-        st = ( kiss_fft_cfg)KISS_FFT_MALLOC( memneeded );
+        st = ( speex_kiss_fft_cfg)KISS_FFT_MALLOC( memneeded );
     }else{
         if (mem != NULL && *lenmem >= memneeded)
-            st = (kiss_fft_cfg)mem;
+            st = (speex_kiss_fft_cfg)mem;
         *lenmem = memneeded;
     }
     if (st) {
@@ -502,7 +502,7 @@ kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem 
 
 
 
-void kiss_fft_stride(kiss_fft_cfg st,const kiss_fft_cpx *fin,kiss_fft_cpx *fout,int in_stride)
+void sspeex_kiss_fft_stride(speex_kiss_fft_cfg st,const speex_kiss_fft_cpx *fin, speex_kiss_fft_cpx *fout,int in_stride)
 {
     if (fin == fout)
     {
@@ -516,8 +516,8 @@ void kiss_fft_stride(kiss_fft_cfg st,const kiss_fft_cpx *fin,kiss_fft_cpx *fout,
     }
 }
 
-void kiss_fft(kiss_fft_cfg cfg,const kiss_fft_cpx *fin,kiss_fft_cpx *fout)
+void speex_kiss_fft(speex_kiss_fft_cfg cfg,const speex_kiss_fft_cpx *fin, speex_kiss_fft_cpx *fout)
 {
-    kiss_fft_stride(cfg,fin,fout,1);
+    speex_kiss_fft_stride(cfg,fin,fout,1);
 }
 

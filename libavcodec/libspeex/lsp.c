@@ -200,7 +200,7 @@ static float cheb_poly_eva(spx_word32_t *coef, spx_word16_t x, int m, char *stac
 
 /*---------------------------------------------------------------------------*\
 
-    FUNCTION....: lpc_to_lsp()
+    FUNCTION....: speex_lpc_to_lsp()
 
     AUTHOR......: David Rowe
     DATE CREATED: 24/2/93
@@ -217,7 +217,7 @@ static float cheb_poly_eva(spx_word32_t *coef, spx_word16_t x, int m, char *stac
 #endif
 
 
-int lpc_to_lsp (spx_coef_t *a,int lpcrdr,spx_lsp_t *freq,int nb,spx_word16_t delta, char *stack)
+int speex_lpc_to_lsp (spx_coef_t *a,int lpcrdr,spx_lsp_t *freq,int nb,spx_word16_t delta, char *stack)
 /*  float *a 		     	lpc coefficients			*/
 /*  int lpcrdr			order of LPC coefficients (10) 		*/
 /*  float *freq 	      	LSP frequencies in the x domain       	*/
@@ -389,7 +389,7 @@ int lpc_to_lsp (spx_coef_t *a,int lpcrdr,spx_lsp_t *freq,int nb,spx_word16_t del
 #endif /* DISABLE_ENCODER */
 /*---------------------------------------------------------------------------*\
 
-	FUNCTION....: lsp_to_lpc()
+	FUNCTION....: speex_lsp_to_lpc()
 
 	AUTHOR......: David Rowe
 	DATE CREATED: 24/2/93
@@ -400,7 +400,7 @@ int lpc_to_lsp (spx_coef_t *a,int lpcrdr,spx_lsp_t *freq,int nb,spx_word16_t del
 
 #ifdef FIXED_POINT
 
-void lsp_to_lpc(const spx_lsp_t *freq,spx_coef_t *ak,int lpcrdr, char *stack)
+void speex_lsp_to_lpc(const spx_lsp_t *freq,spx_coef_t *ak,int lpcrdr, char *stack)
 /*  float *freq 	array of LSP frequencies in the x domain	*/
 /*  float *ak 		array of LPC coefficients 			*/
 /*  int lpcrdr  	order of LPC coefficients 			*/
@@ -519,7 +519,7 @@ void lsp_to_lpc(const spx_lsp_t *freq,spx_coef_t *ak,int lpcrdr, char *stack)
 
 #else
 
-void lsp_to_lpc(const spx_lsp_t *freq,spx_coef_t *ak,int lpcrdr, char *stack)
+void speex_lsp_to_lpc(const spx_lsp_t *freq,spx_coef_t *ak,int lpcrdr, char *stack)
 /*  float *freq 	array of LSP frequencies in the x domain	*/
 /*  float *ak 		array of LPC coefficients 			*/
 /*  int lpcrdr  	order of LPC coefficients 			*/
@@ -590,7 +590,7 @@ void lsp_to_lpc(const spx_lsp_t *freq,spx_coef_t *ak,int lpcrdr, char *stack)
 #ifdef FIXED_POINT
 
 
-void lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *lsp, int len, int subframe, int nb_subframes, spx_word16_t margin)
+void speex_lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *lsp, int len, int subframe, int nb_subframes, spx_word16_t margin)
 {
    int i;
    spx_word16_t m = margin;
@@ -617,7 +617,7 @@ void lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *lsp, int
 #else
 
 
-void lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *lsp, int len, int subframe, int nb_subframes, spx_word16_t margin)
+void speex_lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *lsp, int len, int subframe, int nb_subframes, spx_word16_t margin)
 {
    int i;
    float tmp = (1.0f + subframe)/nb_subframes;
