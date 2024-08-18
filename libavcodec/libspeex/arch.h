@@ -39,8 +39,8 @@
 #define SPEEX_MAJOR_VERSION 1         /**< Major Speex version. */
 #define SPEEX_MINOR_VERSION 2         /**< Minor Speex version. */
 #define SPEEX_MICRO_VERSION 1         /**< Micro Speex version. */
-#define SPEEX_EXTRA_VERSION ""        /**< Extra Speex version. */
-#define SPEEX_VERSION "speex-1.2.1"   /**< Speex version string. */
+#define SPEEX_EXTRA_VERSION "1de1260"        /**< Extra Speex version. */
+#define SPEEX_VERSION "1.2.1-1de1260"   /**< Speex version string. */
 #endif
 
 /* A couple test to catch stupid option combinations */
@@ -74,7 +74,7 @@
 
 #endif
 
-#include "speex/speex_types.h"
+#include "speex_types.h"
 
 #define ABS(x) ((x) < 0 ? (-(x)) : (x))      /**< Absolute integer value. */
 #define ABS16(x) ((x) < 0 ? (-(x)) : (x))    /**< Absolute 16-bit value.  */

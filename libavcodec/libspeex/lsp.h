@@ -53,10 +53,10 @@ Modified by Jean-Marc Valin
 
 #include "arch.h"
 
-int lpc_to_lsp (spx_coef_t *a, int lpcrdr, spx_lsp_t *freq, int nb, spx_word16_t delta, char *stack);
-void lsp_to_lpc(const spx_lsp_t *freq, spx_coef_t *ak, int lpcrdr, char *stack);
+int speex_lpc_to_lsp (spx_coef_t *a, int lpcrdr, spx_lsp_t *freq, int nb, spx_word16_t delta, char *stack);
+void speex_lsp_to_lpc(const spx_lsp_t *freq, spx_coef_t *ak, int lpcrdr, char *stack);
 
 /*Added by JMV*/
-void lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *interp_lsp, int len, int subframe, int nb_subframes, spx_word16_t margin);
+void speex_lsp_interpolate(spx_lsp_t *old_lsp, spx_lsp_t *new_lsp, spx_lsp_t *interp_lsp, int len, int subframe, int nb_subframes, spx_word16_t margin);
 
 #endif	/* __AK2LSPD__ */

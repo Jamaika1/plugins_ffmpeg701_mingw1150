@@ -470,7 +470,7 @@ int nb_encode(void *state, void *vin, SpeexBits *bits)
       /* Levinson-Durbin */
       _spx_lpc(lpc, autocorr, NB_ORDER);
       /* LPC to LSPs (x-domain) transform */
-      roots=lpc_to_lsp (lpc, NB_ORDER, lsp, 10, LSP_DELTA1, stack);
+      roots=speex_lpc_to_lsp (lpc, NB_ORDER, lsp, 10, LSP_DELTA1, stack);
       /* Check if we found all the roots */
       if (roots!=NB_ORDER)
       {
@@ -492,10 +492,10 @@ int nb_encode(void *state, void *vin, SpeexBits *bits)
          for (i=0;i<NB_ORDER;i++)
             interp_lsp[i] = lsp[i];
       else
-         lsp_interpolate(st->old_lsp, lsp, interp_lsp, NB_ORDER, NB_NB_SUBFRAMES, NB_NB_SUBFRAMES<<1, LSP_MARGIN);
+         speex_lsp_interpolate(st->old_lsp, lsp, interp_lsp, NB_ORDER, NB_NB_SUBFRAMES, NB_NB_SUBFRAMES<<1, LSP_MARGIN);
 
       /* Compute interpolated LPCs (unquantized) for whole frame*/
-      lsp_to_lpc(interp_lsp, interp_lpc, NB_ORDER,stack);
+      speex_lsp_to_lpc(interp_lsp, interp_lpc, NB_ORDER,stack);
 
 
       /*Open-loop pitch*/
@@ -808,13 +808,13 @@ int nb_encode(void *state, void *vin, SpeexBits *bits)
       sw=st->sw+offset;
 
       /* LSP interpolation (quantized and unquantized) */
-      lsp_interpolate(st->old_lsp, lsp, interp_lsp, NB_ORDER, sub, NB_NB_SUBFRAMES, LSP_MARGIN);
-      lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, NB_ORDER, sub, NB_NB_SUBFRAMES, LSP_MARGIN);
+      speex_lsp_interpolate(st->old_lsp, lsp, interp_lsp, NB_ORDER, sub, NB_NB_SUBFRAMES, LSP_MARGIN);
+      speex_lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, NB_ORDER, sub, NB_NB_SUBFRAMES, LSP_MARGIN);
 
       /* Compute interpolated LPCs (quantized and unquantized) */
-      lsp_to_lpc(interp_lsp, interp_lpc, NB_ORDER,stack);
+      speex_lsp_to_lpc(interp_lsp, interp_lpc, NB_ORDER,stack);
 
-      lsp_to_lpc(interp_qlsp, interp_qlpc, NB_ORDER, stack);
+      speex_lsp_to_lpc(interp_qlsp, interp_qlpc, NB_ORDER, stack);
 
       /* Compute analysis filter gain at w=pi (for use in SB-CELP) */
       {
@@ -1757,10 +1757,10 @@ int nb_decode(void *state, SpeexBits *bits, void *vout)
       sp=out+offset;
 
       /* LSP interpolation (quantized and unquantized) */
-      lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, NB_ORDER, sub, NB_NB_SUBFRAMES, LSP_MARGIN);
+      speex_lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, NB_ORDER, sub, NB_NB_SUBFRAMES, LSP_MARGIN);
 
       /* Compute interpolated LPCs (unquantized) */
-      lsp_to_lpc(interp_qlsp, ak, NB_ORDER, stack);
+      speex_lsp_to_lpc(interp_qlsp, ak, NB_ORDER, stack);
 
       /* Compute analysis filter at w=pi */
       {

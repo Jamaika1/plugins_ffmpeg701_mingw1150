@@ -28,11 +28,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  4*4*4*2
  */
 
-struct kiss_fft_state{
+struct speex_kiss_fft_state{
     int nfft;
     int inverse;
     int factors[2*MAXFACTORS];
-    kiss_fft_cpx twiddles[1];
+    speex_kiss_fft_cpx twiddles[1];
 };
 
 /*
@@ -60,7 +60,7 @@ struct kiss_fft_state{
 
 
 #   define smul(a,b) ( (SAMPPROD)(a)*(b) )
-#   define sround( x )  (kiss_fft_scalar)( ( (x) + (1<<(FRACBITS-1)) ) >> FRACBITS )
+#   define sround( x )  (speex_kiss_fft_scalar)( ( (x) + (1<<(FRACBITS-1)) ) >> FRACBITS )
 
 #   define S_MUL(a,b) sround( smul(a,b) )
 
@@ -138,8 +138,8 @@ struct kiss_fft_state{
 #  define KISS_FFT_SIN(phase) _mm_set1_ps( sin(phase) )
 #  define HALF_OF(x) ((x)*_mm_set1_ps(.5))
 #else
-#  define KISS_FFT_COS(phase) (kiss_fft_scalar) cos(phase)
-#  define KISS_FFT_SIN(phase) (kiss_fft_scalar) sin(phase)
+#  define KISS_FFT_COS(phase) (speex_kiss_fft_scalar) cos(phase)
+#  define KISS_FFT_SIN(phase) (speex_kiss_fft_scalar) sin(phase)
 #  define HALF_OF(x) ((x)*.5)
 #endif
 

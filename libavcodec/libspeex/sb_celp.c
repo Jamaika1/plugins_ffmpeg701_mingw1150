@@ -619,10 +619,10 @@ int sb_encode(void *state, void *vin, SpeexBits *bits)
    }
 
    /* LPC to LSPs (x-domain) transform */
-   roots=lpc_to_lsp (lpc, st->lpcSize, lsp, 10, LSP_DELTA1, stack);
+   roots=speex_lpc_to_lsp (lpc, st->lpcSize, lsp, 10, LSP_DELTA1, stack);
    if (roots!=st->lpcSize)
    {
-      roots = lpc_to_lsp (lpc, st->lpcSize, lsp, 10, LSP_DELTA2, stack);
+      roots = speex_lpc_to_lsp (lpc, st->lpcSize, lsp, 10, LSP_DELTA2, stack);
       if (roots!=st->lpcSize) {
          /*If we can't find all LSP's, do some damage control and use a flat filter*/
          for (i=0;i<st->lpcSize;i++)
@@ -774,11 +774,11 @@ int sb_encode(void *state, void *vin, SpeexBits *bits)
       ALLOC(sw, st->subframeSize, spx_word16_t);
 
       /* LSP interpolation (quantized and unquantized) */
-      lsp_interpolate(st->old_lsp, lsp, interp_lsp, st->lpcSize, sub, st->nbSubframes, LSP_MARGIN);
-      lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, st->lpcSize, sub, st->nbSubframes, LSP_MARGIN);
+      speex_lsp_interpolate(st->old_lsp, lsp, interp_lsp, st->lpcSize, sub, st->nbSubframes, LSP_MARGIN);
+      speex_lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, st->lpcSize, sub, st->nbSubframes, LSP_MARGIN);
 
-      lsp_to_lpc(interp_lsp, interp_lpc, st->lpcSize,stack);
-      lsp_to_lpc(interp_qlsp, st->interp_qlpc, st->lpcSize, stack);
+      speex_lsp_to_lpc(interp_lsp, interp_lpc, st->lpcSize,stack);
+      speex_lsp_to_lpc(interp_qlsp, st->interp_qlpc, st->lpcSize, stack);
 
       bw_lpc(st->gamma1, interp_lpc, bw_lpc1, st->lpcSize);
       bw_lpc(st->gamma2, interp_lpc, bw_lpc2, st->lpcSize);
@@ -1278,7 +1278,7 @@ int sb_decode(void *state, SpeexBits *bits, void *vout)
    if (st->submodes[st->submodeID] == NULL)
    {
       if (st->innov_save)
-        SPEEX_MEMSET(st->innov_save, 0, st->full_frame_size);
+         SPEEX_MEMSET(st->innov_save, 0, st->full_frame_size);
 
       if (dtx)
       {
@@ -1338,10 +1338,10 @@ int sb_decode(void *state, SpeexBits *bits, void *vout)
       }
 
       /* LSP interpolation */
-      lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, st->lpcSize, sub, st->nbSubframes, LSP_MARGIN);
+      speex_lsp_interpolate(st->old_qlsp, qlsp, interp_qlsp, st->lpcSize, sub, st->nbSubframes, LSP_MARGIN);
 
       /* LSP to LPC */
-      lsp_to_lpc(interp_qlsp, ak, st->lpcSize, stack);
+      speex_lsp_to_lpc(interp_qlsp, ak, st->lpcSize, stack);
 
       /* Calculate response ratio between the low and high filter in the middle
          of the band (4000 Hz) */
