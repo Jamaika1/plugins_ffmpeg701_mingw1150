@@ -106,7 +106,7 @@ static int oc_mode_scheme_chooser_scheme_mb_cost(
     /*We don't actually reorder the list; this is for computing opportunity
        cost, not an update.*/
     mc=_chooser->mode_counts[_mb_mode];
-    while(ri>0&&mc>=_chooser->mode_counts[_chooser->scheme0_list[ri-1]])ri--;
+    while(ri>0&&mc>=(int)_chooser->mode_counts[_chooser->scheme0_list[ri-1]])ri--;
   }
   return OC_MODE_BITS[codebook][ri];
 }
@@ -588,8 +588,8 @@ static int oc_enc_pipeline_set_stripe(oc_enc_ctx *_enc,
   int                      pli;
   mcu_nvsbs=_enc->mcu_nvsbs;
   sby_end=_enc->state.fplanes[0].nvsbs;
-  notdone=_sby+mcu_nvsbs<sby_end;
-  if(notdone)sby_end=_sby+mcu_nvsbs;
+  notdone=_sby+(int)mcu_nvsbs<sby_end;
+  if(notdone)sby_end=_sby+(int)mcu_nvsbs;
   vdec=0;
   for(pli=0;pli<3;pli++){
     fplane=_enc->state.fplanes+pli;
