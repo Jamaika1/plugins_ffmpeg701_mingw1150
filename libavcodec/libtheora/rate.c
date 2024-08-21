@@ -265,7 +265,7 @@ static void oc_enc_rc_reset(oc_enc_ctx *_enc){
      initial level gives us maximum flexibility for over/under-shooting in
      subsequent frames.*/
   _enc->rc.target=(_enc->rc.max+1>>1)+(_enc->rc.bits_per_frame+2>>2)*
-   OC_MINI(_enc->keyframe_frequency_force,_enc->rc.buf_delay);
+   OC_MINI((int)_enc->keyframe_frequency_force,_enc->rc.buf_delay);
   _enc->rc.fullness=_enc->rc.target;
   /*Pick exponents and initial scales for quantizer selection.*/
   npixels=_enc->state.info.frame_width*
@@ -303,7 +303,7 @@ static void oc_enc_rc_reset(oc_enc_ctx *_enc){
   oc_iir_filter_init(&_enc->rc.scalefilter[0],4,
    oc_q57_to_q24(_enc->rc.log_scale[0]));
   inter_delay=(_enc->rc.twopass?
-   OC_MAXI(_enc->keyframe_frequency_force,12):_enc->rc.buf_delay)>>1;
+   OC_MAXI((int)_enc->keyframe_frequency_force,12):_enc->rc.buf_delay)>>1;
   _enc->rc.inter_count=0;
   /*We clamp the actual inter_delay to a minimum of 10 to work within the range
      of values where later incrementing the delay works as designed.
@@ -362,7 +362,7 @@ void oc_enc_rc_resize(oc_enc_ctx *_enc){
     _enc->rc.buf_delay=OC_MAXI(_enc->rc.buf_delay,12);
     _enc->rc.max=_enc->rc.bits_per_frame*_enc->rc.buf_delay;
     _enc->rc.target=(_enc->rc.max+1>>1)+(_enc->rc.bits_per_frame+2>>2)*
-     OC_MINI(_enc->keyframe_frequency_force,_enc->rc.buf_delay);
+     OC_MINI((int)_enc->keyframe_frequency_force,_enc->rc.buf_delay);
     /*Update the INTER-frame scale filter delay.
       We jump to it immediately if we've already seen enough frames; otherwise
        it is simply set as the new target.*/
@@ -380,9 +380,9 @@ void oc_enc_rc_resize(oc_enc_ctx *_enc){
     int buf_delay;
     int reset_window;
     buf_delay=_enc->rc.buf_delay;
-    reset_window=_enc->rc.frame_metrics==NULL&&(_enc->rc.frames_total[0]==0||
-     buf_delay<_enc->rc.frames_total[0]+_enc->rc.frames_total[1]
-     +_enc->rc.frames_total[2]);
+    reset_window=_enc->rc.frame_metrics==NULL&&(_enc->rc.frames_total[0]==0u||
+     buf_delay<(int)(_enc->rc.frames_total[0]+_enc->rc.frames_total[1]
+     +_enc->rc.frames_total[2]));
     cfm=_enc->rc.cframe_metrics;
     /*Only try to resize the frame metrics buffer if a) it's too small and
        b) we were using a finite buffer, or are about to start.*/
@@ -400,8 +400,8 @@ void oc_enc_rc_resize(oc_enc_ctx *_enc){
         /*Otherwise revert to the largest finite buffer previously set, or to
            whole-file buffering if we were still using that.*/
         _enc->rc.buf_delay=_enc->rc.frame_metrics!=NULL?
-         cfm:_enc->rc.frames_total[0]+_enc->rc.frames_total[1]
-         +_enc->rc.frames_total[2];
+         cfm:(int)(_enc->rc.frames_total[0]+_enc->rc.frames_total[1]
+         +_enc->rc.frames_total[2]);
         oc_enc_rc_resize(_enc);
         return;
       }
@@ -486,7 +486,7 @@ int oc_enc_select_qi(oc_enc_ctx *_enc,int _qti,int _clamp){
          the drop count for VFR content.*/
       next_key_frame=_qti?_enc->keyframe_frequency_force
        -(_enc->state.curframe_num-_enc->state.keyframe_num):0;
-      nframes[0]=(_enc->rc.buf_delay-OC_MINI(next_key_frame,_enc->rc.buf_delay)
+      nframes[0]=(_enc->rc.buf_delay-OC_MINI((int)next_key_frame,_enc->rc.buf_delay)
        +_enc->keyframe_frequency_force-1)/_enc->keyframe_frequency_force;
       if(nframes[0]+_qti>1){
         nframes[0]--;
@@ -929,7 +929,7 @@ int oc_enc_rc_2pass_out(oc_enc_ctx *_enc,unsigned char **_buf){
 
 static size_t oc_rc_buffer_fill(oc_rc_state *_rc,
  unsigned char *_buf,size_t _bytes,size_t _consumed,size_t _goal){
-  while(_rc->twopass_buffer_fill<_goal&&_consumed<_bytes){
+  while(_rc->twopass_buffer_fill<(int)_goal&&_consumed<_bytes){
     _rc->twopass_buffer[_rc->twopass_buffer_fill++]=_buf[_consumed++];
   }
   return _consumed;
@@ -1078,7 +1078,7 @@ int oc_enc_rc_2pass_in(oc_enc_ctx *_enc,unsigned char *_buf,size_t _bytes){
         /*We're using a finite buffer:*/
         frames_needed=OC_MINI(_enc->rc.buf_delay-OC_MINI(_enc->rc.buf_delay,
          _enc->rc.scale_window_end-_enc->rc.scale_window0),
-         _enc->rc.frames_left[0]+_enc->rc.frames_left[1]
+         (int)(_enc->rc.frames_left[0]+_enc->rc.frames_left[1])
          -_enc->rc.nframes[0]-_enc->rc.nframes[1]);
         while(frames_needed>0){
           if(!_buf){
@@ -1116,7 +1116,7 @@ int oc_enc_rc_2pass_in(oc_enc_ctx *_enc,unsigned char *_buf,size_t _bytes){
                for the current window.*/
             frames_needed=OC_MINI(_enc->rc.buf_delay-OC_MINI(_enc->rc.buf_delay,
              _enc->rc.scale_window_end-_enc->rc.scale_window0),
-             _enc->rc.frames_left[0]+_enc->rc.frames_left[1]
+             (int)(_enc->rc.frames_left[0]+_enc->rc.frames_left[1])
              -_enc->rc.nframes[0]-_enc->rc.nframes[1]);
             /*Clear the buffer for the next frame.*/
             _enc->rc.twopass_buffer_fill=0;

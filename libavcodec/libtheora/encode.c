@@ -1028,7 +1028,7 @@ static void oc_enc_mb_info_init(oc_enc_ctx *_enc){
         for(ni=0;ni<NCNEIGHBORS[quadi];ni++){
           nmbx=mbx+CDX[quadi][ni];
           nmby=mby+CDY[quadi][ni];
-          if(nmbx<0||nmbx>=nhmbs||nmby<0||nmby>=nvmbs)continue;
+          if(nmbx<0||nmbx>=(int)nhmbs||nmby<0||nmby>=(int)nvmbs)continue;
           nmbi=(nmby&~1)*nhmbs+((nmbx&~1)<<1)+OC_MB_MAP[nmby&1][nmbx&1];
           if(mb_modes[nmbi]==OC_MODE_INVALID)continue;
           embs[mbi].cneighbors[embs[mbi].ncneighbors++]=nmbi;
@@ -1037,7 +1037,7 @@ static void oc_enc_mb_info_init(oc_enc_ctx *_enc){
         for(ni=0;ni<4;ni++){
           nmbx=mbx+PDX[ni];
           nmby=mby+PDY[ni];
-          if(nmbx<0||nmbx>=nhmbs||nmby<0||nmby>=nvmbs)continue;
+          if(nmbx<0||nmbx>=(int)nhmbs||nmby<0||nmby>=(int)nvmbs)continue;
           nmbi=(nmby&~1)*nhmbs+((nmbx&~1)<<1)+OC_MB_MAP[nmby&1][nmbx&1];
           if(mb_modes[nmbi]==OC_MODE_INVALID)continue;
           embs[mbi].pneighbors[embs[mbi].npneighbors++]=nmbi;
@@ -1445,7 +1445,7 @@ int th_encode_ctl(th_enc_ctx *_enc,int _req,void *_buf,size_t _buf_sz){
       if(_enc==NULL||_buf==NULL)return TH_EFAULT;
       if(_buf_sz!=sizeof(dup_count))return TH_EINVAL;
       dup_count=*(int *)_buf;
-      if(dup_count>=_enc->keyframe_frequency_force)return TH_EINVAL;
+      if(dup_count>=(int)_enc->keyframe_frequency_force)return TH_EINVAL;
       _enc->dup_count=OC_MAXI(dup_count,0);
       return 0;
     }break;
@@ -1565,9 +1565,9 @@ static void oc_img_plane_copy_pad(th_img_plane *_dst,th_img_plane *_src,
  ogg_int32_t _pic_width,ogg_int32_t _pic_height){
   unsigned char *dst;
   int            dstride;
-  ogg_uint32_t   frame_width;
-  ogg_uint32_t   frame_height;
-  ogg_uint32_t   y;
+  ogg_int32_t   frame_width;
+  ogg_int32_t   frame_height;
+  ogg_int32_t   y;
   frame_width=_dst->width;
   frame_height=_dst->height;
   /*If we have _no_ data, just encode a dull green.*/
@@ -1585,7 +1585,7 @@ static void oc_img_plane_copy_pad(th_img_plane *_dst,th_img_plane *_src,
     unsigned char *src_data;
     unsigned char *src;
     int            sstride;
-    ogg_uint32_t   x;
+    ogg_int32_t   x;
     /*Step 1: Copy the data we do have.*/
     dstride=_dst->stride;
     sstride=_src->stride;

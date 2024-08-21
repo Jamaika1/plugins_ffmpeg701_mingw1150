@@ -2505,7 +2505,7 @@ static void oc_render_telemetry(th_dec_ctx *_dec,th_ycbcr_buffer _ycbcr,
         }
       }
       col2++;
-      if((col2>>1)>=_dec->state.nhmbs){
+      if((col2>>1)>=(int)_dec->state.nhmbs){
         col2=0;
         row2+=2;
       }
