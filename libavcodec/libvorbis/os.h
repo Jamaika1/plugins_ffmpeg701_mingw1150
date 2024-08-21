@@ -45,7 +45,15 @@
 #endif
 
 #if defined(_WIN32) && !defined(__SYMBIAN32__)
+# ifdef HAVE_MALLOC_H
 #  include <malloc.h>
+# else
+#  ifdef HAVE_ALLOCA_H
+#   include <alloca.h>
+#  else
+#   include <stdlib.h>
+#  endif
+# endif
 #  define rint(x)   (floor((x)+0.5f))
 #  define NO_FLOAT_MATH_LIB
 #  define FAST_HYPOT(a, b) sqrt((a)*(a) + (b)*(b))
@@ -61,10 +69,6 @@ void *_alloca(size_t size);
 #endif
 
 #endif /* _V_IFDEFJAIL_H_ */
-
-#ifdef HAVE_ALLOCA_H
-#  include <alloca.h>
-#endif
 
 #ifdef USE_MEMORY_H
 #  include <memory.h>
