@@ -14,8 +14,8 @@
 
  ********************************************************************/
 
-#include "vorbis/codec.h"
-#include "backends.h"
+#include "../vorbis/codec.h"
+#include "../backends.h"
 
 /***** residue backends *********************************************/
 
