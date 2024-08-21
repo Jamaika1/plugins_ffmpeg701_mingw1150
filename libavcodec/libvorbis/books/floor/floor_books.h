@@ -14,7 +14,7 @@
 
  ********************************************************************/
 
-#include "codebook.h"
+#include "../../codebook.h"
 
 static const char _huff_lengthlist_line_256x7_0sub1[] = {
          0, 2, 3, 3, 3, 3, 4, 3, 4,
