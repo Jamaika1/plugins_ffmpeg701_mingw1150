@@ -15,7 +15,7 @@
  ********************************************************************/
 
 #include <stdio.h>
-#include <ogg/ogg.h>
+#include "../libogg/ogg.h"
 #include "vorbis/codec.h"
 #include "codec_internal.h"
 #include "registry.h"

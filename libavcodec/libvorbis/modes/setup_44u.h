@@ -14,7 +14,7 @@
 
  ********************************************************************/
 
-#include "modes/residue_44u.h"
+#include "residue_44u.h"
 
 static const double rate_mapping_44_un[12]={
   32000.,48000.,60000.,70000.,80000.,86000.,

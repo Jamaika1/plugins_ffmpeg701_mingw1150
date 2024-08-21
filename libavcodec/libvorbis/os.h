@@ -17,11 +17,11 @@
  ********************************************************************/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+//#include "config.h"
 #endif
 
 #include <math.h>
-#include <ogg/os_types.h>
+#include "../libogg/os_types.h"
 
 #include "misc.h"
 
