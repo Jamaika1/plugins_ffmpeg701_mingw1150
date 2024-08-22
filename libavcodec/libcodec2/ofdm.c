@@ -1071,12 +1071,12 @@ void ofdm_txframe(struct OFDM *ofdm, complex float *tx,
  * PAPR */
 void ofdm_hilbert_clipper(struct OFDM *ofdm, complex float *tx, size_t n) {
   /* vanilla Tx output waveform should be about OFDM_PEAK */
-  for (int i = 0; i < n; i++) tx[i] *= ofdm->amp_scale;
+  for (int i = 0; i < (int)n; i++) tx[i] *= ofdm->amp_scale;
 
   if (ofdm->clip_en) {
     // this gain sets the drive into the Hilbert Clipper and sets PAPR
-    for (int i = 0; i < n; i++) tx[i] *= ofdm->clip_gain1;
-    ofdm_clip(tx, OFDM_PEAK, n);
+    for (int i = 0; i < (int)n; i++) tx[i] *= ofdm->clip_gain1;
+    ofdm_clip(tx, OFDM_PEAK, (int)n);
   }
 
   /* BPF to remove out of band energy clipper introduces */
@@ -1090,13 +1090,13 @@ void ofdm_hilbert_clipper(struct OFDM *ofdm, complex float *tx, size_t n) {
 
   /* BPF messes up peak levels, this gain gets back to approx OFDM_PEAK */
   if (ofdm->tx_bpf_en && ofdm->clip_en)
-    for (int i = 0; i < n; i++) tx[i] *= ofdm->clip_gain2;
+    for (int i = 0; i < (int)n; i++) tx[i] *= ofdm->clip_gain2;
 
   /* a very small percentage of samples may still exceed OFDM_PEAK, in
      clipped or unclipped mode.  Lets remove them so we present consistent
      levels to the transmitter */
 
-  ofdm_clip(tx, OFDM_PEAK, n);
+  ofdm_clip(tx, OFDM_PEAK, (int)n);
 }
 
 struct OFDM_CONFIG *ofdm_get_config_param(struct OFDM *ofdm) {

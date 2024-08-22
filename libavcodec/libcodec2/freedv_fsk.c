@@ -158,7 +158,7 @@ void freedv_fsk_ldpc_open(struct freedv *f, struct freedv_advanced *adv) {
   // fprintf(stderr, "Using: %s\n", f->ldpc->name);
 
   f->bits_per_modem_frame = f->ldpc->data_bits_per_frame;
-  int bits_per_frame = f->ldpc->coded_bits_per_frame + sizeof(fsk_ldpc_uw);
+  int bits_per_frame = f->ldpc->coded_bits_per_frame + (int)sizeof(fsk_ldpc_uw);
   f->tx_payload_bits = MALLOC(f->bits_per_modem_frame);
   assert(f->tx_payload_bits != NULL);
   f->rx_payload_bits = MALLOC(f->bits_per_modem_frame);
@@ -391,7 +391,7 @@ void freedv_tx_fsk_data(struct freedv *f, short mod_out[]) {
 }
 
 int freedv_tx_fsk_ldpc_bits_per_frame(struct freedv *f) {
-  return f->ldpc->coded_bits_per_frame + sizeof(fsk_ldpc_uw);
+  return f->ldpc->coded_bits_per_frame + (int)sizeof(fsk_ldpc_uw);
 }
 
 /* in a separate function so callable by other FSK Txs */
@@ -404,8 +404,8 @@ void freedv_tx_fsk_ldpc_framer(struct freedv *f, uint8_t frame[],
   /* insert data bits */
   memcpy(frame + sizeof(fsk_ldpc_uw), payload_data, f->bits_per_modem_frame);
   /* insert parity bits */
-  encode(f->ldpc, frame + sizeof(fsk_ldpc_uw),
-         frame + sizeof(fsk_ldpc_uw) + f->bits_per_modem_frame);
+  encode(f->ldpc, frame + (uint8_t)sizeof(fsk_ldpc_uw),
+         frame + (uint8_t)sizeof(fsk_ldpc_uw) + (uint8_t)f->bits_per_modem_frame);
 }
 
 /* FreeDV FSK_LDPC mode tx */
@@ -511,10 +511,10 @@ int freedv_rx_fsk_ldpc_data(struct freedv *f, COMP demod_in[]) {
     switch (f->fsk_ldpc_state) {
       case 0: /* out of sync - look for UW */
         f->fsk_ldpc_best_location = 0;
-        int best_errors = sizeof(fsk_ldpc_uw);
+        int best_errors = (int)sizeof(fsk_ldpc_uw);
         for (int i = 0; i < bits_per_frame; i++) {
           errors = 0;
-          for (int u = 0; u < sizeof(fsk_ldpc_uw); u++)
+          for (int u = 0; u < (int)sizeof(fsk_ldpc_uw); u++)
             errors += f->twoframes_hard[i + u] ^ fsk_ldpc_uw[u];
           // fprintf(stderr, "  errors: %d %d %d\n", i, errors, best_errors);
           if (errors < best_errors) {
@@ -533,7 +533,7 @@ int freedv_rx_fsk_ldpc_data(struct freedv *f, COMP demod_in[]) {
         assert(f->fsk_ldpc_best_location < bits_per_frame);
 
         /* check UW still OK */
-        for (int u = 0; u < sizeof(fsk_ldpc_uw); u++)
+        for (int u = 0; u < (int)sizeof(fsk_ldpc_uw); u++)
           errors +=
               f->twoframes_hard[f->fsk_ldpc_best_location + u] ^ fsk_ldpc_uw[u];
         if (errors > f->fsk_ldpc_thresh2) {
@@ -554,7 +554,7 @@ int freedv_rx_fsk_ldpc_data(struct freedv *f, COMP demod_in[]) {
       uint8_t decoded_codeword[f->ldpc->ldpc_coded_bits_per_frame];
       iter = run_ldpc_decoder(
           f->ldpc, decoded_codeword,
-          &f->twoframes_llr[f->fsk_ldpc_best_location + sizeof(fsk_ldpc_uw)],
+          &f->twoframes_llr[f->fsk_ldpc_best_location + (int)sizeof(fsk_ldpc_uw)],
           &parityCheckCount);
       memcpy(f->rx_payload_bits, decoded_codeword, f->bits_per_modem_frame);
 
@@ -576,20 +576,20 @@ int freedv_rx_fsk_ldpc_data(struct freedv *f, COMP demod_in[]) {
         /* regenerate tx test frame */
         uint8_t tx_frame[bits_per_frame];
         memcpy(tx_frame, fsk_ldpc_uw, sizeof(fsk_ldpc_uw));
-        ofdm_generate_payload_data_bits(tx_frame + sizeof(fsk_ldpc_uw),
+        ofdm_generate_payload_data_bits(tx_frame + (uint8_t)sizeof(fsk_ldpc_uw),
                                         f->bits_per_modem_frame);
         int bytes_per_modem_frame = f->bits_per_modem_frame / 8;
         uint8_t tx_bytes[bytes_per_modem_frame];
-        freedv_pack(tx_bytes, tx_frame + sizeof(fsk_ldpc_uw),
+        freedv_pack(tx_bytes, tx_frame + (uint8_t)sizeof(fsk_ldpc_uw),
                     f->bits_per_modem_frame);
         uint16_t tx_crc16 =
             freedv_gen_crc16(tx_bytes, bytes_per_modem_frame - 2);
         uint8_t tx_crc16_bytes[] = {tx_crc16 >> 8, tx_crc16 & 0xff};
         freedv_unpack(
-            tx_frame + sizeof(fsk_ldpc_uw) + f->bits_per_modem_frame - 16,
+            tx_frame + (uint8_t)sizeof(fsk_ldpc_uw) + (uint8_t)f->bits_per_modem_frame - 16u,
             tx_crc16_bytes, 16);
-        encode(f->ldpc, tx_frame + sizeof(fsk_ldpc_uw),
-               tx_frame + sizeof(fsk_ldpc_uw) + f->bits_per_modem_frame);
+        encode(f->ldpc, tx_frame + (uint8_t)sizeof(fsk_ldpc_uw),
+               tx_frame + (uint8_t)sizeof(fsk_ldpc_uw) + (uint8_t)f->bits_per_modem_frame);
 
         /* count uncoded (raw) errors across UW, payload bits, parity bits */
         Nerrs_raw = count_errors(tx_frame,
@@ -599,7 +599,7 @@ int freedv_rx_fsk_ldpc_data(struct freedv *f, COMP demod_in[]) {
         f->total_bits += bits_per_frame;
 
         /* count coded errors across just payload bits */
-        Nerrs_coded = count_errors(tx_frame + sizeof(fsk_ldpc_uw),
+        Nerrs_coded = count_errors(tx_frame + (uint8_t)sizeof(fsk_ldpc_uw),
                                    f->rx_payload_bits, f->bits_per_modem_frame);
         f->total_bit_errors_coded += Nerrs_coded;
         f->total_bits_coded += f->bits_per_modem_frame;

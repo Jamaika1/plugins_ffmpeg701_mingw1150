@@ -434,7 +434,7 @@ int main(int argc, char *argv[]) {
     fseek(fin, offset, SEEK_SET);
   }
 
-  while ((fread(rx_scaled, sizeof(short), nin_frame, fin) == nin_frame) &&
+  while ((fread(rx_scaled, sizeof(short), (size_t)nin_frame, fin) == (size_t)nin_frame) &&
          !finish) {
     if (verbose >= 2)
       fprintf(stderr, "%3d nin: %4d st: %-6s ", f, nin_frame,
@@ -665,8 +665,8 @@ int main(int argc, char *argv[]) {
       /* big nasty timing error */
       float secs = (float)f * ofdm_get_samples_per_frame(ofdm) / FS;
       if (secs >= skip_secs) {
-        assert(fread(rx_scaled, sizeof(short), nin_frame / 2, fin) ==
-               nin_frame / 2);
+        assert(fread(rx_scaled, sizeof(short), (size_t)(nin_frame / 2), fin) ==
+               (size_t)(nin_frame / 2));
         fprintf(stderr, "  Skip!  Just introduced a nasty big timing slip\n");
         skip_secs = 0.0; /* make sure we just introduce one error */
       }
