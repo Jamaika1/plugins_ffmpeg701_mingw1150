@@ -185,7 +185,7 @@ void ofdm_init_mode(char mode[], struct OFDM_CONFIG *config) {
                     0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0};
     assert(sizeof(uw) <= MAX_UW_BITS);
     memcpy(config->tx_uw, uw, sizeof(uw));
-    memcpy(&config->tx_uw[(uint8_t)config->nuwbits - sizeof(uw)], uw, sizeof(uw));
+    memcpy(&config->tx_uw[config->nuwbits - (int)sizeof(uw)], uw, sizeof(uw));
     config->data_mode = "streaming";
     config->amp_scale = 300E3;
     config->clip_gain1 = 2.2;
@@ -211,7 +211,7 @@ void ofdm_init_mode(char mode[], struct OFDM_CONFIG *config) {
                     0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0};
     assert(sizeof(uw) <= MAX_UW_BITS);
     memcpy(config->tx_uw, uw, sizeof(uw));
-    memcpy(&config->tx_uw[(uint8_t)config->nuwbits - sizeof(uw)], uw, sizeof(uw));
+    memcpy(&config->tx_uw[config->nuwbits - (int)sizeof(uw)], uw, sizeof(uw));
     config->data_mode = "streaming";
     config->amp_scale = 2 * 300E3;
     config->clip_gain1 = 1.2;
@@ -238,7 +238,7 @@ void ofdm_init_mode(char mode[], struct OFDM_CONFIG *config) {
                     0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0};
     assert(sizeof(uw) <= MAX_UW_BITS);
     memcpy(config->tx_uw, uw, sizeof(uw));
-    memcpy(&config->tx_uw[(uint8_t)config->nuwbits - sizeof(uw)], uw, sizeof(uw));
+    memcpy(&config->tx_uw[config->nuwbits - (int)sizeof(uw)], uw, sizeof(uw));
     config->data_mode = "streaming";
     config->amp_scale = 2.5 * 300E3;
     config->clip_gain1 = 1.2;
@@ -265,7 +265,7 @@ void ofdm_init_mode(char mode[], struct OFDM_CONFIG *config) {
                     0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0};
     assert(sizeof(uw) <= MAX_UW_BITS);
     memcpy(config->tx_uw, uw, sizeof(uw));
-    memcpy(&config->tx_uw[(uint8_t)config->nuwbits - sizeof(uw)], uw, sizeof(uw));
+    memcpy(&config->tx_uw[config->nuwbits - (int)sizeof(uw)], uw, sizeof(uw));
     config->data_mode = "streaming";
     config->amp_scale = 2.0 * 300E3;
     config->clip_gain1 = 2.0;
