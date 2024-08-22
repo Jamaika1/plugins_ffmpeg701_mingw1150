@@ -133,7 +133,7 @@ void freedv_data_channel_rx_frame(struct freedv_data_channel *fdc,
   if (end_bits) {
     copy_bits = end_bits;
   } else {
-    copy_bits = size;
+    copy_bits = (int)size;
   }
 
   /* New packet? */
@@ -190,7 +190,7 @@ void freedv_data_channel_rx_frame(struct freedv_data_channel *fdc,
     rx_crc |= fdc->packet_rx[fdc->packet_rx_cnt - 2];
 
     if (rx_crc == calc_crc) {
-      if (fdc->packet_rx_cnt == size) {
+      if (fdc->packet_rx_cnt == (int)size) {
         /* It is a single header field, remember it for later */
         memcpy(fdc->rx_header, fdc->packet_rx, 6);
       }
@@ -202,7 +202,7 @@ void freedv_data_channel_rx_frame(struct freedv_data_channel *fdc,
         memcpy(fdc->packet_rx, fdc->packet_rx + 6, 6);
         memcpy(fdc->packet_rx + 6, tmp, 6);
 
-        size_t size = fdc->packet_rx_cnt - 2;
+        size_t size = (size_t)(fdc->packet_rx_cnt - 2);
         if (size < 12) {
           size = 12;
           memcpy(fdc->packet_rx, fdc_header_bcast, 6);
@@ -275,8 +275,8 @@ void freedv_data_channel_tx_frame(struct freedv_data_channel *fdc,
   if (fdc->packet_tx_size) {
     int copy = fdc->packet_tx_size - fdc->packet_tx_cnt;
 
-    if (copy > size) {
-      copy = size;
+    if (copy > (int)size) {
+      copy = (int)size;
       *end_bits = 0;
     } else {
       *end_bits = copy;
@@ -299,5 +299,5 @@ void freedv_data_set_header(struct freedv_data_channel *fdc,
 int freedv_data_get_n_tx_frames(struct freedv_data_channel *fdc, size_t size) {
   if (fdc->packet_tx_size == 0) return 0;
   /* packet will be send in 'size' byte frames */
-  return (fdc->packet_tx_size - fdc->packet_tx_cnt + size - 1) / size;
+  return (fdc->packet_tx_size - (size_t)fdc->packet_tx_cnt + size - 1) / size;
 }

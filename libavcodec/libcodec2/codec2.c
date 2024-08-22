@@ -1885,7 +1885,7 @@ void codec2_load_codebook(struct CODEC2 *codec2_state, int num,
   // newamp1vq_cb[num].k, newamp1vq_cb[num].m);
   float tmp[newamp1vq_cb[num].k * newamp1vq_cb[num].m];
   int nread =
-      fread(tmp, sizeof(float), newamp1vq_cb[num].k * newamp1vq_cb[num].m, f);
+      (int)fread(tmp, sizeof(float), (size_t)(newamp1vq_cb[num].k * newamp1vq_cb[num].m), f);
   float *p = (float *)newamp1vq_cb[num].cb;
   for (int i = 0; i < newamp1vq_cb[num].k * newamp1vq_cb[num].m; i++)
     p[i] = tmp[i];

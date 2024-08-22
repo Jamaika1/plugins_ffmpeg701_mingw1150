@@ -70,17 +70,17 @@ void encode(struct LDPC *ldpc, unsigned char ibits[], unsigned char pbits[]) {
   int ind;
   uint16_t *H_rows = ldpc->H_rows;
 
-  for (p = 0; p < ldpc->NumberParityBits; p++) {
-    par = 0;
+  for (p = 0u; p < (unsigned int)ldpc->NumberParityBits; p++) {
+    par = 0u;
 
-    for (i = 0; i < ldpc->max_row_weight; i++) {
-      ind = H_rows[p + i * ldpc->NumberParityBits];
+    for (i = 0u; i < (unsigned int)ldpc->max_row_weight; i++) {
+      ind = (int)(H_rows[p + i * (unsigned int)ldpc->NumberParityBits]);
       if (ind) par = par + ibits[ind - 1];
     }
 
     tmp = par + prev;
 
-    tmp &= 1;  // only retain the lsb
+    tmp &= 1u;  // only retain the lsb
     prev = tmp;
     pbits[p] = tmp;
   }

@@ -86,7 +86,7 @@ static void convert_callsign_to_ota_string_(const char* input, char* output,
   assert(maxLength >= 0);
 
   int outidx = 0;
-  for (size_t index = 0; index < maxLength; index++) {
+  for (size_t index = 0; index < (size_t)maxLength; index++) {
     if (input[index] == 0) break;
 
     if (input[index] >= 38 && input[index] <= 47) {
@@ -109,7 +109,7 @@ static void convert_ota_string_to_callsign_(const char* input, char* output,
   assert(maxLength >= 0);
 
   int outidx = 0;
-  for (size_t index = 0; index < maxLength; index++) {
+  for (size_t index = 0; index < (size_t)maxLength; index++) {
     if (input[index] == 0) break;
 
     if (input[index] >= 1 && input[index] <= 9) {
