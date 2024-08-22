@@ -414,7 +414,7 @@ static inline int ix_max(int ix[GRANULE_SIZE], unsigned int begin,
   register int i;
   register int max = 0;
 
-  for (i = begin; i < end; i++)
+  for (i = (int)begin; i < (int)end; i++)
     if (max < ix[i])
       max = ix[i];
   return max;
@@ -436,7 +436,7 @@ void calc_runlen(int ix[GRANULE_SIZE], gr_info *cod_info) {
     else
       break;
 
-  cod_info->count1 = 0;
+  cod_info->count1 = 0u;
   for (; i > 3; i -= 4)
     if (ix[i - 1] <= 1 && ix[i - 2] <= 1 && ix[i - 3] <= 1 && ix[i - 4] <= 1)
       cod_info->count1++;
@@ -456,7 +456,7 @@ int count1_bitcount(int ix[GRANULE_SIZE], gr_info *cod_info) {
   int v, w, x, y, signbits;
   int sum0 = 0, sum1 = 0;
 
-  for (i = cod_info->big_values << 1, k = 0; k < cod_info->count1;
+  for (i = (int)cod_info->big_values << 1, k = 0; k < (int)cod_info->count1;
        i += 4, k++) {
     v = ix[i];
     w = ix[i + 1];
@@ -483,10 +483,10 @@ int count1_bitcount(int ix[GRANULE_SIZE], gr_info *cod_info) {
   }
 
   if (sum0 < sum1) {
-    cod_info->count1table_select = 0;
+    cod_info->count1table_select = 0u;
     return sum0;
   } else {
-    cod_info->count1table_select = 1;
+    cod_info->count1table_select = 1u;
     return sum1;
   }
 }
@@ -528,14 +528,14 @@ void subdivide(gr_info *cod_info, shine_global_config *config) {
   };
 
   if (!cod_info->big_values) { /* no big_values region */
-    cod_info->region0_count = 0;
-    cod_info->region1_count = 0;
+    cod_info->region0_count = 0u;
+    cod_info->region1_count = 0u;
   } else {
     const int *scalefac_band_long =
         &shine_scale_fact_band_index[config->mpeg.samplerate_index][0];
     int bigvalues_region, scfb_anz, thiscount;
 
-    bigvalues_region = 2 * cod_info->big_values;
+    bigvalues_region = 2 * (int)cod_info->big_values;
 
     /* Calculate scfb_anz */
     scfb_anz = 0;
@@ -547,20 +547,20 @@ void subdivide(gr_info *cod_info, shine_global_config *config) {
       if (scalefac_band_long[thiscount + 1] <= bigvalues_region)
         break;
     }
-    cod_info->region0_count = thiscount;
-    cod_info->address1 = scalefac_band_long[thiscount + 1];
+    cod_info->region0_count = (unsigned int)thiscount;
+    cod_info->address1 = (unsigned int)scalefac_band_long[thiscount + 1];
 
-    scalefac_band_long += cod_info->region0_count + 1;
+    scalefac_band_long += (int)cod_info->region0_count + 1;
 
     for (thiscount = subdv_table[scfb_anz].region1_count; thiscount;
          thiscount--) {
       if (scalefac_band_long[thiscount + 1] <= bigvalues_region)
         break;
     }
-    cod_info->region1_count = thiscount;
-    cod_info->address2 = scalefac_band_long[thiscount + 1];
+    cod_info->region1_count = (unsigned int)thiscount;
+    cod_info->address2 = (unsigned int)scalefac_band_long[thiscount + 1];
 
-    cod_info->address3 = bigvalues_region;
+    cod_info->address3 = (unsigned int)bigvalues_region;
   }
 }
 
@@ -570,21 +570,21 @@ void subdivide(gr_info *cod_info, shine_global_config *config) {
  * Function: Select huffman code tables for bigvalues regions
  */
 void bigv_tab_select(int ix[GRANULE_SIZE], gr_info *cod_info) {
-  cod_info->table_select[0] = 0;
-  cod_info->table_select[1] = 0;
-  cod_info->table_select[2] = 0;
+  cod_info->table_select[0] = 0u;
+  cod_info->table_select[1] = 0u;
+  cod_info->table_select[2] = 0u;
 
   {
-    if (cod_info->address1 > 0)
-      cod_info->table_select[0] = new_choose_table(ix, 0, cod_info->address1);
+    if (cod_info->address1 > 0u)
+      cod_info->table_select[0] = (unsigned int)new_choose_table(ix, 0u, cod_info->address1);
 
     if (cod_info->address2 > cod_info->address1)
       cod_info->table_select[1] =
-          new_choose_table(ix, cod_info->address1, cod_info->address2);
+          (unsigned int)new_choose_table(ix, cod_info->address1, cod_info->address2);
 
     if (cod_info->big_values << 1 > cod_info->address2)
       cod_info->table_select[2] =
-          new_choose_table(ix, cod_info->address2, cod_info->big_values << 1);
+          (unsigned int)new_choose_table(ix, cod_info->address2, cod_info->big_values << 1);
   }
 }
 
@@ -613,50 +613,50 @@ int new_choose_table(int ix[GRANULE_SIZE], unsigned int begin,
   if (max < 15) {
     /* try tables with no linbits */
     for (i = 14; i--;)
-      if (shine_huffman_table[i].xlen > max) {
+      if (shine_huffman_table[i].xlen > (unsigned int)max) {
         choice[0] = i;
         break;
       }
 
-    sum[0] = count_bit(ix, begin, end, choice[0]);
+    sum[0] = count_bit(ix, begin, end, (unsigned int)choice[0]);
 
     switch (choice[0]) {
     case 2:
-      sum[1] = count_bit(ix, begin, end, 3);
+      sum[1] = count_bit(ix, begin, end, 3u);
       if (sum[1] <= sum[0])
         choice[0] = 3;
       break;
 
     case 5:
-      sum[1] = count_bit(ix, begin, end, 6);
+      sum[1] = count_bit(ix, begin, end, 6u);
       if (sum[1] <= sum[0])
         choice[0] = 6;
       break;
 
     case 7:
-      sum[1] = count_bit(ix, begin, end, 8);
+      sum[1] = count_bit(ix, begin, end, 8u);
       if (sum[1] <= sum[0]) {
         choice[0] = 8;
         sum[0] = sum[1];
       }
-      sum[1] = count_bit(ix, begin, end, 9);
+      sum[1] = count_bit(ix, begin, end, 9u);
       if (sum[1] <= sum[0])
         choice[0] = 9;
       break;
 
     case 10:
-      sum[1] = count_bit(ix, begin, end, 11);
+      sum[1] = count_bit(ix, begin, end, 11u);
       if (sum[1] <= sum[0]) {
         choice[0] = 11;
         sum[0] = sum[1];
       }
-      sum[1] = count_bit(ix, begin, end, 12);
+      sum[1] = count_bit(ix, begin, end, 12u);
       if (sum[1] <= sum[0])
         choice[0] = 12;
       break;
 
     case 13:
-      sum[1] = count_bit(ix, begin, end, 15);
+      sum[1] = count_bit(ix, begin, end, 15u);
       if (sum[1] <= sum[0])
         choice[0] = 15;
       break;
@@ -666,19 +666,19 @@ int new_choose_table(int ix[GRANULE_SIZE], unsigned int begin,
     max -= 15;
 
     for (i = 15; i < 24; i++)
-      if (shine_huffman_table[i].linmax >= max) {
+      if (shine_huffman_table[i].linmax >= (unsigned int)max) {
         choice[0] = i;
         break;
       }
 
     for (i = 24; i < 32; i++)
-      if (shine_huffman_table[i].linmax >= max) {
+      if (shine_huffman_table[i].linmax >= (unsigned int)max) {
         choice[1] = i;
         break;
       }
 
-    sum[0] = count_bit(ix, begin, end, choice[0]);
-    sum[1] = count_bit(ix, begin, end, choice[1]);
+    sum[0] = count_bit(ix, begin, end, (unsigned int)choice[0]);
+    sum[1] = count_bit(ix, begin, end, (unsigned int)choice[1]);
     if (sum[1] < sum[0])
       choice[0] = choice[1];
   }
@@ -725,30 +725,30 @@ int count_bit(int ix[GRANULE_SIZE], unsigned int start, unsigned int end,
   linbits = h->linbits;
 
   if (table > 15) { /* ESC-table is used */
-    for (i = start; i < end; i += 2) {
+    for (i = (int)start; i < (int)end; i += 2) {
       x = ix[i];
       y = ix[i + 1];
       if (x > 14) {
         x = 15;
-        sum += linbits;
+        sum += (int)linbits;
       }
       if (y > 14) {
         y = 15;
-        sum += linbits;
+        sum += (int)linbits;
       }
 
-      sum += h->hlen[(x * ylen) + y];
+      sum += (int)h->hlen[(x * (int)ylen) + y];
       if (x)
         sum++;
       if (y)
         sum++;
     }
   } else { /* No ESC-words */
-    for (i = start; i < end; i += 2) {
+    for (i = (int)start; i < (int)end; i += 2) {
       x = ix[i];
       y = ix[i + 1];
 
-      sum += h->hlen[(x * ylen) + y];
+      sum += (int)h->hlen[(x * (int)ylen) + y];
 
       if (x != 0)
         sum++;
