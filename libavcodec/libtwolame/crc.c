@@ -36,7 +36,7 @@ static unsigned int crc_update(unsigned int value, unsigned int crc, unsigned in
 {
     int i;
     value <<= 8;
-    for (i = 0; i < nbBit; i++) {
+    for (i = 0; i < (int)nbBit; i++) {
         value <<= 1;
         crc <<= 1;
 
