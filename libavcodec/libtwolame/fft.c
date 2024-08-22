@@ -1113,7 +1113,7 @@ static void fht(FLOAT * fz)
 
     {
         int i;
-        for (i = 0; i < sizeof k1k2tab / sizeof k1k2tab[0]; ++i) {
+        for (i = 0; i < (int)(sizeof k1k2tab / sizeof k1k2tab[0]); ++i) {
             k1 = k1k2tab[i].k1;
             k2 = k1k2tab[i].k2;
             a = fz[k1];

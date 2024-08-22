@@ -253,7 +253,7 @@ void twolame_psycho_2(twolame_options * glopts, short int buffer[2][1152],
                       short int savebuf[2][1056], FLOAT smr[2][32])
 {
     psycho_2_mem *mem;
-    unsigned int i, j, k, ch;
+    int i, j, k, ch;
     int new, old, oldest;
     FLOAT r_prime, phi_prime;
     FLOAT minthres, sum_energy;

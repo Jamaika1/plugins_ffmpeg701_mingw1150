@@ -299,7 +299,7 @@ void twolame_psycho_4(twolame_options * glopts,
 /* to match prototype : FLOAT args are always FLOAT */
 {
     psycho_4_mem *mem;
-    unsigned int run, i, j, k, ch;
+    int run, i, j, k, ch;
     FLOAT r_prime, phi_prime;
     FLOAT npart, epart;
     int new, old, oldest;

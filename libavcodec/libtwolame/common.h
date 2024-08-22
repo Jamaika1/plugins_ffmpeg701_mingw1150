@@ -25,7 +25,7 @@
 #define TWOLAME_COMMON_H
 
 #ifdef _WIN32
-# include "../win32/configwin.h"
+# include "configwin.h"
 #else
 # include "config.h"
 #endif
