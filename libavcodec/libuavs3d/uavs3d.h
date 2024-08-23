@@ -48,8 +48,10 @@ extern "C"
 
 #else 
 
-#define AVS3D_API && !defined(__GNUC__)
+#define AVS3D_API
+#if !defined(__GNUC__)
 #define __cdecl
+#endif
 
 #endif 
 
