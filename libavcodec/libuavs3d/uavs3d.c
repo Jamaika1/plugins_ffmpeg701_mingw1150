@@ -33,7 +33,7 @@
 #include <time.h>
 #include "modules.h"
 #include "dec_type.h"
-#include "../../version.h"
+#include "version.h"
 
 #define PIC_ALIGN_SIZE 8
 
