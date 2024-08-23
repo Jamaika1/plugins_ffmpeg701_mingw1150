@@ -36,7 +36,7 @@
 #include "com_def.h"
 #include "com_table.h"
 
-#include "../decoder/uavs3d.h"
+#include "uavs3d.h"
 
 
 /*****************************************************************************
