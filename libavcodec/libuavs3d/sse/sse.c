@@ -57,11 +57,11 @@ ALIGNED_32(pel uavs3d_simd_mask[15][16]) = {
 
 // CPUIDFIELD  
 
-#define  CPUIDFIELD_MASK_POS    0x0000001F  // Î»Æ«ÒÆ. 0~31.  
-#define  CPUIDFIELD_MASK_LEN    0x000003E0  // Î»³¤. 1~32  
-#define  CPUIDFIELD_MASK_REG    0x00000C00  // ¼Ä´æÆ÷. 0=EAX, 1=EBX, 2=ECX, 3=EDX.  
-#define  CPUIDFIELD_MASK_FIDSUB 0x000FF000  // ×Ó¹¦ÄÜºÅ(µÍ8Î»).  
-#define  CPUIDFIELD_MASK_FID    0xFFF00000  // ¹¦ÄÜºÅ(×î¸ß4Î» ºÍ µÍ8Î»).  
+#define  CPUIDFIELD_MASK_POS    0x0000001F  // ä½åç§». 0~31.  
+#define  CPUIDFIELD_MASK_LEN    0x000003E0  // ä½é•¿. 1~32  
+#define  CPUIDFIELD_MASK_REG    0x00000C00  // å¯„å­˜å™¨. 0=EAX, 1=EBX, 2=ECX, 3=EDX.  
+#define  CPUIDFIELD_MASK_FIDSUB 0x000FF000  // å­åŠŸèƒ½å·(ä½8ä½).  
+#define  CPUIDFIELD_MASK_FID    0xFFF00000  // åŠŸèƒ½å·(æœ€é«˜4ä½ å’Œ ä½8ä½).  
 
 #define CPUIDFIELD_SHIFT_POS    0  
 #define CPUIDFIELD_SHIFT_LEN    5  
@@ -83,7 +83,7 @@ ALIGNED_32(pel uavs3d_simd_mask[15][16]) = {
 #define CPUIDFIELD_POS(cpuidfield)  ( ((cpuidfield) & CPUIDFIELD_MASK_POS)>>CPUIDFIELD_SHIFT_POS )  
 #define CPUIDFIELD_LEN(cpuidfield)  ( (((cpuidfield) & CPUIDFIELD_MASK_LEN)>>CPUIDFIELD_SHIFT_LEN) + 1 )  
 
-// È¡µÃÎ»Óò  
+// å–å¾—ä½åŸŸ  
 #ifndef __GETBITS32  
 #define __GETBITS32(src,pos,len)    ( ((src)>>(pos)) & (((unsigned int)-1)>>(32-len)) )  
 #endif  
@@ -103,8 +103,8 @@ ALIGNED_32(pel uavs3d_simd_mask[15][16]) = {
 #define CPUF_XOP    CPUIDFIELD_MAKE(0x80000001,0,2,11,1)  
 
 
-// SSEÏµÁĞÖ¸Áî¼¯µÄÖ§³Ö¼¶±ğ. simd_sse_level º¯ÊıµÄ·µ»ØÖµ¡£  
-#define SIMD_SSE_NONE   0   // ²»Ö§³Ö  
+// SSEç³»åˆ—æŒ‡ä»¤é›†çš„æ”¯æŒçº§åˆ«. simd_sse_level å‡½æ•°çš„è¿”å›å€¼ã€‚  
+#define SIMD_SSE_NONE   0   // ä¸æ”¯æŒ  
 #define SIMD_SSE_1  1   // SSE  
 #define SIMD_SSE_2  2   // SSE2  
 #define SIMD_SSE_3  3   // SSE3  
@@ -123,10 +123,12 @@ const char* uavs3d_simd_sse_names[] = {
 };
 
 
-// AVXÏµÁĞÖ¸Áî¼¯µÄÖ§³Ö¼¶±ğ. uavs3d_simd_avx_level º¯ÊıµÄ·µ»ØÖµ¡£  
-#define SIMD_AVX_NONE   0   // ²»Ö§³Ö  
+// AVXç³»åˆ—æŒ‡ä»¤é›†çš„æ”¯æŒçº§åˆ«. uavs3d_simd_avx_level å‡½æ•°çš„è¿”å›å€¼ã€‚  
+#define SIMD_AVX_NONE   0   // ä¸æ”¯æŒ  
 #define SIMD_AVX_1  1   // AVX  
+#if defined(__AVX2__)
 #define SIMD_AVX_2  2   // AVX2  
+#endif
 
 const char* uavs3d_simd_avx_names[] = {
     "None",
@@ -135,31 +137,31 @@ const char* uavs3d_simd_avx_names[] = {
 };
 
 
-// ¸ù¾İCPUIDFIELD´Ó»º³åÇøÖĞ»ñÈ¡×Ö¶Î.  
+// æ ¹æ®CPUIDFIELDä»ç¼“å†²åŒºä¸­è·å–å­—æ®µ.  
 unsigned int  uavs3d_getcpuidfield_buf(const int dwBuf[4], int cpuf)
 {
     return __GETBITS32(dwBuf[CPUIDFIELD_REG(cpuf)], CPUIDFIELD_POS(cpuf), CPUIDFIELD_LEN(cpuf));
 }
 
-// ¸ù¾İCPUIDFIELD»ñÈ¡CPUID×Ö¶Î.  
+// æ ¹æ®CPUIDFIELDè·å–CPUIDå­—æ®µ.  
 
 void uavs3d_getcpuidex(unsigned int CPUInfo[4], unsigned int InfoType, unsigned int ECXValue)
 {
 #if defined(__GNUC__)    // GCC
     __cpuid_count(InfoType, ECXValue, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
 #elif defined(_MSC_VER)    // MSVC
-#if defined(_WIN64) || _MSC_VER>=1600    // 64Î»ÏÂ²»Ö§³ÖÄÚÁª»ã±à. 1600: VS2010, ¾İËµVC2008 SP1Ö®ºó²ÅÖ§³Ö__cpuidex.
+#if defined(_WIN64) || _MSC_VER>=1600    // 64ä½ä¸‹ä¸æ”¯æŒå†…è”æ±‡ç¼–. 1600: VS2010, æ®è¯´VC2008 SP1ä¹‹åæ‰æ”¯æŒ__cpuidex.
     __cpuidex((int*)(void*)CPUInfo, (int)InfoType, (int)ECXValue);
 #else
     if (NULL == CPUInfo)    return;
     _asm{
-        // load. ¶ÁÈ¡²ÎÊıµ½¼Ä´æÆ÷.
-        mov edi, CPUInfo;    // ×¼±¸ÓÃediÑ°Ö·CPUInfo
+        // load. è¯»å–å‚æ•°åˆ°å¯„å­˜å™¨.
+        mov edi, CPUInfo;    // å‡†å¤‡ç”¨ediå¯»å€CPUInfo
         mov eax, InfoType;
         mov ecx, ECXValue;
         // CPUID
         cpuid;
-        // save. ½«¼Ä´æÆ÷±£´æµ½CPUInfo
+        // save. å°†å¯„å­˜å™¨ä¿å­˜åˆ°CPUInfo
         mov[edi], eax;
         mov[edi + 4], ebx;
         mov[edi + 8], ecx;
@@ -176,7 +178,7 @@ unsigned int  uavs3d_getcpuidfield(int cpuf)
     return uavs3d_getcpuidfield_buf(dwBuf, cpuf);
 }
 
-// ¼ì²âAVXÏµÁĞÖ¸Áî¼¯µÄÖ§³Ö¼¶±ğ.  
+// æ£€æµ‹AVXç³»åˆ—æŒ‡ä»¤é›†çš„æ”¯æŒçº§åˆ«.  
 int uavs3d_simd_avx_level(int* phwavx)
 {
     int rt = SIMD_AVX_NONE; // result  
@@ -185,10 +187,12 @@ int uavs3d_simd_avx_level(int* phwavx)
     if (0 != uavs3d_getcpuidfield(CPUF_AVX))
     {
         rt = SIMD_AVX_1;
+#if defined(__AVX2__)
         if (0 != uavs3d_getcpuidfield(CPUF_AVX2))
         {
             rt = SIMD_AVX_2;
         }
+#endif
     }
     if (NULL != phwavx)   *phwavx = rt;
 
@@ -196,7 +200,7 @@ int uavs3d_simd_avx_level(int* phwavx)
     if (0 != uavs3d_getcpuidfield(CPUF_OSXSAVE)) // XGETBV enabled for application use.  
     {
         unsigned int n = uavs3d_getcpuidfield(CPUF_XFeatureSupportedMaskLo); // XCR0: XFeatureSupportedMask register.  
-        if (6 == (n & 6))   // XCR0[2:1] = ¡®11b¡¯ (XMM state and YMM state are enabled by OS).  
+        if (6 == (n & 6))   // XCR0[2:1] = â€˜11bâ€™ (XMM state and YMM state are enabled by OS).  
         {
             return rt;
         }
