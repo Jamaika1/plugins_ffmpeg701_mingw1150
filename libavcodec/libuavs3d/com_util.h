@@ -109,7 +109,9 @@ void uavs3d_funs_init_c();
 #if ENABLE_FUNCTION_X86
 int  uavs3d_simd_avx_level(int* phwavx);
 void uavs3d_funs_init_sse();
+#if defined(__AVX2__)
 void uavs3d_funs_init_avx2();
+#endif
 #endif
 
 #if ENABLE_FUNCTION_ARM64
