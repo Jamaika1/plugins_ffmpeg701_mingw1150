@@ -38,7 +38,7 @@
 #include <tmmintrin.h>
 #include <smmintrin.h>
 
-#include "modules.h"
+#include "../modules.h"
 
 #if __x86_64__
 #elif __i386__ && !defined(_mm_extract_epi64)
