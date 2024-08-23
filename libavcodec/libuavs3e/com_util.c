@@ -1217,7 +1217,7 @@ void com_md5_img(com_img_t *img, u8 digest[16])
     com_md5_finish(&md5, digest);
 }
 
-void init_scan(u16 *scan, int size_x, int size_y)
+static void init_scan(u16 *scan, int size_x, int size_y)
 {
     int x, y, l, pos, num_line;
     pos = 0;
