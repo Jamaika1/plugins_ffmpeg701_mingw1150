@@ -74,7 +74,7 @@ void encode(struct LDPC *ldpc, unsigned char ibits[], unsigned char pbits[]) {
     par = 0u;
 
     for (i = 0u; i < (unsigned int)ldpc->max_row_weight; i++) {
-      ind = (int)(H_rows[p + i * (unsigned int)ldpc->NumberParityBits]);
+      ind = (int)(H_rows[(int)p + (int)i * ldpc->NumberParityBits]);
       if (ind) par = par + ibits[ind - 1];
     }
 
