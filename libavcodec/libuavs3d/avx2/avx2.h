@@ -39,7 +39,7 @@
 #include <smmintrin.h>
 #include <immintrin.h>
 
-#include "modules.h"
+#include "../modules.h"
 
 #if defined(_WIN32) && !defined(__GNUC__)
 
