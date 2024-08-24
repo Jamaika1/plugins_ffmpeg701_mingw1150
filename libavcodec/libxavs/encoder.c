@@ -461,7 +461,7 @@ xavs_encoder_open (xavs_param_t * param)
   h->frames.b_have_lowres = !h->param.rc.b_stat_read && (h->param.rc.i_rc_method == XAVS_RC_ABR || h->param.rc.i_rc_method == XAVS_RC_CRF || h->param.i_bframe_adaptive || h->param.i_scenecut_threshold);
   h->frames.b_have_lowres |= (h->param.rc.b_stat_read && h->param.rc.i_vbv_buffer_size > 0);
 
-  for (i = 0; i < sizeof(h->frames.current)/sizeof(xavs_frame_t *); i++)
+  for (i = 0; i < (int)(sizeof(h->frames.current)/sizeof(xavs_frame_t *)); i++)
   {
     h->frames.current[i] = NULL;
     h->frames.next[i] = NULL;
@@ -1060,7 +1060,7 @@ xavs_slices_write (xavs_t * h)
       h->out.nal[i_nal + i] = t->out.nal[i_nal + i];
       i_frame_size += t->out.nal[i_nal + i].i_payload;
       // all entries in stat.frame are ints
-      for (j = 0; j < sizeof (h->stat.frame) / sizeof (int); j++)
+      for (j = 0; j < (int)(sizeof (h->stat.frame) / sizeof (int)); j++)
         ((int *) &h->stat.frame)[j] += ((int *) &t->stat.frame)[j];
     }
     h->out.i_nal = i_nal + h->param.i_threads;
