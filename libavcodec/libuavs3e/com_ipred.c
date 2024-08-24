@@ -420,7 +420,7 @@ static pel avs3_always_inline tspcm_get_luma_border(int uiIdx, int bAbovePixel, 
             }
         }
     }
-    //com_assert(dstPoint >= 0);
+    com_assert(dstPoint > 0);
     return dstPoint;
 }
 
