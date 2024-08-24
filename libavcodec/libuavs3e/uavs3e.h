@@ -43,7 +43,7 @@ extern "C"
 {
 #endif
 
-#if defined(_WIN32) && !defined(__GNUC__)
+#if defined(_WIN32) && !defined(UAVS3E_STATIC)
 
 #ifdef UAVS3E_EXPORTS
 #define UAVS3E_API __declspec(dllexport)
@@ -54,7 +54,9 @@ extern "C"
 #else
 
 #define UAVS3E_API
+#if !defined(__GNUC__)
 #define __cdecl
+#endif
 
 #endif
 
