@@ -1447,7 +1447,7 @@ void lbac_enc_part_size(lbac_t *lbac, bs_t *bs, core_t *core, int part_size, int
 {
     int allow_dt = com_dt_allow(cu_w, cu_h, pred_mode, core->info->sqh.max_dt_size);
 
-    if (!allow_dt || !core->info->sqh.dt_enable && pred_mode == MODE_INTRA) {
+    if (!allow_dt || (!core->info->sqh.dt_enable && pred_mode == MODE_INTRA)) {
         return;
     }
     if (part_size == SIZE_2Nx2N) {
@@ -2687,7 +2687,7 @@ int lbac_enc_unit(lbac_t *lbac, bs_t *bs, core_t *core, enc_cu_t *cu_data, int x
             assert(map_scu[j].cbf == cu_cbf_flag);
             assert(map_scu[j].affine == cur_info->affine_flag);
             assert(map_scu[j].tbpart == cur_info->tb_part);
-            assert(map_scu[j].intra == cu_data->pred_mode[cup] == MODE_INTRA);
+            assert(map_scu[j].intra == (cu_data->pred_mode[cup] == MODE_INTRA));
             assert(MCU_GET_SCUP(map_pos[j]) == core->cu_scup_in_pic);
             assert(MCU_GET_LOGW(map_pos[j]) == core->cu_width_log2);
             assert(MCU_GET_LOGH(map_pos[j]) == core->cu_height_log2);
