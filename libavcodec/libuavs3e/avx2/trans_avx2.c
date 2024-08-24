@@ -37,7 +37,7 @@
 
 #include "avx2.h"
 #include "../sse/sse.h"
-#include "com_system.h"
+#include "../com_system.h"
 
 ALIGNED_32(static const s16 tab_dct2_2nd_shuffle_256i[][16]) = {
     // 16bit: 0-7, 3-0 7-4
