@@ -1333,9 +1333,11 @@ void *uavs3e_create(enc_cfg_t *cfg, int *err)
 
 #if defined(ENABLE_FUNCTION_X86)
     uavs3e_funs_init_sse();
+#if defined(__AVX2__)
     if (uavs3e_simd_avx_level(NULL) >= 2) {
         uavs3e_funs_init_avx2();
     }
+#endif
 #elif defined(ENABLE_FUNCTION_ARM64)
     uavs3e_funs_init_arm64();
 #endif
