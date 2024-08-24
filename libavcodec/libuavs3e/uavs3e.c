@@ -41,7 +41,7 @@
 #include "analyze.h"
 #include "com_util.h"
 
-#include "../version.h"
+#include "version.h"
 
 static core_t *core_alloc(com_info_t *info)
 {
