@@ -2022,7 +2022,7 @@ int lbac_enc_cbf(lbac_t *lbac, bs_t *bs, core_t *core, int tb_avaliable, int pb_
     } else {
         if (!(ipm[PB0][0] == IPD_IPCM)) {
             int i, part_num = get_part_num(tb_part_size);
-            assert(tb_part_size == get_tb_part_size_by_pb(pb_part_size, pred_mode));
+            assert(tb_part_size == (int)get_tb_part_size_by_pb(pb_part_size, pred_mode));
 
             for (i = 0; i < part_num; i++) {
                 lbac_encode_bin(!!num_nz[i][Y_C], lbac, lbac_ctx->cbf, bs);
