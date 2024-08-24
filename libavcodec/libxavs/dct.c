@@ -429,7 +429,7 @@ void xavs_zigzag_init (int cpu, xavs_zigzag_function_t * pf, int b_interlaced)
       {
         pf->scan_8x8 = zigzag_scan_8x8_frame;
         pf->sub_8x8 = zigzag_sub_8x8_frame;
-#ifdef HAVE_MMX
+#ifdef HAVE_MMXEXT
         if (cpu & XAVS_CPU_MMXEXT)
           pf->scan_8x8 = xavs_zigzag_scan_8x8_frame_mmxext;
         if (cpu & XAVS_CPU_SSE2_IS_FAST)
