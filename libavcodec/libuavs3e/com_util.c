@@ -339,7 +339,7 @@ void scaling_mv1(s64 ptr_cur, s64 ptr_cur_ref, s64 ptr_neb, s64 ptr_neb_ref, s16
     mv[MV_Y] = (s16)COM_CLIP3(COM_INT16_MIN, COM_INT16_MAX, tmp_mv);
 }
 
-void check_mvp_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_AVS2_SPATIAL_MV], int valid_flag[NUM_AVS2_SPATIAL_MV], com_scu_t *map_scu, s8(*map_refi)[REFP_NUM], int lidx)
+void check_mvp_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_SKIP_SPATIAL_MV], int valid_flag[NUM_SKIP_SPATIAL_MV], com_scu_t *map_scu, s8(*map_refi)[REFP_NUM], int lidx)
 {
     int x_scu = scup % i_scu;
     int y_scu = scup / i_scu;
