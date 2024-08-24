@@ -338,7 +338,7 @@ void xavs_dct_init (int cpu, xavs_dct_function_t * dctf)
 }
 
 // gcc pessimizes multi-dimensional arrays here, even with constant indices
-#define ZIG(i,y,x) level[i] = dct[0][y*8+x];
+#define ZIG(i,y,x) {level[i] = dct[0][(int)((y*8+x)/8)];}
 #define ZIGZAG8_FRAME\
     ZIG( 0,0,0) ZIG( 1,0,1) ZIG( 2,1,0) ZIG( 3,2,0)\
     ZIG( 4,1,1) ZIG( 5,0,2) ZIG( 6,0,3) ZIG( 7,1,2)\
@@ -394,7 +394,7 @@ static void zigzag_scan_8x8_field (int16_t level[64], int16_t dct[8][8])
     level[i] = p_src[oe] - p_dst[od];\
     nz |= level[i];\
 }
-#define COPY8x8\
+#define COPY8x8 {\
     *(uint64_t*)(p_dst+0*FDEC_STRIDE) = *(uint64_t*)(p_src+0*FENC_STRIDE);\
     *(uint64_t*)(p_dst+1*FDEC_STRIDE) = *(uint64_t*)(p_src+1*FENC_STRIDE);\
     *(uint64_t*)(p_dst+2*FDEC_STRIDE) = *(uint64_t*)(p_src+2*FENC_STRIDE);\
@@ -402,7 +402,8 @@ static void zigzag_scan_8x8_field (int16_t level[64], int16_t dct[8][8])
     *(uint64_t*)(p_dst+4*FDEC_STRIDE) = *(uint64_t*)(p_src+4*FENC_STRIDE);\
     *(uint64_t*)(p_dst+5*FDEC_STRIDE) = *(uint64_t*)(p_src+5*FENC_STRIDE);\
     *(uint64_t*)(p_dst+6*FDEC_STRIDE) = *(uint64_t*)(p_src+6*FENC_STRIDE);\
-    *(uint64_t*)(p_dst+7*FDEC_STRIDE) = *(uint64_t*)(p_src+7*FENC_STRIDE);
+    *(uint64_t*)(p_dst+7*FDEC_STRIDE) = *(uint64_t*)(p_src+7*FENC_STRIDE);\
+}
 
 
 static int zigzag_sub_8x8_frame (int16_t level[64], const uint8_t * p_src, uint8_t * p_dst)
