@@ -44,7 +44,7 @@
 #include <smmintrin.h>
 #include <immintrin.h>
 
-#include "com_modules.h"
+#include "../com_modules.h"
 
 #if defined(_WIN32) && !defined(__GNUC__)
 
