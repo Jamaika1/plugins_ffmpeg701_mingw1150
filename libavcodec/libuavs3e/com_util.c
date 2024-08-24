@@ -339,7 +339,7 @@ void scaling_mv1(s64 ptr_cur, s64 ptr_cur_ref, s64 ptr_neb, s64 ptr_neb_ref, s16
     mv[MV_Y] = (s16)COM_CLIP3(COM_INT16_MIN, COM_INT16_MAX, tmp_mv);
 }
 
-void check_mvp_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_SKIP_SPATIAL_MV], int valid_flag[NUM_SKIP_SPATIAL_MV], com_scu_t *map_scu, s8(*map_refi)[REFP_NUM], int lidx)
+void check_mvp_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_AVS2_SPATIAL_MV], int valid_flag[NUM_AVS2_SPATIAL_MV], com_scu_t *map_scu, s8(*map_refi)[REFP_NUM], int lidx)
 {
     int x_scu = scup % i_scu;
     int y_scu = scup / i_scu;
@@ -510,13 +510,13 @@ void com_get_mvp_default(s64 ptr_cur, int scup, int lidx, s8 cur_refi, s16(*map_
     int cnt, hv;
     int mvPredType = MVPRED_xy_MIN;
     int rFrameL, rFrameU, rFrameUR;
-    int neb_addr[NUM_SKIP_SPATIAL_MV], valid_flag[NUM_SKIP_SPATIAL_MV];
-    s8 refi[NUM_SKIP_SPATIAL_MV];
-    s16 MVPs[NUM_SKIP_SPATIAL_MV][MV_D];
+    int neb_addr[NUM_AVS2_SPATIAL_MV], valid_flag[NUM_AVS2_SPATIAL_MV];
+    s8 refi[NUM_AVS2_SPATIAL_MV];
+    s16 MVPs[NUM_AVS2_SPATIAL_MV][MV_D];
 
     check_mvp_motion_availability(scup, cu_width, cu_height, i_scu, neb_addr, valid_flag, map_scu, map_refi, lidx);
     ptr_cur_ref = refp[cur_refi][lidx].ptr;
-    for (cnt = 0; cnt < NUM_SKIP_SPATIAL_MV; cnt++) {
+    for (cnt = 0; cnt < NUM_AVS2_SPATIAL_MV; cnt++) {
         if (valid_flag[cnt]) {
             refi[cnt] = map_refi[neb_addr[cnt]][lidx];
             assert(REFI_IS_VALID(refi[cnt]));
@@ -594,8 +594,8 @@ void derive_MHBskip_spatial_motions(int scup, int cu_width, int cu_height, int i
     int k;
     int last_bi_idx = 0;
     u8 L0_motion_found = 0, L1_motion_found = 0, BI_motion_found = 0;
-    int neb_addr[NUM_SKIP_SPATIAL_MV];
-    int valid_flag[NUM_SKIP_SPATIAL_MV];
+    int neb_addr[NUM_AVS2_SPATIAL_MV];
+    int valid_flag[NUM_AVS2_SPATIAL_MV];
     s8 refi[REFP_NUM];
 
     for (k = 0; k < PRED_DIR_NUM; k++) {
@@ -635,7 +635,7 @@ void derive_MHBskip_spatial_motions(int scup, int cu_width, int cu_height, int i
     neb_addr[5] = scup - i_scu - 1;
     valid_flag[5] = COM_IS_INTER_SCU(map_scu[neb_addr[5]]);
 
-    for (k = 0; k < NUM_SKIP_SPATIAL_MV; k++) {
+    for (k = 0; k < NUM_AVS2_SPATIAL_MV; k++) {
         if (valid_flag[k]) {
             refi[REFP_0] = REFI_IS_VALID(map_refi[neb_addr[k]][REFP_0]) ? map_refi[neb_addr[k]][REFP_0] : REFI_INVALID;
             refi[REFP_1] = REFI_IS_VALID(map_refi[neb_addr[k]][REFP_1]) ? map_refi[neb_addr[k]][REFP_1] : REFI_INVALID;
