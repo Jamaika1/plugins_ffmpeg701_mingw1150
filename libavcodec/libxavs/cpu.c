@@ -63,7 +63,7 @@ const xavs_cpu_name_t xavs_cpu_names[] = {
 };
 
 
-#ifdef HAVE_MMX
+#ifdef HAVE_MMXEXT
 extern int xavs_cpu_cpuid_test (void);
 extern uint32_t xavs_cpu_cpuid (uint32_t op, uint32_t * eax, uint32_t * ebx, uint32_t * ecx, uint32_t * edx);
 
