@@ -106,7 +106,7 @@ void       com_pic_destroy(com_pic_t *pic);
 com_subpel_t* com_subpel_create(int width, int height, int pad_l, int pad_c, int *err);
 void          com_subpel_free(com_subpel_t *p);
 
-void check_mvp_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_SKIP_SPATIAL_MV], int valid_flag[NUM_SKIP_SPATIAL_MV], com_scu_t *map_scu, s8(*map_refi)[REFP_NUM], int lidx);
+void check_mvp_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_AVS2_SPATIAL_MV], int valid_flag[NUM_AVS2_SPATIAL_MV], com_scu_t *map_scu, s8(*map_refi)[REFP_NUM], int lidx);
 void check_umve_motion_availability(int scup, int cu_width, int cu_height, int i_scu, int neb_addr[NUM_SKIP_SPATIAL_MV], int valid_flag[NUM_SKIP_SPATIAL_MV], com_scu_t *map_scu, s16(*map_mv)[REFP_NUM][MV_D], s8(*map_refi)[REFP_NUM]);
 
 void update_skip_candidates(com_motion_t motion_cands[ALLOWED_HMVP_NUM], s8 *cands_num, const int max_hmvp_num, s16 mv_new[REFP_NUM][MV_D], s8 refi_new[REFP_NUM]);
