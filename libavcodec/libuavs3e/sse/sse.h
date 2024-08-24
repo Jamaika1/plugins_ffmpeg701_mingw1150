@@ -43,7 +43,7 @@
 #include <tmmintrin.h>
 #include <smmintrin.h>
 
-#include "com_modules.h"
+#include "../com_modules.h"
 
 #ifdef _WIN32
 
