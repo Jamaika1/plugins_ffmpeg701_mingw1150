@@ -316,13 +316,13 @@ void xavs_dct_init (int cpu, xavs_dct_function_t * dctf)
         dctf->add16x16_idct8 = xavs_add16x16_idct8_sse2;
       }
 
-#ifdef HAVE_SSE3      
+#ifdef HAVE_SSSE3      
       if (cpu & XAVS_CPU_SSSE3)
       {
         dctf->sub8x8_dct8 = xavs_sub8x8_dct8_ssse3;
         dctf->sub16x16_dct8 = xavs_sub16x16_dct8_ssse3;
       }
-#endif /*HAVE_SSE3*/
+#endif /*HAVE_SSSE3*/
 #endif
 
 #if defined(HAVE_SSE2) && defined(ARCH_X86_64)
@@ -434,12 +434,12 @@ void xavs_zigzag_init (int cpu, xavs_zigzag_function_t * pf, int b_interlaced)
           pf->scan_8x8 = xavs_zigzag_scan_8x8_frame_mmxext;
         if (cpu & XAVS_CPU_SSE2_IS_FAST)
           pf->scan_8x8 = xavs_zigzag_scan_8x8_frame_sse2;
-#ifdef HAVE_SSE3        
+#ifdef HAVE_SSSE3        
         if (cpu & XAVS_CPU_SSSE3)
         {
           pf->scan_8x8 = xavs_zigzag_scan_8x8_frame_ssse3;
         }
-#endif /*HAVE_SSE3*/        
+#endif /*HAVE_SSSE3*/        
 #endif
       }
 }
