@@ -345,7 +345,7 @@ int check_scenecut_histogram(inter_search_t *pi, analyze_node_t *img_org, int *l
         thread2num += (histo_block[i] > (blocknumber_width * blocknumber_height * 1.4));
     }
 
-    if ((thread1num >= (HISBLOCK_NUM * 0.7)) && (thread2num >= (HISBLOCK_NUM * 0.2)) || (thread1num >= (HISBLOCK_NUM * 0.875)) || (thread2num >= (HISBLOCK_NUM * 0.375)))
+    if (((thread1num >= (HISBLOCK_NUM * 0.7)) && (thread2num >= (HISBLOCK_NUM * 0.2))) || (thread1num >= (HISBLOCK_NUM * 0.875)) || (thread2num >= (HISBLOCK_NUM * 0.375)))
     {
         return 1;
     }
