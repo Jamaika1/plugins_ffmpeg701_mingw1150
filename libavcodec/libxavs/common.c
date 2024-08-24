@@ -459,7 +459,7 @@ xavs_slurp_file (const char *filename)
   buf = xavs_malloc (i_size + 2);
   if (buf == NULL)
     return NULL;
-  b_error |= fread (buf, 1, i_size, fh) != i_size;
+  b_error |= (int)fread (buf, 1, i_size, fh) != i_size;
   if (buf[i_size - 1] != '\n')
     buf[i_size++] = '\n';
   buf[i_size] = 0;
