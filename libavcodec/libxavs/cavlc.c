@@ -33,8 +33,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common/common.h"
-#include "common/vlc.h"
+#include "common.h"
+#include "vlc.h"
 #include "macroblock.h"
 
 static const uint8_t intra8x8_cbp_to_golomb[64] = {
