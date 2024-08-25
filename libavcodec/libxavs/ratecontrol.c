@@ -976,7 +976,7 @@ xavs_ratecontrol_end (xavs_t * h, int bits)
         rc->qp_buffer[i] = endian_fix16 (h->fenc->f_qp_offset[i] * 256.0);
       if (fwrite (&i_type, 1, 1, rc->p_mbtree_stat_file_out) < 1)
         goto fail;
-      if (fwrite (rc->qp_buffer, sizeof (uint16_t), h->mb.i_mb_count, rc->p_mbtree_stat_file_out) < h->mb.i_mb_count)
+      if (h->mb.i_mb_count > (int)fwrite (rc->qp_buffer, sizeof (uint16_t), h->mb.i_mb_count, rc->p_mbtree_stat_file_out))
         goto fail;
     }
   }
