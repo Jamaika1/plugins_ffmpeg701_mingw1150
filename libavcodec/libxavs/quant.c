@@ -93,7 +93,7 @@ quant_8x8 (xavs_t * h,int16_t dct[8][8], int mf[64], uint16_t bias[64], int qp)
  return !!nz;
 } 
 
-int
+static int
 quant_8x8_core (int16_t dct[8][8], int mf[64], uint16_t bias[64], int qp,int *p,int *q)
 {
   int i;
