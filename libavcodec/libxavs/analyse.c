@@ -36,7 +36,7 @@
 #include <limits.h>
 
 #include "common.h"
-#include "macroblock.h"
+#include "macroblock_enc.h"
 #include "me.h"
 #include "ratecontrol.h"
 #include "analyse.h"
