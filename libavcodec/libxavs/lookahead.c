@@ -34,7 +34,7 @@
  * the number of frames specified in rc_lookahead.  Recommended setting is
  * # of bframes + # of threads.
  */
-#include "common/common.h"
+#include "common.h"
 #include "analyse.h"
 
 #ifdef _DEBUG_LOOKAHEAD_
