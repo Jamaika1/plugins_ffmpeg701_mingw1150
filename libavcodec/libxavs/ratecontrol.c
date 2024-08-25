@@ -38,8 +38,8 @@
 #include <limits.h>
 #include <assert.h>
 
-#include "common/common.h"
-#include "common/cpu.h"
+#include "common.h"
+#include "cpu.h"
 #include "ratecontrol.h"
 
 typedef struct
