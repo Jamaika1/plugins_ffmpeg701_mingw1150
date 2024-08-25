@@ -33,9 +33,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common/common.h"
-#include "common/vlc.h"
-#include "macroblock.h"
+#include "common.h"
+#include "vlc.h"
+#include "macroblock_enc.h"
 
 static const uint8_t intra8x8_cbp_to_golomb[64] = {
   4, 16, 17, 19, 14, 9, 22, 8, 11, 21, 10, 7, 12, 6, 5, 1,

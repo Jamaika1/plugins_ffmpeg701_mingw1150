@@ -33,10 +33,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "common/common.h"
-#ifndef _MSC_VER
-#include "config.h"
-#endif
+#include "common.h"
 
 static void
 transpose (uint8_t * buf, int w)

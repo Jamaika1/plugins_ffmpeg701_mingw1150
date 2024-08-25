@@ -34,10 +34,10 @@
 #include <math.h>
 #include <limits.h>
 
-#include "common/common.h"
-#include "common/cpu.h"
-#include "macroblock.h"
-#include "me.h"
+#include "../common.h"
+#include "../cpu.h"
+#include "../macroblock_enc.h"
+#include "../me.h"
 
 
 static void

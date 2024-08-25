@@ -33,9 +33,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common/common.h"
-#include "common/quant.h"
-#include "macroblock.h"
+#include "common.h"
+#include "quant.h"
+#include "macroblock_enc.h"
 
 /* (ref: JVT-B118)
  * xavs_mb_decimate_score: given dct coeffs it returns a score to see if we could empty this dct coeffs
