@@ -34,16 +34,16 @@
 #include <string.h>
 #include <math.h>
 
-#include "common/common.h"
-#include "common/cpu.h"
+#include "common.h"
+#include "cpu.h"
 
-#include "set.h"
+#include "set_enc.h"
 #include "analyse.h"
 #include "ratecontrol.h"
-#include "macroblock.h"
+#include "macroblock_enc.h"
 
 #if VISUALIZE
-#include "common/visualize.h"
+#include "visualize.h"
 #endif
 
 //#define DEBUG_MB_TYPE
