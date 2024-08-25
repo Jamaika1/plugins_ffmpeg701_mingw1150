@@ -767,7 +767,7 @@ xavs_me_refine_bidir (xavs_t * h, xavs_me_t * m0, xavs_me_t * m1, int i_weight)
 }
 #define COST_MV_RD( mx, my, satd, do_dir, mdir ) \
 { \
-    if( satd <= bsatd * SATD_THRESH ) \
+    if( satd < bsatd * SATD_THRESH ) \
     { \
         int cost; \
         cache_mv[0] = cache_mv2[0] = mx; \
