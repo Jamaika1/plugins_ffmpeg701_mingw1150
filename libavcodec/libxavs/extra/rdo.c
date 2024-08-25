@@ -39,7 +39,7 @@
 #define bs_write_se(s,v)   ((s)->i_bits_encoded += bs_size_se(v))
 #define bs_write_te(s,v,l) ((s)->i_bits_encoded += bs_size_te(v,l))
 #define xavs_macroblock_write_cavlc  xavs_macroblock_size_cavlc
-#include "cavlc.c"
+#include "../cavlc.c"
 
 static int
 ssd_mb (xavs_t * h)
