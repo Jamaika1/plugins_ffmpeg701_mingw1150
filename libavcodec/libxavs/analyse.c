@@ -35,12 +35,12 @@
 #include <math.h>
 #include <limits.h>
 
-#include "common/common.h"
+#include "common.h"
 #include "macroblock.h"
 #include "me.h"
 #include "ratecontrol.h"
 #include "analyse.h"
-#include "rdo.c"
+#include "extra/rdo.c"
 
 typedef struct
 {
@@ -2469,4 +2469,4 @@ xavs_analyse_update_cache (xavs_t * h, xavs_mb_analysis_t * a)
   }
 }
 
-#include "slicetype.c"
+#include "extra/slicetype.c"
