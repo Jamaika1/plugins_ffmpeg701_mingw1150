@@ -665,7 +665,7 @@ xavs_sei_version_write (xavs_t * h, bs_t * s)
   int length;
   char *opts = xavs_param2string (&h->param, 0);
 
-  sprintf (version, "xavs -  %d%s - AVS video codec - " "Copyleft 2009 - http://xavs.sourceforge.net - options: %s", XAVS_BUILD, XAVS_VERSION, opts);
+  sprintf (version, "xavs -  %d%d - AVS video codec - " "Copyleft 2009 - http://xavs.sourceforge.net - options: %s", XAVS_BUILD, XAVS_VERSION, opts);
   xavs_free (opts);
   length = (int) strlen (version) + 1 + 16;
 
