@@ -654,7 +654,7 @@ rsvg_css_parse_font_family (const char *str, gboolean * inherit)
 }
 
 #if !defined(HAVE_STRTOK_R)
-
+#undef strtok_r
 static char *
 strtok_r (char *s, const char *delim, char **last)
 {
