@@ -54,7 +54,7 @@ rsvg_handle_fill_with_data (RsvgHandle * handle,
  * Returns: A #RsvgHandle or %NULL if an error occurs.
  * Since: 2.14
  */
-RsvgHandle *
+RSVG_EXPORT RsvgHandle *
 rsvg_handle_new_from_data (const guint8 * data, gsize data_len, GError ** error)
 {
     RsvgHandle *handle;
@@ -81,7 +81,7 @@ rsvg_handle_new_from_data (const guint8 * data, gsize data_len, GError ** error)
  * Returns: A #RsvgHandle or %NULL if an error occurs.
  * Since: 2.14
  */
-RsvgHandle *
+RSVG_EXPORT RsvgHandle *
 rsvg_handle_new_from_file (const gchar * file_name, GError ** error)
 {
     gchar *base_uri;
