@@ -1199,7 +1199,11 @@ rsvg_set_error (GError **error, xmlParserCtxtPtr ctxt)
 {
     xmlErrorPtr xerr;
 
+#if LIBXML_VERSION >= 21200
+    xerr = (xmlError*)xmlCtxtGetLastError (ctxt);
+#else
     xerr = xmlCtxtGetLastError (ctxt);
+#endif
     if (xerr) {
         g_set_error (error, rsvg_error_quark (), 0,
                      _("Error domain %d code %d on line %d column %d of %s: %s"),
