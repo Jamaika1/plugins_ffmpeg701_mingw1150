@@ -29,7 +29,7 @@
 #include "rsvg-styles.h"
 #include "rsvg-io.h"
 
-#include <glib.h>
+#include "glib/glib.h"
 
 struct _RsvgDefs {
     GHashTable *hash;
