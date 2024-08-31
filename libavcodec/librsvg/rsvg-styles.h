@@ -27,12 +27,12 @@
 #ifndef RSVG_STYLES_H
 #define RSVG_STYLES_H
 
-#include <cairo.h>
+#include "cairo/cairo.h"
 #include "rsvg.h"
 #include "rsvg-paint-server.h"
 
-#include <libxml/SAX.h>
-#include <pango/pango.h>
+#include "libxml2/SAX.h"
+#include "pango/pango.h"
 
 G_BEGIN_DECLS 
 
