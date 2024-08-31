@@ -1,3 +1,4 @@
+#include "config.h"
 #include "rsvg.h"
 
 /* General initialization hooks */
