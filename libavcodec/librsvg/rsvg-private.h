@@ -27,15 +27,15 @@
 #ifndef RSVG_PRIVATE_H
 #define RSVG_PRIVATE_H
 
-#include <cairo.h>
+#include "cairo/cairo.h"
 
 #include "rsvg.h"
 
-#include <libxml/SAX.h>
-#include <libxml/xmlmemory.h>
-#include <pango/pango.h>
-#include <glib.h>
-#include <glib-object.h>
+#include "libxml2/SAX.h"
+#include "libxml2/xmlmemory.h"
+#include "pango/pango.h"
+#include "glib/glib.h"
+#include "glib/glib-object.h"
 #include <math.h>
 
 #if defined(HAVE_FLOAT_H)
