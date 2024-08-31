@@ -29,7 +29,7 @@
 
 /* A module for handling SVG defs */
 
-#include <glib.h>
+#include "glib/glib.h"
 
 #include "rsvg.h"
 
