@@ -1110,7 +1110,7 @@ rsvg_get_base_uri_from_filename (const gchar * filename)
  *
  * Since: 2.9
  */
-void
+RSVG_EXPORT void
 rsvg_handle_set_base_uri (RsvgHandle * handle, const char *base_uri)
 {
     gchar *uri;
@@ -1172,7 +1172,7 @@ rsvg_handle_set_base_gfile (RsvgHandle *handle,
  * Returns: the base uri, possibly null
  * Since: 2.8
  */
-const char *
+RSVG_EXPORT const char *
 rsvg_handle_get_base_uri (RsvgHandle * handle)
 {
     g_return_val_if_fail (handle, NULL);
@@ -1376,7 +1376,7 @@ rsvg_handle_get_desc (RsvgHandle * handle)
  *
  * Since: 2.14
  */
-void
+RSVG_EXPORT void
 rsvg_handle_get_dimensions (RsvgHandle * handle, RsvgDimensionData * dimension_data)
 {
     /* This function is probably called from the cairo_render functions.
@@ -1705,7 +1705,7 @@ rsvg_handle_set_dpi (RsvgHandle * handle, double dpi)
  *
  * Since: 2.8
  */
-void
+RSVG_EXPORT void
 rsvg_handle_set_dpi_x_y (RsvgHandle * handle, double dpi_x, double dpi_y)
 {
     g_return_if_fail (handle != NULL);
@@ -1812,7 +1812,7 @@ create_compressed_input_stream (RsvgHandle *handle)
  *
  * Returns: %TRUE on success, or %FALSE on error
  **/
-gboolean
+RSVG_EXPORT gboolean
 rsvg_handle_write (RsvgHandle * handle, const guchar * buf, gsize count, GError ** error)
 {
     RsvgHandlePrivate *priv;
@@ -1881,7 +1881,7 @@ rsvg_handle_write (RsvgHandle * handle, const guchar * buf, gsize count, GError 
  *
  * Returns: %TRUE on success, or %FALSE on error
  **/
-gboolean
+RSVG_EXPORT gboolean
 rsvg_handle_close (RsvgHandle * handle, GError ** error)
 {
     RsvgHandlePrivate *priv;
