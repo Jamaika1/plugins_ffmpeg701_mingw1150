@@ -31,7 +31,7 @@
 #include "rsvg-css.h"
 #include "rsvg-styles.h"
 #include "rsvg-shapes.h"
-#include <libxml/SAX.h>
+#include "libxml2/SAX.h"
 
 G_BEGIN_DECLS 
 
