@@ -23,7 +23,7 @@
 #ifndef RSVG_SIZE_CALLBACK_H
 #define RSVG_SIZE_CALLBACK_H
 
-#include <glib.h>
+#include "glib/glib.h"
 
 G_BEGIN_DECLS
 
