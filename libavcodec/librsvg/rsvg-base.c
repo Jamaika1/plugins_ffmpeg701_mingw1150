@@ -586,7 +586,7 @@ rsvg_set_xml_parse_options(xmlParserCtxtPtr xml_parser,
     /* if false, external entities work, but internal ones don't. if true, internal entities
        work, but external ones don't. favor internal entities, in order to not cause a
        regression */
-    xml_parser->replaceEntities = TRUE;
+    xml_parser->replaceEntities = 1;
 }
 
 static xmlParserCtxtPtr
