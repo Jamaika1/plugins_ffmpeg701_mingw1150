@@ -35,13 +35,8 @@
 
 G_BEGIN_DECLS
 
-#if defined(RSVG_DISABLE_DEPRECATION_WARNINGS) || !GLIB_CHECK_VERSION (2, 31, 0)
-#define RSVG_DEPRECATED
-#define RSVG_DEPRECATED_FOR(f)
-#else
-#define RSVG_DEPRECATED G_DEPRECATED
-#define RSVG_DEPRECATED_FOR(f) G_DEPRECATED_FOR(f)
-#endif
+#define RSVG_DEPRECATED extern
+#define RSVG_DEPRECATED_FOR(f) extern
 
 #define RSVG_TYPE_HANDLE                  (rsvg_handle_get_type ())
 #define RSVG_HANDLE(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), RSVG_TYPE_HANDLE, RsvgHandle))
@@ -49,6 +44,18 @@ G_BEGIN_DECLS
 #define RSVG_IS_HANDLE(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), RSVG_TYPE_HANDLE))
 #define RSVG_IS_HANDLE_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE ((klass), RSVG_TYPE_HANDLE))
 #define RSVG_HANDLE_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), RSVG_TYPE_HANDLE, RsvgHandleClass))
+
+#ifndef RSVG_EXPORT
+  #ifdef RSVG_STATIC
+    #define RSVG_EXPORT extern
+  #else
+    #ifdef RSVG_COMPILATION
+      #define RSVG_EXPORT __declspec(dllexport)
+    #else
+      #define RSVG_EXPORT extern __declspec(dllimport)
+    #endif
+  #endif
+#endif
 
 GType rsvg_handle_get_type (void);
 
@@ -128,21 +135,28 @@ struct _RsvgPositionData {
 void rsvg_cleanup (void);
 
 void rsvg_set_default_dpi	(double dpi);
+RSVG_EXPORT
 void rsvg_set_default_dpi_x_y	(double dpi_x, double dpi_y);
 
 void rsvg_handle_set_dpi	(RsvgHandle * handle, double dpi);
 void rsvg_handle_set_dpi_x_y	(RsvgHandle * handle, double dpi_x, double dpi_y);
 
+RSVG_EXPORT
 RsvgHandle  *rsvg_handle_new		(void);
+RSVG_EXPORT
 gboolean     rsvg_handle_write		(RsvgHandle * handle, const guchar * buf, 
                                      gsize count, GError ** error);
+RSVG_EXPORT
 gboolean     rsvg_handle_close		(RsvgHandle * handle, GError ** error);
 GdkPixbuf   *rsvg_handle_get_pixbuf	(RsvgHandle * handle);
 GdkPixbuf   *rsvg_handle_get_pixbuf_sub (RsvgHandle * handle, const char *id);
 
+RSVG_EXPORT
 const char  *rsvg_handle_get_base_uri (RsvgHandle * handle);
+RSVG_EXPORT
 void         rsvg_handle_set_base_uri (RsvgHandle * handle, const char *base_uri);
 
+RSVG_EXPORT
 void rsvg_handle_get_dimensions (RsvgHandle * handle, RsvgDimensionData * dimension_data);
 
 gboolean rsvg_handle_get_dimensions_sub (RsvgHandle * handle, RsvgDimensionData * dimension_data, const char *id);
@@ -170,6 +184,7 @@ typedef enum /*< flags >*/
     RSVG_HANDLE_FLAG_KEEP_IMAGE_DATA = 1 << 1
 } RsvgHandleFlags;
 
+RSVG_EXPORT
 RsvgHandle *rsvg_handle_new_with_flags (RsvgHandleFlags flags);
 
 void        rsvg_handle_set_base_gfile (RsvgHandle *handle,
@@ -191,7 +206,9 @@ RsvgHandle *rsvg_handle_new_from_stream_sync (GInputStream   *input_stream,
                                               GCancellable   *cancellable,
                                               GError        **error);
 
+RSVG_EXPORT
 RsvgHandle *rsvg_handle_new_from_data (const guint8 * data, gsize data_len, GError ** error);
+RSVG_EXPORT
 RsvgHandle *rsvg_handle_new_from_file (const gchar * file_name, GError ** error);
 
 void rsvg_handle_internal_set_testing (RsvgHandle *handle, gboolean testing);
