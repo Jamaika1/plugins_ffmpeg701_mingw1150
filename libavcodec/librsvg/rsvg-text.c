@@ -26,6 +26,7 @@
 
 #include <string.h>
 
+#include "config.h"
 #include "rsvg-private.h"
 #include "rsvg-styles.h"
 #include "rsvg-text.h"
@@ -34,7 +35,7 @@
 #include "rsvg-shapes.h"
 
 /* what we use for text rendering depends on what cairo has to offer */
-#include <pango/pangocairo.h>
+#include "pango/pangocairo.h"
 
 typedef struct _RsvgNodeText RsvgNodeText;
 
