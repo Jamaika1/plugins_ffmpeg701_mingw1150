@@ -272,7 +272,7 @@ rsvg_handle_render_cairo_sub (RsvgHandle * handle, cairo_t * cr, const char *id)
  * Returns: %TRUE if drawing succeeded.
  * Since: 2.14
  */
-gboolean
+RSVG_EXPORT gboolean
 rsvg_handle_render_cairo (RsvgHandle * handle, cairo_t * cr)
 {
     return rsvg_handle_render_cairo_sub (handle, cr, NULL);
