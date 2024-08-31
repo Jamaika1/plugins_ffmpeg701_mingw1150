@@ -30,8 +30,9 @@
 #ifndef RSVG_SHAPES_H
 #define RSVG_SHAPES_H
 
-#include <cairo.h>
+#include "cairo/cairo.h"
 
+#include "config.h"
 #include "rsvg-structure.h"
 
 G_BEGIN_DECLS 
