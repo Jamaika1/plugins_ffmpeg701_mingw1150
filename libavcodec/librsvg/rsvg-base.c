@@ -42,11 +42,11 @@
 #include "rsvg-marker.h"
 #include "rsvg-cairo-render.h"
 
-#include <libxml/uri.h>
-#include <libxml/parser.h>
-#include <libxml/parserInternals.h>
+#include "libxml2/uri.h"
+#include "libxml2/parser.h"
+#include "libxml2/parserInternals.h"
 
-#include <gio/gio.h>
+#include "gio/gio.h"
 
 #include <math.h>
 #include <string.h>
