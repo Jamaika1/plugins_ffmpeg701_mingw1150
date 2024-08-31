@@ -31,8 +31,12 @@
 
 #include "rsvg.h"
 
-#include "libxml2/SAX.h"
 #include "libxml2/xmlmemory.h"
+#if LIBXML_VERSION >= 21400
+#include "libxml2/parser.h"
+#else
+#include "libxml2/SAX.h"
+#endif
 #include "pango/pango.h"
 #include "glib/glib.h"
 #include "glib/glib-object.h"
