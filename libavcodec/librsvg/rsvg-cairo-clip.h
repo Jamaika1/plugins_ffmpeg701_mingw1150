@@ -30,7 +30,7 @@
 
 #include "rsvg-mask.h"
 #include "rsvg-cairo-render.h"
-#include <cairo.h>
+#include "cairo/cairo.h"
 
 G_BEGIN_DECLS 
 
