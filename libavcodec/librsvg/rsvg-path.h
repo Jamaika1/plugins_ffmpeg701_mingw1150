@@ -27,8 +27,8 @@
 #ifndef RSVG_PATH_H
 #define RSVG_PATH_H
 
-#include <glib.h>
-#include <cairo.h>
+#include "glib/glib.h"
+#include "cairo/cairo.h"
 
 G_BEGIN_DECLS 
 

@@ -23,8 +23,8 @@
 #ifndef RSVG_IO_H
 #define RSVG_IO_H
 
-#include <glib.h>
-#include <gio/gio.h>
+#include "glib/glib.h"
+#include "gio/gio.h"
 
 char *_rsvg_io_acquire_data (const char *uri,
 			     const char *base_uri,

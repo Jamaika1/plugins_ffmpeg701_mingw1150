@@ -28,10 +28,10 @@
 
 #define __RSVG_RSVG_H_INSIDE__
 
-#include <glib-object.h>
-#include <gio/gio.h>
+#include "glib/glib-object.h"
+#include "gio/gio.h"
 
-#include <gdk-pixbuf/gdk-pixbuf.h>
+#include "gdk-pixbuf/gdk-pixbuf.h"
 
 G_BEGIN_DECLS
 

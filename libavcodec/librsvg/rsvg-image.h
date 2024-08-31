@@ -32,7 +32,7 @@
 
 #include "rsvg-structure.h"
 
-#include <cairo.h>
+#include "cairo/cairo.h"
 
 G_BEGIN_DECLS 
 

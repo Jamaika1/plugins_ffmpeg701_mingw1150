@@ -30,7 +30,7 @@
 #include "config.h"
 #include "rsvg-path.h"
 
-#include <glib.h>
+#include "glib/glib.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

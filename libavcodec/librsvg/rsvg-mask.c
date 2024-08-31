@@ -23,6 +23,7 @@
    Author: Caleb Moore <calebmm@tpg.com.au>
 */
 
+#include "config.h"
 #include "rsvg-private.h"
 #include "rsvg-mask.h"
 #include "rsvg-styles.h"

@@ -41,7 +41,7 @@
 #include <math.h>
 #include <string.h>
 
-#include <pango/pangocairo.h>
+#include "pango/pangocairo.h"
 
 static void
 _pattern_add_rsvg_color_stops (cairo_pattern_t * pattern,

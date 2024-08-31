@@ -30,7 +30,7 @@
 #include "rsvg-styles.h"
 #include "rsvg-image.h"
 
-#include <glib.h>
+#include "glib/glib.h"
 #include <string.h>
 #include <math.h>
 

@@ -27,8 +27,8 @@
 #ifndef RSVG_PAINT_SERVER_H
 #define RSVG_PAINT_SERVER_H
 
-#include <glib.h>
-#include <cairo.h>
+#include "glib/glib.h"
+#include "cairo/cairo.h"
 #include "rsvg-defs.h"
 
 G_BEGIN_DECLS 

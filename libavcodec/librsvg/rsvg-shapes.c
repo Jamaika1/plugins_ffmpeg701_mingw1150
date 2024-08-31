@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include "config.h"
 #include "rsvg-private.h"
 #include "rsvg-styles.h"
 #include "rsvg-shapes.h"

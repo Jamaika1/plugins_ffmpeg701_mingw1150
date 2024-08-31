@@ -26,10 +26,10 @@
 #ifndef RSVG_CSS_H
 #define RSVG_CSS_H
 
-#include <glib.h>
+#include "glib/glib.h"
 
 #ifdef RSVG_COMPILATION
-#include <pango/pango.h>
+#include "pango/pango.h"
 #include "rsvg-private.h"
 #endif
 

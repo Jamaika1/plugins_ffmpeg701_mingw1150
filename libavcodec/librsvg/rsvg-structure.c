@@ -27,6 +27,7 @@
             Caleb Moore <c.moore@student.unsw.edu.au>
 */
 
+#include "config.h"
 #include "rsvg-structure.h"
 #include "rsvg-image.h"
 #include "rsvg-css.h"

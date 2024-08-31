@@ -29,7 +29,7 @@
 #include "rsvg-private.h"
 #include "rsvg-styles.h"
 
-#include <glib.h>
+#include "glib/glib.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,9 +39,9 @@
 #include <errno.h>
 #include <math.h>
 
-#include <libxml/parser.h>
+#include "libxml2/parser.h"
 
-#include <libcroco/libcroco.h>
+#include "libcroco/libcroco.h"
 
 #define POINTS_PER_INCH (72.0)
 #define CM_PER_INCH     (2.54)

@@ -29,10 +29,10 @@
 #define RSVG_CAIRO_RENDER_H
 
 #include "rsvg-private.h"
-#include <cairo.h>
+#include "cairo/cairo.h"
 
 #ifdef HAVE_PANGOFT2
-#include <pango/pangofc-fontmap.h>
+#include "pango/pangofc-fontmap.h"
 #endif
 
 G_BEGIN_DECLS typedef struct _RsvgCairoRender RsvgCairoRender;
