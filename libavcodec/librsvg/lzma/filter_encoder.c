@@ -185,7 +185,7 @@ static const lzma_filter_encoder encoders[] = {
 static const lzma_filter_encoder *
 encoder_find(lzma_vli id)
 {
-	for (size_t i = 0; i < ARRAY_SIZE(encoders); ++i)
+	for (int i = 0; i < ARRAY_SIZE(encoders); ++i)
 		if (encoders[i].id == id)
 			return encoders + i;
 

@@ -20,7 +20,7 @@
 //////////////
 
 #ifdef HAVE_CONFIG_H
-#	include <config.h>
+#	include "config.h"
 #endif
 
 // This #define ensures that C99 and POSIX compliant stdio functions are
@@ -193,7 +193,7 @@ typedef unsigned char _Bool;
 #define my_max(x, y) ((x) > (y) ? (x) : (y))
 
 #ifndef ARRAY_SIZE
-#	define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+#	define ARRAY_SIZE(array) (int)(sizeof(array) / sizeof((array)[0]))
 #endif
 
 #if defined(__GNUC__) \

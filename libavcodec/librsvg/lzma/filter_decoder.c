@@ -142,7 +142,7 @@ static const lzma_filter_decoder decoders[] = {
 static const lzma_filter_decoder *
 decoder_find(lzma_vli id)
 {
-	for (size_t i = 0; i < ARRAY_SIZE(decoders); ++i)
+	for (int i = 0; i < ARRAY_SIZE(decoders); ++i)
 		if (decoders[i].id == id)
 			return decoders + i;
 

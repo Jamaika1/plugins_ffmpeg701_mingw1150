@@ -101,7 +101,7 @@ str_append_u32(lzma_str *str, uint32_t v, bool use_byte_suffix)
 		// (there cannot be a space before the suffix).
 		static const char suffixes[4][4] = { "", "KiB", "MiB", "GiB" };
 
-		size_t suf = 0;
+		int suf = 0;
 		if (use_byte_suffix) {
 			while ((v & 1023) == 0
 					&& suf < ARRAY_SIZE(suffixes) - 1) {
@@ -271,7 +271,7 @@ parse_bcj(const char **const str, const char *str_end, void *filter_options)
 	// filter_options was zeroed on allocation and that is enough
 	// for the default value.
 	return parse_options(str, str_end, filter_options,
-			bcj_optmap, ARRAY_SIZE(bcj_optmap));
+			bcj_optmap, (size_t)ARRAY_SIZE(bcj_optmap));
 }
 #endif
 
@@ -299,7 +299,7 @@ parse_delta(const char **const str, const char *str_end, void *filter_options)
 	opts->dist = LZMA_DELTA_DIST_MIN;
 
 	return parse_options(str, str_end, filter_options,
-			delta_optmap, ARRAY_SIZE(delta_optmap));
+			delta_optmap, (size_t)ARRAY_SIZE(delta_optmap));
 }
 #endif
 
@@ -812,7 +812,7 @@ parse_filter(const char **const str, const char *str_end, lzma_filter *filter,
 	if (name_len > NAME_LEN_MAX)
 		return "Unknown filter name";
 
-	for (size_t i = 0; i < ARRAY_SIZE(filter_name_map); ++i) {
+	for (int i = 0; i < ARRAY_SIZE(filter_name_map); ++i) {
 		if (memcmp(*str, filter_name_map[i].name, name_len) == 0
 				&& filter_name_map[i].name[name_len] == '\0') {
 			if (only_xz && filter_name_map[i].id
@@ -1163,7 +1163,7 @@ lzma_str_from_filters(char **output_str, const lzma_filter *filters,
 				|| (i > 0 && (flags & LZMA_STR_NO_SPACES)))
 			str_append_str(&dest, "--");
 
-		size_t j = 0;
+		int j = 0;
 		while (true) {
 			if (j == ARRAY_SIZE(filter_name_map)) {
 				// Filter ID in filters[i].id isn't supported.
@@ -1252,7 +1252,7 @@ lzma_str_list_filters(char **output_str, lzma_vli filter_id, uint32_t flags,
 	const char *opt_delim = (flags & LZMA_STR_GETOPT_LONG) ? "=" : ":";
 	bool first_filter_printed = false;
 
-	for (size_t i = 0; i < ARRAY_SIZE(filter_name_map); ++i) {
+	for (int i = 0; i < ARRAY_SIZE(filter_name_map); ++i) {
 		// If we are printing only one filter then skip others.
 		if (filter_id != LZMA_VLI_UNKNOWN
 				&& filter_id != filter_name_map[i].id)
