@@ -34,18 +34,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
-#include <glib/gi18n.h>
-#include <gio/gio.h>
+#include "glib/gi18n.h"
+#include "gio/gio.h"
 
 #ifdef G_OS_UNIX
-#include <gio/gunixinputstream.h>
+#include "gio/gunixinputstream.h"
 #endif
 
 #ifdef G_OS_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <gio/gwin32inputstream.h>
+#include "gio/gwin32inputstream.h"
 #endif
 
 #include "rsvg-css.h"
@@ -54,19 +54,19 @@
 #include "rsvg-size-callback.h"
 
 #ifdef CAIRO_HAS_PS_SURFACE
-#include <cairo-ps.h>
+#include "cairo/cairo-ps.h"
 #endif
 
 #ifdef CAIRO_HAS_PDF_SURFACE
-#include <cairo-pdf.h>
+#include "cairo/cairo-pdf.h"
 #endif
 
 #ifdef CAIRO_HAS_SVG_SURFACE
-#include <cairo-svg.h>
+#include "cairo/cairo-svg.h"
 #endif
 
 #ifdef CAIRO_HAS_XML_SURFACE
-#include <cairo-xml.h>
+#include "cairo/cairo-xml.h"
 #endif
 
 static void
