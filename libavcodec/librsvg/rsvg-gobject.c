@@ -356,7 +356,7 @@ rsvg_handle_free (RsvgHandle * handle)
  *
  * Returns: A new #RsvgHandle
  **/
-RsvgHandle *
+RSVG_EXPORT RsvgHandle *
 rsvg_handle_new (void)
 {
     return RSVG_HANDLE (g_object_new (RSVG_TYPE_HANDLE, NULL));
@@ -373,7 +373,7 @@ rsvg_handle_new (void)
  * 
  * Since: 2.36
  **/
-RsvgHandle *
+RSVG_EXPORT RsvgHandle *
 rsvg_handle_new_with_flags (RsvgHandleFlags flags)
 {
     return g_object_new (RSVG_TYPE_HANDLE, 
