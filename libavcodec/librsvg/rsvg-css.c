@@ -839,7 +839,12 @@ rsvg_css_parse_overflow (const char *str, gboolean * inherit)
 }
 
 static void
-rsvg_xml_noerror (void *data, xmlErrorPtr error)
+rsvg_xml_noerror (void *data,
+#if LIBXML_VERSION >= 21200
+                  const struct _xmlError* error)
+#else
+                  xmlErrorPtr error)
+#endif
 {
 }
 
@@ -864,7 +869,11 @@ rsvg_css_parse_xml_attribute_string (const char *attribute_string)
     memset (&handler, 0, sizeof (handler));
     xmlSAX2InitDefaultSAXHandler (&handler, 0);
     handler.serror = rsvg_xml_noerror;
+#if LIBXML_VERSION >= 21200
+    parser = xmlCreatePushParserCtxt (&handler, NULL, (const char*)tag, strlen (tag) + 1, NULL);
+#else
     parser = xmlCreatePushParserCtxt (&handler, NULL, tag, strlen (tag) + 1, NULL);
+#endif
     parser->options |= XML_PARSE_NONET;
 
     if (xmlParseDocument (parser) != 0)
