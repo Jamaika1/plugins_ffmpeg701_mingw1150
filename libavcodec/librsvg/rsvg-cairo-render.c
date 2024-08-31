@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <glib.h>
+#include "glib/glib.h"
 #include <math.h>
 #include <string.h>
 
