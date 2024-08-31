@@ -30,7 +30,7 @@
 #ifndef RSVG_CAIRO_H
 #define RSVG_CAIRO_H
 
-#include <cairo.h>
+#include "cairo/cairo.h"
 
 G_BEGIN_DECLS 
 
