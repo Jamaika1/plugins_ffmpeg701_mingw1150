@@ -22,8 +22,8 @@
 #ifndef RSVG_XML_H
 #define RSVG_XML_H
 
-#include <libxml/xmlIO.h>
-#include <gio/gio.h>
+#include "libxml2/xmlIO.h"
+#include "gio/gio.h"
 
 G_BEGIN_DECLS
 
