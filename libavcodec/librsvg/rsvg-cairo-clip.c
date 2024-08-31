@@ -37,7 +37,7 @@
 
 #include <math.h>
 #include <string.h>
-#include <pango/pangocairo.h>
+#include "pango/pangocairo.h"
 
 typedef struct RsvgCairoClipRender RsvgCairoClipRender;
 
