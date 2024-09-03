@@ -2388,7 +2388,7 @@ pango_font_family_get_item (GListModel *list,
 
   pango_font_family_list_faces (family, &faces, &n_faces);
 
-  if (position < n_faces)
+  if (position < (guint)n_faces)
     face = g_object_ref (faces[position]);
   else
     face = NULL;
