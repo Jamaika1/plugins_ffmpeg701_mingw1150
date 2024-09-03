@@ -26,11 +26,11 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <glib.h>
-#include <hb.h>
+#include "../glib/glib.h"
+#include "../harfbuzz/hb.h"
 
 #ifdef USE_HB_GDI
-#include <hb-gdi.h>
+#include "../harfbuzz/hb-gdi.h"
 #endif
 
 #include "pango-impl-utils.h"

@@ -23,7 +23,7 @@
 
 #include <string.h>
 #include <math.h>
-#include <glib.h>
+#include "../glib/glib.h"
 
 #include "pango-impl-utils.h"
 #include "pango-glyph.h"
@@ -31,7 +31,7 @@
 #include "pango-item-private.h"
 #include "pango-font-private.h"
 
-#include <hb-ot.h>
+#include "../harfbuzz/hb-ot.h"
 
 /* {{{ Harfbuzz shaping */
 /* {{{ Buffer handling */

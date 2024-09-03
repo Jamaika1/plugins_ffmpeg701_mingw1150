@@ -21,7 +21,7 @@
 #ifndef __GTK_JSON_PARSER_H__
 #define __GTK_JSON_PARSER_H__
 
-#include <glib.h>
+#include "../../glib/glib.h"
 
 G_BEGIN_DECLS
 

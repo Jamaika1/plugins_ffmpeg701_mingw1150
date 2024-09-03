@@ -21,15 +21,15 @@
 
 #include "config.h"
 
-#include <pango/pango-layout.h>
-#include <pango/pango-layout-private.h>
-#include <pango/pango-context-private.h>
-#include <pango/pango-enum-types.h>
-#include <pango/pango-font-private.h>
+#include "pango-layout.h"
+#include "pango-layout-private.h"
+#include "pango-context-private.h"
+#include "pango-enum-types.h"
+#include "pango-font-private.h"
 
-#include <hb-ot.h>
-#include "pango/json/gtkjsonparserprivate.h"
-#include "pango/json/gtkjsonprinterprivate.h"
+#include "../harfbuzz/hb-ot.h"
+#include "json/gtkjsonparserprivate.h"
+#include "json/gtkjsonprinterprivate.h"
 
 /* {{{ Error handling */
 
