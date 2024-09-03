@@ -184,7 +184,7 @@ pango_log2vis_fill_embedding_levels (const gchar    *text,
       gunichar ch = g_utf8_get_char (p);
       FriBidiCharType char_type = fribidi_get_bidi_type (ch);
 
-      if (i == n_chars)
+      if (i == (glong)n_chars)
         break;
 
       bidi_types[i] = char_type;
