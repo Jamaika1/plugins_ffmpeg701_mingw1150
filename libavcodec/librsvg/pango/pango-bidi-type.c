@@ -23,7 +23,7 @@
 
 #include <string.h>
 
-#include <fribidi.h>
+#include "../fribidi/fribidi.h"
 
 #undef PANGO_DISABLE_DEPRECATED
 
