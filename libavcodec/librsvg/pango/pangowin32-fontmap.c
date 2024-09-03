@@ -482,7 +482,7 @@ read_builtin_aliases (GHashTable *ht_aliases)
 
   line_buffer = g_string_new (NULL);
 
-  for (line = 0; line < G_N_ELEMENTS (builtin_aliases) && errstring == NULL; line++)
+  for (line = 0; line < (int)G_N_ELEMENTS (builtin_aliases) && errstring == NULL; line++)
     {
       g_string_assign (line_buffer, builtin_aliases[line]);
       handle_alias_line (line_buffer, &errstring, ht_aliases);
