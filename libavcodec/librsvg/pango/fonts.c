@@ -25,7 +25,7 @@
 #include <string.h>
 #include <locale.h>
 
-#include <gio/gio.h>
+#include "../gio/gio.h"
 
 #include "pango-types.h"
 #include "pango-font-private.h"
