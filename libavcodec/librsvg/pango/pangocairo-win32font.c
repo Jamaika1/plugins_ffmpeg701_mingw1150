@@ -30,7 +30,7 @@
 #include "pangocairo-private.h"
 #include "pangocairo-win32.h"
 
-#include <cairo-win32.h>
+#include "../cairo/cairo-win32.h"
 
 #if defined (HAVE_CAIRO_WIN32_DIRECTWRITE) && \
     ((CAIRO_VERSION_MAJOR > 1) || \
