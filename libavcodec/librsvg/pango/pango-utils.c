@@ -32,7 +32,7 @@
 #include "pango-utils-internal.h"
 #include "pango-utils-private.h"
 
-#include <glib/gstdio.h>
+#include "../glib/gstdio.h"
 
 #ifdef G_OS_WIN32
 
