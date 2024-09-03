@@ -1953,7 +1953,7 @@ pango_attr_list_insert_internal (PangoAttrList  *list,
                                  PangoAttribute *attr,
                                  gboolean        before)
 {
-  const guint start_index = attr->start_index;
+  const gint start_index = attr->start_index;
   PangoAttribute *last_attr;
 
   if (G_UNLIKELY (!list->attributes))
@@ -2055,8 +2055,8 @@ pango_attr_list_change (PangoAttrList  *list,
                         PangoAttribute *attr)
 {
   guint i, p;
-  guint start_index = attr->start_index;
-  guint end_index = attr->end_index;
+  gint start_index = attr->start_index;
+  gint end_index = attr->end_index;
   gboolean inserted;
 
   g_return_if_fail (list != NULL);
@@ -2269,8 +2269,8 @@ pango_attr_list_update (PangoAttrList *list,
             else if (attr->end_index >= pos + remove)
               {
                 if (add > remove &&
-                    G_MAXUINT - attr->end_index < add - remove)
-                  attr->end_index = G_MAXUINT;
+                    (gint)G_MAXUINT - attr->end_index < add - remove)
+                  attr->end_index = (gint)G_MAXUINT;
                 else
                   attr->end_index += add - remove;
               }
@@ -2313,8 +2313,8 @@ pango_attr_list_splice (PangoAttrList *list,
                         gint           len)
 {
   guint i, p;
-  guint upos, ulen;
-  guint end;
+  gint upos, ulen;
+  gint end;
 
   g_return_if_fail (list != NULL);
   g_return_if_fail (other != NULL);
@@ -2327,7 +2327,7 @@ pango_attr_list_splice (PangoAttrList *list,
 /* This definition only works when a and b are unsigned; overflow
  * isn't defined in the C standard for signed integers
  */
-#define CLAMP_ADD(a,b) (((a) + (b) < (a)) ? G_MAXUINT : (a) + (b))
+#define CLAMP_ADD(a,b) (((a) + (b) < (a)) ? (gint)G_MAXUINT : (a) + (b))
 
   end = CLAMP_ADD (upos, ulen);
 
@@ -2733,7 +2733,7 @@ pango_attr_list_to_string (PangoAttrList *list)
   s = g_string_new ("");
 
   if (list->attributes)
-    for (int i = 0; i < list->attributes->len; i++)
+    for (int i = 0; i < (gint)list->attributes->len; i++)
       {
         PangoAttribute *attr = g_ptr_array_index (list->attributes, i);
 
@@ -3242,10 +3242,10 @@ pango_attr_iterator_next (PangoAttrIterator *iterator)
         {
           const PangoAttribute *attr = g_ptr_array_index (iterator->attribute_stack, i);
 
-          if (attr->end_index == iterator->start_index)
+          if (attr->end_index == (gint)iterator->start_index)
             g_ptr_array_remove_index (iterator->attribute_stack, i); /* Can't use index_fast :( */
           else
-            iterator->end_index = MIN (iterator->end_index, attr->end_index);
+            iterator->end_index = MIN (iterator->end_index, (guint)attr->end_index);
         }
     }
 
@@ -3258,17 +3258,17 @@ pango_attr_iterator_next (PangoAttrIterator *iterator)
 
       attr = g_ptr_array_index (iterator->attrs, iterator->attr_index);
 
-      if (attr->start_index != iterator->start_index)
+      if (attr->start_index != (gint)iterator->start_index)
         break;
 
-      if (attr->end_index > iterator->start_index)
+      if (attr->end_index > (gint)iterator->start_index)
         {
           if (G_UNLIKELY (!iterator->attribute_stack))
             iterator->attribute_stack = g_ptr_array_new ();
 
           g_ptr_array_add (iterator->attribute_stack, attr);
 
-          iterator->end_index = MIN (iterator->end_index, attr->end_index);
+          iterator->end_index = MIN (iterator->end_index, (guint)attr->end_index);
         }
 
       iterator->attr_index++; /* NEXT! */
@@ -3278,7 +3278,7 @@ pango_attr_iterator_next (PangoAttrIterator *iterator)
       {
       PangoAttribute *attr = g_ptr_array_index (iterator->attrs, iterator->attr_index);
 
-      iterator->end_index = MIN (iterator->end_index, attr->start_index);
+      iterator->end_index = MIN (iterator->end_index, (guint)attr->start_index);
     }
 
   return TRUE;
