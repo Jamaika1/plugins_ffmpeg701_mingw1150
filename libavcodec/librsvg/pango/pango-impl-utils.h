@@ -204,7 +204,7 @@ pango_get_ignorable (gunichar ch)
 {
   int i;
 
-  for (i = 0; i < G_N_ELEMENTS (ignorables); i++)
+  for (i = 0; i < (int)G_N_ELEMENTS (ignorables); i++)
     {
       if (ch < ignorables[i].ch)
         return NULL;
