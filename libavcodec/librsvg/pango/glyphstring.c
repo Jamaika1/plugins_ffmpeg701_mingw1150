@@ -20,12 +20,12 @@
  */
 
 #include "config.h"
-#include <glib.h>
+#include "../glib/glib.h"
 #include "pango-glyph.h"
 #include "pango-font.h"
 #include "pango-impl-utils.h"
 
-#include <hb-ot.h>
+#include "../harfbuzz/hb-ot.h"
 
 /**
  * pango_glyph_string_new:
