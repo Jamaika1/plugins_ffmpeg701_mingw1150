@@ -817,7 +817,8 @@ add_custom_font_factory5 (PangoFontMap     *font_map,
         g_set_error (error,
                      G_FILE_ERROR,
                      G_FILE_ERROR_FAILED,
-                     "Loading custom font '%s' file failed with error code %x\n", (unsigned)hr);
+                     "Loading custom font '%s' file failed with error code %x\n",
+                     filepath, (unsigned)hr);
     }
 
   g_free (filepath_w);
