@@ -2149,7 +2149,7 @@ pango_layout_move_cursor_visually (PangoLayout *layout,
   pango_layout_get_cursor_pos (layout, old_index, strong ? &pos : NULL, strong ? NULL : &pos);
 
   vis_pos = -1;
-  for (j = 0; j < cursors->len; j++)
+  for (j = 0; j < (gint)cursors->len; j++)
     {
       CursorPos *cursor = &g_array_index (cursors, CursorPos, j);
       if (cursor->x == pos.x)
@@ -2168,7 +2168,7 @@ pango_layout_move_cursor_visually (PangoLayout *layout,
       old_index == line->start_index + line->length)
     {
       if (line->resolved_dir == PANGO_DIRECTION_LTR)
-        vis_pos = cursors->len;
+        vis_pos = (gint)cursors->len;
       else
         vis_pos = 0;
     }
@@ -2224,7 +2224,7 @@ pango_layout_move_cursor_visually (PangoLayout *layout,
       g_array_set_size (cursors, 0);
       pango_layout_line_get_cursors (line, strong, cursors);
 
-      n_vis = cursors->len;
+      n_vis = (gint)cursors->len;
 
       if (off_start && direction < 0)
         {
@@ -2245,9 +2245,9 @@ pango_layout_move_cursor_visually (PangoLayout *layout,
   else
     vis_pos++;
 
-  if (0 <= vis_pos && vis_pos < cursors->len)
+  if (0 <= vis_pos && vis_pos < (gint)cursors->len)
     *new_index = g_array_index (cursors, CursorPos, vis_pos).pos;
-  else if (vis_pos >= cursors->len - 1)
+  else if (vis_pos >= (gint)cursors->len - 1)
     *new_index = line->start_index + line->length;
 
   *new_trailing = 0;
@@ -7441,7 +7441,7 @@ pango_layout_iter_at_last_line (PangoLayoutIter *iter)
   if (ITER_IS_INVALID (iter))
     return FALSE;
 
-  return iter->line_index == iter->layout->line_count - 1;
+  return iter->line_index == (gint)iter->layout->line_count - 1;
 }
 
 /**
@@ -7983,7 +7983,7 @@ pango_layout_iter_get_line_yrange (PangoLayoutIter *iter,
   if (y1)
     {
       /* No spacing below the last line */
-      if (iter->line_index == iter->layout->line_count - 1)
+      if (iter->line_index == (gint)iter->layout->line_count - 1)
         *y1 = ext->logical_rect.y + ext->logical_rect.height;
       else
         *y1 = ext->logical_rect.y + ext->logical_rect.height + half_spacing;
