@@ -285,7 +285,7 @@ typedef enum {
  *
  * Since: 1.24
  */
-#define PANGO_ATTR_INDEX_TO_TEXT_END ((guint)(G_MAXUINT + 0))
+#define PANGO_ATTR_INDEX_TO_TEXT_END ((gint)(G_MAXUINT + 0))
 
 /**
  * PangoAttribute:
@@ -306,8 +306,8 @@ typedef enum {
 struct _PangoAttribute
 {
   const PangoAttrClass *klass;
-  guint start_index;
-  guint end_index;
+  gint start_index;
+  gint end_index;
 };
 
 /**
