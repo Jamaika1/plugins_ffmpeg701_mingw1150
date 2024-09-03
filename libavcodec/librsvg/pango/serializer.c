@@ -153,7 +153,7 @@ get_weight (int pos)
 static const char *
 get_weight_name (int weight)
 {
-  for (int i = 0; i < G_N_ELEMENTS (named_weights); i++)
+  for (int i = 0; i < (int)G_N_ELEMENTS (named_weights); i++)
     {
       if (named_weights[i] == weight)
         return weight_names[i];
@@ -584,7 +584,7 @@ add_font (GtkJsonPrinter *printer,
 
       gtk_json_printer_start_object (printer, "variations");
 
-      for (int i = 0; i < length; i++)
+      for (int i = 0; i < (gint)length; i++)
         {
           char buf[5] = { 0, };
 
@@ -601,7 +601,7 @@ add_font (GtkJsonPrinter *printer,
     {
       gtk_json_printer_start_object (printer, "features");
 
-      for (int i = 0; i < length; i++)
+      for (int i = 0; i < (gint)length; i++)
         {
           char buf[5] = { 0, };
 
