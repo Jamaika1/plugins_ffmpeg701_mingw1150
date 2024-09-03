@@ -803,7 +803,7 @@ pango_parse_flags (GType        type,
 	  int i;
 	  GString *s = g_string_new (NULL);
 
-          for (i = 0; i < class->n_values; i++)
+          for (i = 0; i < (gint)class->n_values; i++)
             {
               v = &class->values[i];
               if (i)
