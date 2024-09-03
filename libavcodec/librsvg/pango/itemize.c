@@ -35,7 +35,7 @@
 #include "pango-item-private.h"
 #include "pango-utils-private.h"
 
-#include <hb-ot.h>
+#include "../harfbuzz/hb-ot.h"
 
 /* {{{ Font cache */
 
