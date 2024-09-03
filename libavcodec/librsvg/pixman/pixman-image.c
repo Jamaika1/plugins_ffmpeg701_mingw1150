@@ -706,8 +706,8 @@ pixman_image_set_dither_offset (pixman_image_t *image,
 {
     if (image->type == BITS)
     {
-	if (image->bits.dither_offset_x == offset_x &&
-	    image->bits.dither_offset_y == offset_y)
+	if (image->bits.dither_offset_x == (uint32_t)offset_x &&
+	    image->bits.dither_offset_y == (uint32_t)offset_y)
 	{
 	    return;
 	}

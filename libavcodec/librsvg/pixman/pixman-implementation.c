@@ -366,7 +366,7 @@ _pixman_disabled (const char *name)
 	    else
 		len = strlen (env);
 
-	    if (strlen (name) == len && strncmp (name, env, len) == 0)
+	    if (strlen (name) == (size_t)len && strncmp (name, env, len) == 0)
 	    {
 		printf ("pixman: Disabled %s implementation\n", name);
 		return TRUE;
