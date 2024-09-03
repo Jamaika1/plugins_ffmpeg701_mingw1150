@@ -58,7 +58,7 @@ struct _PangoWin32DWriteFontSetBuilder
 #include "pangowin32-private.hpp"
 
 #ifdef USE_HB_DWRITE
-#include <hb-directwrite.h>
+#include "../harfbuzz/hb-directwrite.h"
 #endif
 
 #ifdef _MSC_VER
