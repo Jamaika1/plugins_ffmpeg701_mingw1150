@@ -30,7 +30,7 @@
 
 G_BEGIN_DECLS
 
-#define STRICT
+#define STRICT 1
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600	/* To get ClearType-related macros */
 #endif
