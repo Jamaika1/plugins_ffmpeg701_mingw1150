@@ -84,7 +84,7 @@
 #include <math.h>
 #include <locale.h>
 
-#include <hb-ot.h>
+#include "../harfbuzz/hb-ot.h"
 
 #include "pango-layout-private.h"
 #include "pango-attributes-private.h"
