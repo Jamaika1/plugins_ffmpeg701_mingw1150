@@ -22,8 +22,8 @@
 #ifndef __PANGO_MATRIX_H__
 #define __PANGO_MATRIX_H__
 
-#include <glib.h>
-#include <glib-object.h>
+#include "../glib/glib.h"
+#include "../glib/glib-object.h"
 
 G_BEGIN_DECLS
 
@@ -78,7 +78,7 @@ struct _PangoMatrix
 #define PANGO_MATRIX_INIT { 1., 0., 0., 1., 0., 0. }
 
 /* for PangoRectangle */
-#include <pango/pango-types.h>
+#include "pango-types.h"
 
 PANGO_AVAILABLE_IN_1_6
 GType pango_matrix_get_type (void) G_GNUC_CONST;

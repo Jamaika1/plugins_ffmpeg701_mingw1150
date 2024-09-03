@@ -22,7 +22,7 @@
 #ifndef __PANGO_MARKUP_H__
 #define __PANGO_MARKUP_H__
 
-#include <pango/pango-attributes.h>
+#include "pango-attributes.h"
 
 G_BEGIN_DECLS
 

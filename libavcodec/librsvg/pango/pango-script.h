@@ -22,7 +22,7 @@
 #ifndef __PANGO_SCRIPT_H__
 #define __PANGO_SCRIPT_H__
 
-#include <glib-object.h>
+#include "../glib/glib-object.h"
 
 G_BEGIN_DECLS
 
@@ -304,7 +304,7 @@ typedef enum {                         /* ISO 15924 code */
       PANGO_SCRIPT_SIGNWRITING             /* Sgnw */
 } PangoScript;
 
-#include <pango/pango-version-macros.h>
+#include "pango-version-macros.h"
 
 PANGO_DEPRECATED_IN_1_44_FOR(g_unichar_get_script)
 PangoScript pango_script_for_unichar         (gunichar             ch) G_GNUC_CONST;
@@ -325,7 +325,7 @@ gboolean         pango_script_iter_next      (PangoScriptIter     *iter);
 PANGO_AVAILABLE_IN_1_4
 void             pango_script_iter_free      (PangoScriptIter     *iter);
 
-#include <pango/pango-language.h>
+#include "pango-language.h"
 
 PANGO_AVAILABLE_IN_1_4
 PangoLanguage *pango_script_get_sample_language (PangoScript    script) G_GNUC_PURE;

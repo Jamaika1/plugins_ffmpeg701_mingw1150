@@ -22,8 +22,8 @@
 #ifndef __PANGO_ITEM_H__
 #define __PANGO_ITEM_H__
 
-#include <pango/pango-types.h>
-#include <pango/pango-attributes.h>
+#include "pango-types.h"
+#include "pango-attributes.h"
 
 G_BEGIN_DECLS
 

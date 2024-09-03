@@ -22,7 +22,7 @@
 #ifndef __PANGO_LAYOUT_PRIVATE_H__
 #define __PANGO_LAYOUT_PRIVATE_H__
 
-#include <pango/pango-layout.h>
+#include "pango-layout.h"
 
 G_BEGIN_DECLS
 

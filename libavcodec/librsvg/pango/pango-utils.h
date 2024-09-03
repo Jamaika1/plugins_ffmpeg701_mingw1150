@@ -23,8 +23,8 @@
 #define __PANGO_UTILS_H__
 
 #include <stdio.h>
-#include <glib.h>
-#include <pango/pango-font.h>
+#include "../glib/glib.h"
+#include "pango-font.h"
 
 G_BEGIN_DECLS
 

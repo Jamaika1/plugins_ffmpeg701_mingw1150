@@ -22,7 +22,7 @@
 #ifndef __PANGO_GRAVITY_H__
 #define __PANGO_GRAVITY_H__
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 G_BEGIN_DECLS
 
@@ -113,8 +113,8 @@ typedef enum {
 #define PANGO_GRAVITY_IS_IMPROPER(gravity) \
 	((gravity) == PANGO_GRAVITY_WEST || (gravity) == PANGO_GRAVITY_NORTH)
 
-#include <pango/pango-matrix.h>
-#include <pango/pango-script.h>
+#include "pango-matrix.h"
+#include "pango-script.h"
 
 PANGO_AVAILABLE_IN_1_16
 double       pango_gravity_to_rotation    (PangoGravity       gravity) G_GNUC_CONST;

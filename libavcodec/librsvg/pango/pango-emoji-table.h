@@ -21,7 +21,7 @@
 #ifndef PANGO_EMOJI_TABLE_H
 #define PANGO_EMOJI_TABLE_H
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 struct Interval {
   gunichar start, end;

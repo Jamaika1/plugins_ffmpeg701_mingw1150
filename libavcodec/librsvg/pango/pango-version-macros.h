@@ -20,9 +20,9 @@
 #ifndef __PANGO_VERSION_H__
 #define __PANGO_VERSION_H__
 
-#include <pango/pango-features.h>
+#include "pango-features.h"
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 #ifndef _PANGO_EXTERN
 #define _PANGO_EXTERN extern

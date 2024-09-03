@@ -22,8 +22,8 @@
 #ifndef __PANGOCAIRO_PRIVATE_H__
 #define __PANGOCAIRO_PRIVATE_H__
 
-#include <pango/pangocairo.h>
-#include <pango/pango-renderer.h>
+#include "pangocairo.h"
+#include "pango-renderer.h"
 
 G_BEGIN_DECLS
 

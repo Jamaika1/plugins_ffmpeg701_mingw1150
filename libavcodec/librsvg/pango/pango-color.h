@@ -22,8 +22,8 @@
 #ifndef __PANGO_COLOR_H__
 #define __PANGO_COLOR_H__
 
-#include <pango/pango-types.h>
-#include <glib-object.h>
+#include "pango-types.h"
+#include "../glib/glib-object.h"
 
 G_BEGIN_DECLS
 

@@ -22,11 +22,11 @@
 #ifndef __PANGO_FONTSET_SIMPLE_H__
 #define __PANGO_FONTSET_SIMPLE_H__
 
-#include <pango/pango-coverage.h>
-#include <pango/pango-types.h>
-#include <pango/pango-fontset.h>
+#include "pango-coverage.h"
+#include "pango-types.h"
+#include "pango-fontset.h"
 
-#include <glib-object.h>
+#include "../glib/glib-object.h"
 
 G_BEGIN_DECLS
 

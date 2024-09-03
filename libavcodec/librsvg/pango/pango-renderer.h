@@ -21,7 +21,7 @@
 #ifndef __PANGO_RENDERER_H_
 #define __PANGO_RENDERER_H_
 
-#include <pango/pango-layout.h>
+#include "pango-layout.h"
 
 G_BEGIN_DECLS
 

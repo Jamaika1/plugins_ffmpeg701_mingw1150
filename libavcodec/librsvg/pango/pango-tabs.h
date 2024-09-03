@@ -22,7 +22,7 @@
 #ifndef __PANGO_TABS_H__
 #define __PANGO_TABS_H__
 
-#include <pango/pango-types.h>
+#include "pango-types.h"
 
 G_BEGIN_DECLS
 

@@ -22,10 +22,10 @@
 #ifndef __PANGO_GLYPH_ITEM_H__
 #define __PANGO_GLYPH_ITEM_H__
 
-#include <pango/pango-attributes.h>
-#include <pango/pango-break.h>
-#include <pango/pango-item.h>
-#include <pango/pango-glyph.h>
+#include "pango-attributes.h"
+#include "pango-break.h"
+#include "pango-item.h"
+#include "pango-glyph.h"
 
 G_BEGIN_DECLS
 

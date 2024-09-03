@@ -22,11 +22,11 @@
 #ifndef __PANGO_BREAK_H__
 #define __PANGO_BREAK_H__
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 G_BEGIN_DECLS
 
-#include <pango/pango-item.h>
+#include "pango-item.h"
 
 /* Logical attributes of a character.
  */

@@ -22,7 +22,7 @@
 #ifndef __PANGO_MODULES_H__
 #define __PANGO_MODULES_H__
 
-#include <pango/pango-engine.h>
+#include "pango-engine.h"
 
 G_BEGIN_DECLS
 

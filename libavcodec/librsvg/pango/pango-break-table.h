@@ -120,7 +120,7 @@
 #ifndef PANGO_BREAK_TABLE_H
 #define PANGO_BREAK_TABLE_H
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 
 static inline gboolean
