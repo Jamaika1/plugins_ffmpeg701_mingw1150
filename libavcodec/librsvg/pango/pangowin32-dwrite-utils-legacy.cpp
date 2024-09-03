@@ -253,7 +253,7 @@ pango_win32_font_collection_loader_legacy::CreateEnumeratorFromKey (IDWriteFacto
   UINT32 const collection_key_size = key_size;
   map = collection_key->map;
 
-  for (i = 0; i < map->custom_fonts_legacy->paths->len; i ++)
+  for (i = 0; i < (gint)map->custom_fonts_legacy->paths->len; i ++)
     {
       const char **path = &g_array_index (map->custom_fonts_legacy->paths, const char *, i);
       legacy_enumerator->add_font_file_path (*path);
