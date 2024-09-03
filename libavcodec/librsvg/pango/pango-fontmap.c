@@ -599,7 +599,7 @@ pango_font_map_get_item (GListModel *list,
 
   pango_font_map_list_families (fontmap, &families, &n_families);
 
-  if (position < n_families)
+  if (position < (guint)n_families)
     family = g_object_ref (families[position]);
   else
     family = NULL;
