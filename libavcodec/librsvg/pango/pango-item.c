@@ -320,7 +320,7 @@ pango_analysis_collect_features (const PangoAnalysis *analysis,
             HB_TAG('h','l','i','g'),
           };
           int i;
-          for (i = 0; i < G_N_ELEMENTS (tags); i++)
+          for (i = 0; i < (int)G_N_ELEMENTS (tags); i++)
             {
               features[*num_features].tag = tags[i];
               features[*num_features].value = 0;
