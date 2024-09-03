@@ -1256,7 +1256,7 @@ all_features_supported (PangoItem *item,
                                        language_count, language_tags,
                                        &language_index);
 
-  for (int i = 0; i < n_features; i++)
+  for (int i = 0; i < (gint)n_features; i++)
     {
       if (!hb_ot_layout_language_find_feature (face, HB_OT_TAG_GSUB,
                                                script_index, language_index,
