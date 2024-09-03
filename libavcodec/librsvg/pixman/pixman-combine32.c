@@ -43,12 +43,12 @@ combine_mask_ca (uint32_t *src, uint32_t *mask)
 
     if (!a)
     {
-	*(src) = 0;
+	*(src) = 0u;
 	return;
     }
 
     x = *(src);
-    if (a == ~0)
+    if (a == ~0u)
     {
 	x = x >> A_SHIFT;
 	x |= x << G_SHIFT;
@@ -73,11 +73,11 @@ combine_mask_value_ca (uint32_t *src, const uint32_t *mask)
 
     if (!a)
     {
-	*(src) = 0;
+	*(src) = 0u;
 	return;
     }
 
-    if (a == ~0)
+    if (a == ~0u)
 	return;
 
     x = *(src);
@@ -98,7 +98,7 @@ combine_mask_alpha_ca (const uint32_t *src, uint32_t *mask)
     if (x == MASK)
 	return;
 
-    if (a == ~0)
+    if (a == ~0u)
     {
 	x |= x << G_SHIFT;
 	x |= x << R_SHIFT;
@@ -554,7 +554,7 @@ combine_multiply_ca (pixman_implementation_t *imp,
     static void								\
     combine_ ## name ## _u (pixman_implementation_t *imp,		\
 			    pixman_op_t              op,		\
-                            uint32_t *               dest,		\
+			    uint32_t *               dest,		\
 			    const uint32_t *         src,		\
 			    const uint32_t *         mask,		\
 			    int                      width)		\
@@ -563,17 +563,17 @@ combine_multiply_ca (pixman_implementation_t *imp,
 	for (i = 0; i < width; ++i)					\
 	{								\
 	    uint32_t s = combine_mask (src, mask, i);			\
-	    uint32_t d = *(dest + i);					\
+	    uint32_t d = *(dest + (uint32_t)i);				\
 	    uint8_t sa = ALPHA_8 (s);					\
 	    uint8_t isa = ~sa;						\
 	    uint8_t da = ALPHA_8 (d);					\
 	    uint8_t ida = ~da;						\
-	    uint32_t ra, rr, rg, rb;					\
+	    int32_t ra, rr, rg, rb;					\
 	    								\
-	    ra = da * 0xff + sa * 0xff - sa * da;			\
-	    rr = isa * RED_8 (d) + ida * RED_8 (s);			\
-	    rg = isa * GREEN_8 (d) + ida * GREEN_8 (s);			\
-	    rb = isa * BLUE_8 (d) + ida * BLUE_8 (s);			\
+	    ra = (int32_t)(da * 0xff + sa * 0xff - sa * da);		\
+	    rr = (int32_t)(isa * RED_8 (d) + ida * RED_8 (s));		\
+	    rg = (int32_t)(isa * GREEN_8 (d) + ida * GREEN_8 (s));	\
+	    rb = (int32_t)(isa * BLUE_8 (d) + ida * BLUE_8 (s));	\
 									\
 	    rr += blend_ ## name (RED_8 (d), da, RED_8 (s), sa);	\
 	    rg += blend_ ## name (GREEN_8 (d), da, GREEN_8 (s), sa);    \
@@ -584,19 +584,19 @@ combine_multiply_ca (pixman_implementation_t *imp,
 	    CLAMP (rg, 0, 255 * 255);				        \
 	    CLAMP (rb, 0, 255 * 255);				        \
 									\
-	    ra = DIV_ONE_UN8 (ra);					\
-	    rr = DIV_ONE_UN8 (rr);					\
-	    rg = DIV_ONE_UN8 (rg);					\
-	    rb = DIV_ONE_UN8 (rb);					\
+	    ra = (int32_t)(DIV_ONE_UN8 ((uint32_t)ra));			\
+	    rr = (int32_t)(DIV_ONE_UN8 ((uint32_t)rr));			\
+	    rg = (int32_t)(DIV_ONE_UN8 ((uint32_t)rg));			\
+	    rb = (int32_t)(DIV_ONE_UN8 ((uint32_t)rb));			\
 									\
-	    *(dest + i) = ra << 24 | rr << 16 | rg << 8 | rb;		\
+	    *(dest + (uint32_t)i) = (uint32_t)(ra << 24 | rr << 16 | rg << 8 | rb);		\
 	}								\
     }									\
     									\
     static void								\
     combine_ ## name ## _ca (pixman_implementation_t *imp,		\
 			     pixman_op_t              op,		\
-                             uint32_t *               dest,		\
+			     uint32_t *               dest,		\
 			     const uint32_t *         src,		\
 			     const uint32_t *         mask,		\
 			     int                      width)		\
@@ -604,12 +604,12 @@ combine_multiply_ca (pixman_implementation_t *imp,
 	int i;								\
 	for (i = 0; i < width; ++i)					\
 	{								\
-	    uint32_t m = *(mask + i);					\
-	    uint32_t s = *(src + i);					\
-	    uint32_t d = *(dest + i);					\
+	    uint32_t m = *(mask + (uint32_t)i);				\
+	    uint32_t s = *(src + (uint32_t)i);				\
+	    uint32_t d = *(dest + (uint32_t)i);				\
 	    uint8_t da = ALPHA_8 (d);					\
 	    uint8_t ida = ~da;						\
-	    uint32_t ra, rr, rg, rb;					\
+	    int32_t ra, rr, rg, rb;					\
 	    uint8_t ira, iga, iba;					\
 	    								\
 	    combine_mask_ca (&s, &m);					\
@@ -618,10 +618,10 @@ combine_multiply_ca (pixman_implementation_t *imp,
 	    iga = ~GREEN_8 (m);						\
 	    iba = ~BLUE_8 (m);						\
 									\
-	    ra = da * 0xff + ALPHA_8 (s) * 0xff - ALPHA_8 (s) * da;	\
-	    rr = ira * RED_8 (d) + ida * RED_8 (s);			\
-	    rg = iga * GREEN_8 (d) + ida * GREEN_8 (s);			\
-	    rb = iba * BLUE_8 (d) + ida * BLUE_8 (s);			\
+	    ra = (int32_t)(da * 0xff + ALPHA_8 (s) * 0xff - ALPHA_8 (s) * da);	\
+	    rr = (int32_t)(ira * RED_8 (d) + ida * RED_8 (s));			\
+	    rg = (int32_t)(iga * GREEN_8 (d) + ida * GREEN_8 (s));		\
+	    rb = (int32_t)(iba * BLUE_8 (d) + ida * BLUE_8 (s));		\
 									\
 	    rr += blend_ ## name (RED_8 (d), da, RED_8 (s), RED_8 (m));	\
 	    rg += blend_ ## name (GREEN_8 (d), da, GREEN_8 (s), GREEN_8 (m)); \
@@ -632,12 +632,12 @@ combine_multiply_ca (pixman_implementation_t *imp,
 	    CLAMP (rg, 0, 255 * 255);				        \
 	    CLAMP (rb, 0, 255 * 255);				        \
 									\
-	    ra = DIV_ONE_UN8 (ra);					\
-	    rr = DIV_ONE_UN8 (rr);					\
-	    rg = DIV_ONE_UN8 (rg);					\
-	    rb = DIV_ONE_UN8 (rb);					\
+	    ra = (int32_t)(DIV_ONE_UN8 ((uint32_t)ra));			\
+	    rr = (int32_t)(DIV_ONE_UN8 ((uint32_t)rr));			\
+	    rg = (int32_t)(DIV_ONE_UN8 ((uint32_t)rg));			\
+	    rb = (int32_t)(DIV_ONE_UN8 ((uint32_t)rb));			\
 									\
-	    *(dest + i) = ra << 24 | rr << 16 | rg << 8 | rb;		\
+	    *(dest + (uint32_t)i) = (uint32_t)(ra << 24 | rr << 16 | rg << 8 | rb);		\
 	}								\
     }
 
@@ -948,7 +948,7 @@ combine_in_reverse_ca (pixman_implementation_t *imp,
 	combine_mask_alpha_ca (&s, &m);
 
 	a = m;
-	if (a != ~0)
+	if (a != ~0u)
 	{
 	    uint32_t d = 0;
 
@@ -1013,7 +1013,7 @@ combine_out_reverse_ca (pixman_implementation_t *imp,
 	combine_mask_alpha_ca (&s, &m);
 
 	a = ~m;
-	if (a != ~0)
+	if (a != ~0u)
 	{
 	    uint32_t d = 0;
 
