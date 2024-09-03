@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <gio/gio.h>
+#include "../gio/gio.h"
 
 #include "pango-fontmap.h"
 #include "pango-impl-utils.h"
