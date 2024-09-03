@@ -22,9 +22,9 @@
 #ifndef __PANGO_FONTMAP_H__
 #define __PANGO_FONTMAP_H__
 
-#include <pango/pango-types.h>
-#include <pango/pango-font.h>
-#include <pango/pango-fontset.h>
+#include "pango-types.h"
+#include "pango-font.h"
+#include "pango-fontset.h"
 
 G_BEGIN_DECLS
 

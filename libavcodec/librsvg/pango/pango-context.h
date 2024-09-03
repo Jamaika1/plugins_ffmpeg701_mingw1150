@@ -22,11 +22,11 @@
 #ifndef __PANGO_CONTEXT_H__
 #define __PANGO_CONTEXT_H__
 
-#include <pango/pango-types.h>
-#include <pango/pango-font.h>
-#include <pango/pango-fontmap.h>
-#include <pango/pango-attributes.h>
-#include <pango/pango-direction.h>
+#include "pango-types.h"
+#include "pango-font.h"
+#include "pango-fontmap.h"
+#include "pango-attributes.h"
+#include "pango-direction.h"
 
 G_BEGIN_DECLS
 

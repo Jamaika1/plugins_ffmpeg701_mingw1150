@@ -22,11 +22,11 @@
 #ifndef __PANGO_FONT_PRIVATE_H__
 #define __PANGO_FONT_PRIVATE_H__
 
-#include <pango/pango-font.h>
-#include <pango/pango-coverage.h>
-#include <pango/pango-types.h>
+#include "pango-font.h"
+#include "pango-coverage.h"
+#include "pango-types.h"
 
-#include <glib-object.h>
+#include "../glib/glib-object.h"
 
 G_BEGIN_DECLS
 

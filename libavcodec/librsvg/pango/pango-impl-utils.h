@@ -23,9 +23,9 @@
 #ifndef __PANGO_IMPL_UTILS_H__
 #define __PANGO_IMPL_UTILS_H__
 
-#include <glib.h>
-#include <glib-object.h>
-#include <pango/pango.h>
+#include "../glib/glib.h"
+#include "../glib/glib-object.h"
+#include "pango.h"
 
 G_BEGIN_DECLS
 

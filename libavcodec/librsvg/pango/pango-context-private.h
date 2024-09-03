@@ -22,7 +22,7 @@
 #ifndef __PANGO_CONTEXT_PRIVATE_H__
 #define __PANGO_CONTEXT_PRIVATE_H__
 
-#include <pango/pango-context.h>
+#include "pango-context.h"
 
 G_BEGIN_DECLS
 

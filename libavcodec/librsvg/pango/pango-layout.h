@@ -22,10 +22,10 @@
 #ifndef __PANGO_LAYOUT_H__
 #define __PANGO_LAYOUT_H__
 
-#include <pango/pango-attributes.h>
-#include <pango/pango-context.h>
-#include <pango/pango-glyph-item.h>
-#include <pango/pango-tabs.h>
+#include "pango-attributes.h"
+#include "pango-context.h"
+#include "pango-glyph-item.h"
+#include "pango-tabs.h"
 
 G_BEGIN_DECLS
 

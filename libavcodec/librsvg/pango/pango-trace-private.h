@@ -24,7 +24,7 @@
 #include <sysprof-capture.h>
 #endif
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 G_BEGIN_DECLS
 

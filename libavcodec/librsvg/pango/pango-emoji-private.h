@@ -22,7 +22,7 @@
 #ifndef __PANGO_EMOJI_PRIVATE_H__
 #define __PANGO_EMOJI_PRIVATE_H__
 
-#include <glib.h>
+#include "../glib/glib.h"
 
 gboolean
 _pango_Is_Emoji_Base_Character (gunichar ch);

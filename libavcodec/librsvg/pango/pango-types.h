@@ -22,10 +22,10 @@
 #ifndef __PANGO_TYPES_H__
 #define __PANGO_TYPES_H__
 
-#include <glib.h>
-#include <glib-object.h>
+#include "../glib/glib.h"
+#include "../glib/glib-object.h"
 
-#include <pango/pango-version-macros.h>
+#include "pango-version-macros.h"
 
 G_BEGIN_DECLS
 
@@ -232,11 +232,11 @@ void pango_extents_to_pixels (PangoRectangle *inclusive,
 			      PangoRectangle *nearest);
 
 
-#include <pango/pango-gravity.h>
-#include <pango/pango-language.h>
-#include <pango/pango-matrix.h>
-#include <pango/pango-script.h>
-#include <pango/pango-bidi-type.h>
+#include "pango-gravity.h"
+#include "pango-language.h"
+#include "pango-matrix.h"
+#include "pango-script.h"
+#include "pango-bidi-type.h"
 
 
 G_END_DECLS

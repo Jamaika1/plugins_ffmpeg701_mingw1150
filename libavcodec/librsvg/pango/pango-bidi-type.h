@@ -22,10 +22,10 @@
 #ifndef __PANGO_BIDI_TYPE_H__
 #define __PANGO_BIDI_TYPE_H__
 
-#include <glib.h>
+#include "../glib/glib.h"
 
-#include <pango/pango-version-macros.h>
-#include <pango/pango-direction.h>
+#include "pango-version-macros.h"
+#include "pango-direction.h"
 
 G_BEGIN_DECLS
 

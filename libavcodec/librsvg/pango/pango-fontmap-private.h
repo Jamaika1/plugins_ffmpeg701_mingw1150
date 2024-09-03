@@ -22,9 +22,9 @@
 #ifndef __PANGO_FONTMAP_PRIVATE_H__
 #define __PANGO_FONTMAP_PRIVATE_H__
 
-#include <pango/pango-font-private.h>
-#include <pango/pango-fontset.h>
-#include <pango/pango-fontmap.h>
+#include "pango-font-private.h"
+#include "pango-fontset.h"
+#include "pango-fontmap.h"
 
 G_BEGIN_DECLS
 

@@ -22,12 +22,12 @@
 #ifndef __PANGO_LANGUAGE_H__
 #define __PANGO_LANGUAGE_H__
 
-#include <glib.h>
-#include <glib-object.h>
+#include "../glib/glib.h"
+#include "../glib/glib-object.h"
 
-#include <pango/pango-types.h>
-#include <pango/pango-version-macros.h>
-#include <pango/pango-script.h>
+#include "pango-types.h"
+#include "pango-version-macros.h"
+#include "pango-script.h"
 
 G_BEGIN_DECLS
 

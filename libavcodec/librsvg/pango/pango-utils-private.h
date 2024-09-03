@@ -23,9 +23,9 @@
 #define __PANGO_UTILS_PRIVATE_H__
 
 #include <stdio.h>
-#include <glib.h>
-#include <pango/pango-font.h>
-#include <pango/pango-utils.h>
+#include "../glib/glib.h"
+#include "pango-font.h"
+#include "pango-utils.h"
 
 G_BEGIN_DECLS
 

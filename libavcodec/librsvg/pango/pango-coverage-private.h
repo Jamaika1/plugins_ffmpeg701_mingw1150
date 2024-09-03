@@ -22,8 +22,8 @@
 #ifndef __PANGO_COVERAGE_PRIVATE_H__
 #define __PANGO_COVERAGE_PRIVATE_H__
 
-#include <glib-object.h>
-#include <pango-coverage.h>
+#include "../glib/glib-object.h"
+#include "pango-coverage.h"
 
 G_BEGIN_DECLS
 

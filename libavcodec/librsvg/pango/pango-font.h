@@ -22,11 +22,11 @@
 #ifndef __PANGO_FONT_H__
 #define __PANGO_FONT_H__
 
-#include <pango/pango-coverage.h>
-#include <pango/pango-types.h>
+#include "pango-coverage.h"
+#include "pango-types.h"
 
-#include <glib-object.h>
-#include <hb.h>
+#include "../glib/glib-object.h"
+#include "../harfbuzz/hb.h"
 
 G_BEGIN_DECLS
 

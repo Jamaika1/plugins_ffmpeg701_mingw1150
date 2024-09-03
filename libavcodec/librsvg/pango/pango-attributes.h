@@ -22,9 +22,9 @@
 #ifndef __PANGO_ATTRIBUTES_H__
 #define __PANGO_ATTRIBUTES_H__
 
-#include <pango/pango-font.h>
-#include <pango/pango-color.h>
-#include <glib-object.h>
+#include "pango-font.h"
+#include "pango-color.h"
+#include "../glib/glib-object.h"
 
 G_BEGIN_DECLS
 

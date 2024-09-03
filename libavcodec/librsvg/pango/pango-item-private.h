@@ -21,8 +21,8 @@
 #ifndef __PANGO_ITEM_PRIVATE_H__
 #define __PANGO_ITEM_PRIVATE_H__
 
-#include <pango/pango-item.h>
-#include <pango/pango-break.h>
+#include "pango-item.h"
+#include "pango-break.h"
 
 G_BEGIN_DECLS
 
