@@ -206,7 +206,7 @@ typedef unsigned char *emoji_text_iter_t;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-default"
-#include "emoji_presentation_scanner.c"
+#include "extra/emoji_presentation_scanner.c"
 #pragma GCC diagnostic pop
 
 
