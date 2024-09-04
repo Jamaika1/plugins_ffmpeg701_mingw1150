@@ -57,8 +57,13 @@
 #include <errno.h>
 #include <pthread.h>
 
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+#include <time.h>
+#ifdef G_OS_UNIX
 #include <unistd.h>
+#endif
 
 #ifdef HAVE_PTHREAD_SET_NAME_NP
 #include <pthread_np.h>
@@ -68,6 +73,7 @@
 #endif
 #ifdef G_OS_WIN32
 #include <windows.h>
+#include <io.h>
 #endif
 
 #if defined(HAVE_SYS_SCHED_GETATTR)
@@ -382,13 +388,13 @@ g_cond_impl_new (void)
 
   pthread_condattr_init (&attr);
 
-#ifdef HAVE_PTHREAD_COND_TIMEDWAIT_RELATIVE_NP
+/*#ifdef HAVE_PTHREAD_COND_TIMEDWAIT_RELATIVE_NP
 #elif defined (HAVE_PTHREAD_CONDATTR_SETCLOCK) && defined (CLOCK_MONOTONIC)
   if G_UNLIKELY ((status = pthread_condattr_setclock (&attr, CLOCK_MONOTONIC)) != 0)
     g_thread_abort (status, "pthread_condattr_setclock");
 #else
 #error Cannot support GCond on your platform.
-#endif
+#endif*/
 
   cond = malloc (sizeof (pthread_cond_t));
   if G_UNLIKELY (cond == NULL)
