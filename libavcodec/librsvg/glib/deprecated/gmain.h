@@ -31,7 +31,7 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include "../gmain.h"
+#include <glib/gmain.h>
 
 G_BEGIN_DECLS
 

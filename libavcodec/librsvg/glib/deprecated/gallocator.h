@@ -20,7 +20,7 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include "../gtypes.h"
+#include <glib/gtypes.h>
 
 G_BEGIN_DECLS
 

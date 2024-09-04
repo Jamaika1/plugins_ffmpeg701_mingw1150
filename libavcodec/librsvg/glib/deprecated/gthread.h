@@ -31,7 +31,7 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include "../gthread.h"
+#include <glib/gthread.h>
 
 G_BEGIN_DECLS
 
@@ -121,13 +121,13 @@ GLIB_DEPRECATED_IN_2_32
 void     g_thread_foreach      (GFunc             thread_func,
                                 gpointer          user_data);
 
-#if defined(G_OS_WIN32) && !defined(G_ATOMIC_LOCK_FREE)
+#ifndef G_OS_WIN32
 #include <sys/types.h>
 #include <pthread.h>
 #endif
 
 #define g_static_mutex_get_mutex g_static_mutex_get_mutex_impl GLIB_DEPRECATED_MACRO_IN_2_32
-#if defined(G_OS_WIN32) && !defined(G_ATOMIC_LOCK_FREE)
+#ifndef G_OS_WIN32
 #define G_STATIC_MUTEX_INIT { NULL, PTHREAD_MUTEX_INITIALIZER } GLIB_DEPRECATED_MACRO_IN_2_32_FOR(g_mutex_init)
 #else
 #define G_STATIC_MUTEX_INIT { NULL } GLIB_DEPRECATED_MACRO_IN_2_32_FOR(g_mutex_init)
@@ -136,10 +136,10 @@ typedef struct
 {
   GMutex *mutex;
 #ifndef __GI_SCANNER__
-# if defined(G_OS_WIN32) && !defined(G_ATOMIC_LOCK_FREE)
+# ifndef G_OS_WIN32
   /* only for ABI compatibility reasons */
   pthread_mutex_t unused;
-# endif
+# endif /* !G_OS_WIN32 */
 #endif /* !__GI_SCANNER__ */
 } GStaticMutex GLIB_DEPRECATED_TYPE_IN_2_32_FOR(GMutex);
 
@@ -167,11 +167,11 @@ struct _GStaticRecMutex
 #ifndef __GI_SCANNER__
   /* ABI compat only */
   union {
-# if !(defined(G_OS_WIN32) && !defined(G_ATOMIC_LOCK_FREE))
+# ifdef G_OS_WIN32
     void *owner;
 # else
     pthread_t owner;
-# endif
+# endif /* !G_OS_WIN32 */
     gdouble dummy;
   } unused;
 #endif /* !__GI_SCANNER__ */

@@ -31,7 +31,7 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include "../glist.h"
+#include <glib/glist.h>
 
 G_BEGIN_DECLS
 
