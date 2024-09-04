@@ -36,6 +36,10 @@
 # define _XOPEN_SOURCE 600
 #endif
 
+#ifndef SIZE_MAX
+# define SIZE_MAX ((size_t) -1)
+#endif
+
 #if defined(HAVE_MEMALIGN) || defined(HAVE__ALIGNED_MALLOC)
 /* Required for _aligned_malloc() and _aligned_free() on Windows */
 #include <malloc.h>
@@ -54,6 +58,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <assert.h>
 
 #include "gslice.h"
 #include "gbacktrace.h"
@@ -682,7 +687,33 @@ g_aligned_alloc (gsize n_blocks,
 #elif defined(HAVE_MEMALIGN)
   res = memalign (alignment, real_size);
 #else
-# error "This platform does not have an aligned memory allocator."
+    alignment--;
+    {
+        size_t offset;
+        unsigned __int8 *mem;
+
+        /* Room for padding and extra pointer stored in front of allocated area */
+        size_t overhead = alignment + sizeof(void *);
+
+        /* let's be extra careful */
+        assert(alignment <= (SIZE_MAX - sizeof(void *)));
+
+        /* Avoid integer overflow */
+        if (real_size > (SIZE_MAX - overhead)) {
+            return NULL;
+        }
+
+        mem = (unsigned __int8*)malloc(real_size + overhead);
+        if (mem == NULL) {
+            return mem;
+        }
+        /* offset = ((alignment + 1U) - ((size_t)(mem + sizeof(void*)) & alignment)) & alignment; */
+        /* Use the fact that alignment + 1U is a power of 2 */
+        offset = ((alignment ^ ((size_t)(mem + sizeof(void*)) & alignment)) + 1U) &
+                 alignment;
+        res = (void *)(mem + sizeof(void*) + offset);
+        ((void**) res)[-1] = mem;
+    }
 #endif
 
   TRACE (GLIB_MEM_ALLOC((void*) res, (unsigned int) real_size, 0, 0));
