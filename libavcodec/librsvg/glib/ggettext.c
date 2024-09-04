@@ -42,7 +42,9 @@
 
 #include <string.h>
 #include <locale.h>
-#include <libintl.h>
+#if ENABLE_NLS
+#include "../libintl/libgnuintl.h"
+#endif
 
 #ifdef G_OS_WIN32
 
