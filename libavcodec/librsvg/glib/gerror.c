@@ -353,6 +353,7 @@ g_error_new_literal (GQuark         domain,
  *
  * Frees a #GError and associated resources.
  */
+G_LIB_EXPORT
 void
 g_error_free (GError *error)
 {
