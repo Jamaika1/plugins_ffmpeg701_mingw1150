@@ -5332,7 +5332,7 @@ VASNPRINTF (DCHAR_T *resultbuf, size_t *lengthp,
 #endif
 
 #if !USE_SNPRINTF
-                    if (count >= tmp_length)
+                    if (count >= (int)tmp_length)
                       /* tmp_length was incorrectly calculated - fix the
                          code above!  */
                       abort ();
@@ -5423,7 +5423,7 @@ VASNPRINTF (DCHAR_T *resultbuf, size_t *lengthp,
 
 #if DCHAR_IS_TCHAR && !USE_SNPRINTF
                     /* Make room for the result.  */
-                    if (count > allocated - length)
+                    if (count > (int)(allocated - length))
                       {
                         /* Need at least count elements.  But allocate
                            proportionally.  */
