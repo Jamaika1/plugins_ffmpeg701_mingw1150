@@ -204,7 +204,7 @@ GError*  g_error_new_valist    (GQuark         domain,
                                 const gchar   *format,
                                 va_list        args) G_GNUC_PRINTF(3, 0);
 
-GLIB_AVAILABLE_IN_ALL
+G_LIB_EXPORT //GLIB_AVAILABLE_IN_ALL
 void     g_error_free          (GError        *error);
 GLIB_AVAILABLE_IN_ALL
 GError*  g_error_copy          (const GError  *error);
