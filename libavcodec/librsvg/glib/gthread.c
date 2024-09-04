@@ -115,13 +115,13 @@ static inline void g_private_replace_impl (GPrivate *key,
 
 static inline void g_thread_yield_impl (void);
 
-#if defined(THREADS_POSIX)
-#include "gthread-posix.c"
-#elif defined(THREADS_WIN32)
-#include "gthread-win32.c"
-#else
-#error "No threads implementation"
-#endif
+//#if defined(THREADS_POSIX)
+#include "extra/gthread-posix.c"
+//#elif defined(THREADS_WIN32)
+//#include "extra/gthread-win32.c"
+//#else
+//#error "No threads implementation"
+//#endif
 
 /* G_LOCK Documentation {{{1 ---------------------------------------------- */
 
