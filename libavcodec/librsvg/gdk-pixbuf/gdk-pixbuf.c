@@ -586,14 +586,14 @@ gdk_pixbuf_calculate_rowstride (GdkColorspace colorspace,
 	g_return_val_if_fail (width > 0, -1);
 	g_return_val_if_fail (height > 0, -1);
 
-	channels = has_alpha ? 4 : 3;
+	channels = has_alpha ? 4u : 3u;
 
 	/* Overflow? */
-	if (width > (G_MAXINT - 3) / channels)
+	if (width > (int)((G_MAXUINT - 3u) / channels))
 		return -1;
 
 	/* Always align rows to 32-bit boundaries */
-	return (width * channels + 3) & ~3;
+	return (width * channels + 3u) & ~3;
 }
 
 /**
@@ -1361,7 +1361,7 @@ gdk_pixbuf_set_property (GObject         *object,
 
         switch (prop_id) {
         case PROP_COLORSPACE:
-                notify = pixbuf->colorspace != g_value_get_enum (value);
+                notify = pixbuf->colorspace != (GdkColorspace)g_value_get_enum (value);
                 pixbuf->colorspace = g_value_get_enum (value);
                 break;
         case PROP_N_CHANNELS:
@@ -1536,7 +1536,7 @@ gdk_pixbuf_constructed (GObject *object)
                 has_alpha = pixbuf->has_alpha;
 
                 /* This is the same check as in gdk_pixbuf_new_from_bytes() */
-                if (!(bytes_size >= width * height * (has_alpha ? 4 : 3))) {
+                if (!(bytes_size >= (gsize)width * height * (has_alpha ? 4 : 3))) {
                         g_error ("GBytes is too small to fit the pixbuf's declared width and height");
                 }
                 break;
