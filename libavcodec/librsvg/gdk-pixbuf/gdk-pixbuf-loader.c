@@ -489,7 +489,7 @@ gdk_pixbuf_loader_eat_header_write (GdkPixbufLoader *loader,
         gint n_bytes;
         GdkPixbufLoaderPrivate *priv = loader->priv;
   
-        n_bytes = MIN(SNIFF_BUFFER_SIZE - priv->header_buf_offset, count);
+        n_bytes = MIN(SNIFF_BUFFER_SIZE - priv->header_buf_offset, (gint)count);
         memcpy (priv->header_buf + priv->header_buf_offset, buf, n_bytes);
   
         priv->header_buf_offset += n_bytes;
