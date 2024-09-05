@@ -21,7 +21,9 @@
 
 #include "config.h"
 #include <string.h>
-#include <libintl.h>
+#if ENABLE_NLS
+#include "../libintl/libgnuintl.h"
+#endif
 
 #include "gdk-pixbuf-transform.h"
 #include "gdk-pixbuf-private.h"
