@@ -290,7 +290,7 @@ scan_int (const char **pos, int *out)
         if (*p < '0' || *p > '9')
                 return FALSE;
         
-        while ((*p >= '0') && (*p <= '9') && i < sizeof (buf)) {
+        while ((*p >= '0') && (*p <= '9') && i < (int)sizeof (buf)) {
                 buf[i] = *p;
                 i++;
                 p++;
