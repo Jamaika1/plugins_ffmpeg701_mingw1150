@@ -891,7 +891,7 @@ int xavs2_me_get_buf_size(const xavs2_param_t *param)
  * Return     : none
  * ---------------------------------------------------------------------------
  */
-void xavs2_me_init(xavs2_t *h, uint8_t **mem_base)
+void xavs2_me_init8(xavs2_t *h, uint8_t **mem_base)
 {
     uint8_t *mbase  = *mem_base;
     int me_range    = XAVS2_MAX(256, h->param->search_range);
@@ -907,6 +907,35 @@ void xavs2_me_init(xavs2_t *h, uint8_t **mem_base)
     ALIGN_POINTER(mbase);
 
     *mem_base = mbase;
+
+    // init array of motion vector bits
+    h->mvbits[0] = 1;
+    for (bits = 3; bits <= max_mv_bits; bits += 2) {
+        imax = 1 << (bits >> 1);
+        imin = imax >> 1;
+
+        for (i = imin; i < imax; i++) {
+            h->mvbits[-i] = h->mvbits[i] = (uint16_t)bits;
+        }
+    }
+}
+
+void xavs2_me_init10(xavs2_t *h, uint16_t **mem_base16)
+{
+    uint16_t *mbase  = *mem_base16;
+    int me_range    = XAVS2_MAX(256, h->param->search_range);
+    int subpel_num  = 4 * (2 * me_range + 3);
+    int max_mv_bits = 5 + 2 * (int)ceil(log(subpel_num + 1) / log(2) + 1e-10);
+    int max_mvd     = (1 << ((max_mv_bits >> 1))) - 1;
+    int bits, i, imin, imax;
+
+    /* set pointer of mvbits */
+    h->mvbits  = mbase;
+    h->mvbits += max_mvd;       // reset the array offset
+    mbase     += (max_mvd * 2 + 1) * sizeof(uint16_t);
+    ALIGN_POINTER16(mbase);
+
+    *mem_base16 = mbase;
 
     // init array of motion vector bits
     h->mvbits[0] = 1;

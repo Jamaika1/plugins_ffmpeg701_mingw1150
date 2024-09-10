@@ -378,9 +378,12 @@ union mv_t {
  * bitstream
  */
 typedef struct bitstream {
-    uint8_t    *p_start;              /* actual buffer for written bytes */
-    uint8_t    *p;                    /* pointer to byte written currently */
-    uint8_t    *p_end;                /* end of the actual buffer */
+    uint8_t    *p_start8;              /* actual buffer for written bytes */
+    uint8_t    *p8;                    /* pointer to byte written currently */
+    uint8_t    *p_end8;                /* end of the actual buffer */
+    uint16_t    *p_start16;              /* actual buffer for written bytes */
+    uint16_t    *p16;                    /* pointer to byte written currently */
+    uint16_t    *p_end16;                /* end of the actual buffer */
     int         i_left;               /* current bit counter to go */
 } bs_t;
 
@@ -427,8 +430,8 @@ typedef struct runlevel_t {
  */
 typedef struct binary_t {
     /* 语法元素编码用函数指针 */
-    int (*write_intra_pred_mode)(aec_t *p_aec, int ipmode);
-    int (*write_ctu_split_flag)(aec_t *p_aec, int i_cu_split, int i_cu_level);
+    int (*write_intra_pred_mode)(xavs2_t* h, aec_t *p_aec, int ipmode);
+    int (*write_ctu_split_flag)(xavs2_t* h, aec_t *p_aec, int i_cu_split, int i_cu_level);
     int (*est_cu_header)(xavs2_t *h, aec_t *p_aec, cu_t *p_cu);
     int (*est_cu_refs_mvds)(xavs2_t *h, aec_t *p_aec, cu_t *p_cu);
 
@@ -443,12 +446,12 @@ typedef struct binary_t {
     int (*write_cu_cbp)(aec_t *p_aec, cu_info_t *p_cu_info, int slice_index_cur_cu, xavs2_t *h);
 #endif
 
-    int  (*write_sao_mergeflag)(aec_t *p_aec, int mergeleft_avail, int mergeup_avail, SAOBlkParam *saoBlkParam);
-    int  (*write_sao_mode)(aec_t *p_aec, SAOBlkParam *saoBlkParam);
-    int  (*write_sao_offset)(aec_t *p_aec, SAOBlkParam *saoBlkParam);
-    int  (*write_sao_type)(aec_t *p_aec, SAOBlkParam *saoBlkParam);
+    int  (*write_sao_mergeflag)(xavs2_t* h, aec_t *p_aec, int mergeleft_avail, int mergeup_avail, SAOBlkParam *saoBlkParam);
+    int  (*write_sao_mode)(xavs2_t* h, aec_t *p_aec, SAOBlkParam *saoBlkParam);
+    int  (*write_sao_offset)(xavs2_t* h, aec_t *p_aec, SAOBlkParam *saoBlkParam);
+    int  (*write_sao_type)(xavs2_t* h, aec_t *p_aec, SAOBlkParam *saoBlkParam);
 
-    int  (*write_alf_lcu_ctrl)(aec_t *p_aec, uint8_t iflag);
+    int  (*write_alf_lcu_ctrl)(xavs2_t* h, aec_t *p_aec, uint8_t iflag);
 } binary_t;
 
 
@@ -729,10 +732,14 @@ typedef struct ctx_set_t {
  * struct to characterize the state of the arithmetic coding
  */
 struct aec_t {
-    ALIGN16(uint8_t *p_start);        /* actual buffer for written bytes */
+    ALIGN16(uint8_t *p_start8);       /* actual buffer for written bytes */
     /* bitstream */
-    uint8_t    *p;                    /* pointer to byte written currently */
-    uint8_t    *p_end;                /* end of actual buffer for written bytes */
+    uint8_t    *p8;                   /* pointer to byte written currently */
+    uint8_t    *p_end8;               /* end of actual buffer for written bytes */
+    ALIGN16(uint16_t *p_start16);     /* actual buffer for written bytes */
+    /* bitstream */
+    uint16_t    *p16;                 /* pointer to byte written currently */
+    uint16_t    *p_end16;             /* end of actual buffer for written bytes */
     uint32_t    reg_flush_bits;       /* register: flushing bits (not written into byte buffer) */
     uint32_t    num_left_flush_bits;  /* number of bits in \ref{reg_flush_bits} could be used */
 
@@ -761,11 +768,12 @@ typedef struct slice_t {
 
     /* bitstream buffer */
     int         len_slice_bs_buf;     /* length  of bitstream buffer */
-    uint8_t    *p_slice_bs_buf;       /* pointer of bitstream buffer (start address) */
+    uint8_t    *p_slice_bs_buf8;      /* pointer of bitstream buffer (start address) */
+    uint16_t   *p_slice_bs_buf16;     /* pointer of bitstream buffer (start address) */
 
     /* slice buffers */
-    pel8_t      *slice_intra_border8[3];    /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
-    pel10_t      *slice_intra_border10[3];    /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
+    pel8_t     *slice_intra_border8[3];   /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
+    pel10_t    *slice_intra_border10[3];  /* buffer for store decoded bottom pixels of the top lcu row (before filter) */
     uint8_t    *slice_deblock_flag[2];    /* buffer for edge filter flag (of one LCU row), [dir][(scu_y, scu_x)] */
     int8_t     *slice_ipredmode;          /* [(i_height_in_minpu + 1) * (i_width_in_minpu + 16)], prediction intra mode */
 
@@ -1072,7 +1080,8 @@ struct xavs2_frame_t {
     int         size_plane_buf;
 
     /* bit stream buffer */
-    uint8_t    *p_bs_buf;             /* bit stream buffer for encoding this frame */
+    uint8_t    *p_bs_buf8;            /* bit stream buffer for encoding this frame */
+    uint16_t   *p_bs_buf16;           /* bit stream buffer for encoding this frame */
     int         i_bs_buf;             /* length of bit stream buffer */
     int         i_bs_len;             /* length of bit stream data */
 
@@ -1254,7 +1263,8 @@ typedef struct nal_t {
     int         i_ref_idc;            /* nal_priority_e */
     int         i_type;               /* nal_unit_type_e */
     int         i_payload;            /* size of payload in bytes */
-    uint8_t    *p_payload;            /* payload */
+    uint8_t    *p_payload8;           /* payload */
+    uint16_t   *p_payload16;          /* payload */
 } nal_t;
 
 
@@ -1354,9 +1364,9 @@ typedef struct cu_layer_t {
     rdcost_t         mode_rdcost[MAX_PRED_MODES];   /* min rd-cost for each mode */
     int              mask_md_res_pred;              /* available mode mask */
 
-    pel8_t           *p_rec8_tmp[3];    /* tmp pointers to ping-pong buffer for swapping */
-    pel10_t           *p_rec10_tmp[3];    /* tmp pointers to ping-pong buffer for swapping */
-    coeff_t         *p_coeff_tmp[3];  /* tmp pointers to ping-pong buffer for swapping */
+    pel8_t          *p_rec8_tmp[3];    /* tmp pointers to ping-pong buffer for swapping */
+    pel10_t         *p_rec10_tmp[3];   /* tmp pointers to ping-pong buffer for swapping */
+    coeff_t         *p_coeff_tmp[3];   /* tmp pointers to ping-pong buffer for swapping */
 
     cu_info_t        cu_best;         /* best info for each cu depth */
     cu_mode_t        cu_mode;         /* mode info for each cu depth (TODO: simplification for motion info like x265 ?) */
@@ -1599,8 +1609,10 @@ struct xavs2_t {
     int         i_nal_ref_idc;        /* NAL priority */
 
     bs_t        header_bs;            /* bitstream controller for main thread */
-    uint8_t    *p_bs_buf_header;      /* pointer to bitstream buffer for headers */
-    uint8_t    *p_bs_buf_slice;       /* pointer to bitstream buffer for slices */
+    uint8_t    *p_bs_buf_header8;     /* pointer to bitstream buffer for headers */
+    uint8_t    *p_bs_buf_slice8;      /* pointer to bitstream buffer for slices */
+    uint16_t   *p_bs_buf_header16;    /* pointer to bitstream buffer for headers */
+    uint16_t   *p_bs_buf_slice16;     /* pointer to bitstream buffer for slices */
     int         i_bs_buf_header;      /* size    of bitstream buffer for headers */
     int         i_bs_buf_slice;       /* size    of bitstream buffer for slices */
 

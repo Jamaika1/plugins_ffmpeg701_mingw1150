@@ -1181,7 +1181,7 @@ double executePicLCUOnOffDecisionRDOEstimate(xavs2_t *h, alf_ctx_t *Enc_ALF, aec
 
             h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
 
-            rateEnc = p_aec->binary.write_alf_lcu_ctrl(p_aec, 1);
+            rateEnc = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, 1);
 
             costEnc = (double)distEnc + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateEnc;
 
@@ -1189,7 +1189,7 @@ double executePicLCUOnOffDecisionRDOEstimate(xavs2_t *h, alf_ctx_t *Enc_ALF, aec
             distOff = 0;
             // rateOff = 1;
             h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
-            rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, 0);
+            rateOff = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, 0);
 
             costOff = (double)distOff + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateOff;
 
@@ -1200,7 +1200,7 @@ double executePicLCUOnOffDecisionRDOEstimate(xavs2_t *h, alf_ctx_t *Enc_ALF, aec
             //cabacCoder->updateAlfCtrlFlagState(m_pcPic->getCU(ctu)->getAlfLCUEnabled(compIdx)?1:0);
 
             h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
-            rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
+            rateOff = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
             h->copy_aec_state_rdo(&h->cs_data.cs_alf_cu_ctr, p_aec);
 
             rateBestPic[compIdx] += (h->is_alf_lcu_on[ctu][compIdx] ? rateEnc : rateOff);
@@ -1324,7 +1324,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
 
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
 
-                rateEnc = p_aec->binary.write_alf_lcu_ctrl(p_aec, 1);
+                rateEnc = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, 1);
 
                 costEnc = (double)distEnc + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateEnc;
 
@@ -1332,7 +1332,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                 distOff = 0;
                 //rateOff = 1;
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
-                rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, 0);
+                rateOff = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, 0);
 
                 costOff = (double)distOff + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateOff;
 
@@ -1349,7 +1349,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                 //cabacCoder->updateAlfCtrlFlagState(m_pcPic->getCU(ctu)->getAlfLCUEnabled(compIdx)?1:0);
 
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
-                rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
+                rateOff = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
                 h->copy_aec_state_rdo(&h->cs_data.cs_alf_cu_ctr, p_aec);
 
                 rateBestPic[compIdx] += (h->is_alf_lcu_on[ctu][compIdx] ? rateEnc : rateOff);
@@ -1450,7 +1450,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
 
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
 
-                rateEnc = p_aec->binary.write_alf_lcu_ctrl(p_aec, 1);
+                rateEnc = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, 1);
 
                 costEnc = (double)distEnc + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateEnc;
 
@@ -1458,7 +1458,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                 distOff = 0;
                 //rateOff = 1;
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
-                rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, 0);
+                rateOff = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, 0);
 
                 costOff = (double)distOff + (compIdx == 0 ? lambda_luma : lambda_chroma) * rateOff;
 
@@ -1475,7 +1475,7 @@ void executePicLCUOnOffDecision(xavs2_t *h, alf_ctx_t *Enc_ALF, aec_t *p_aec, AL
                 //cabacCoder->updateAlfCtrlFlagState(m_pcPic->getCU(ctu)->getAlfLCUEnabled(compIdx)?1:0);
 
                 h->copy_aec_state_rdo(p_aec, &h->cs_data.cs_alf_cu_ctr);
-                rateOff = p_aec->binary.write_alf_lcu_ctrl(p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
+                rateOff = p_aec->binary.write_alf_lcu_ctrl(h, p_aec, (h->is_alf_lcu_on[ctu][compIdx] ? 1 : 0));
                 h->copy_aec_state_rdo(&h->cs_data.cs_alf_cu_ctr, p_aec);
 
                 rateBestPic[compIdx] += (h->is_alf_lcu_on[ctu][compIdx] ? rateEnc : rateOff);
@@ -2332,7 +2332,7 @@ int alf_get_buffer_size(const xavs2_param_t *param)
 
 /* ---------------------------------------------------------------------------
  */
-void alf_init_buffer(xavs2_t *h, uint8_t *mem_base)
+void alf_init_buffer8(xavs2_t *h, uint8_t *mem_base)
 {
     // Ï£¶û²®ÌØÉ¨ÃèË³Ðò
     static const uint8_t regionTable[NO_VAR_BINS] = {
@@ -2392,6 +2392,80 @@ void alf_init_buffer(xavs2_t *h, uint8_t *mem_base)
 
     h->is_alf_lcu_on = (bool_t(*)[IMG_CMPNTS])mem_ptr;
     mem_ptr += (num_lcu * IMG_CMPNTS * sizeof(bool_t));
+
+    for (j = 0; j < height_in_lcu; j++) {
+        region_idx_y = (quad_h_in_lcu == 0) ? 3 : XAVS2_MIN(j / quad_h_in_lcu, 3);
+        for (i = 0; i < width_in_lcu; i++) {
+            region_idx_x = (quad_w_in_lcu == 0) ? 3 : XAVS2_MIN(i / quad_w_in_lcu, 3);
+            Enc_ALF->tab_lcu_region[j * width_in_lcu + i] = regionTable[region_idx_y * 4 + region_idx_x];
+        }
+    }
+
+    h->enc_alf = Enc_ALF;
+    aec_init_coding_state(&h->cs_data.cs_alf_cu_ctr);
+    aec_init_coding_state(&h->cs_data.cs_alf_initial);
+}
+
+void alf_init_buffer10(xavs2_t *h, uint16_t *mem_base16)
+{
+    // Ï£¶û²®ÌØÉ¨ÃèË³Ðò
+    static const uint8_t regionTable[NO_VAR_BINS] = {
+        0, 1, 4, 5, 15, 2, 3, 6, 14, 11, 10, 7, 13, 12, 9, 8
+    }
+    ;
+    int width_in_lcu  = h->i_width_in_lcu;
+    int height_in_lcu = h->i_height_in_lcu;
+    int quad_w_in_lcu = ((width_in_lcu  + 1) >> 2);
+    int quad_h_in_lcu = ((height_in_lcu + 1) >> 2);
+    int region_idx_x;
+    int region_idx_y;
+    int i, j;
+
+    int num_lcu = height_in_lcu * width_in_lcu;
+    int compIdx, n;
+    int maxNumTemporalLayer = (int)(log10((float)(h->param->i_gop_size)) / log10(2.0) + 1);
+    int mem_size;
+    uint16_t *mem_ptr16 = mem_base16;
+    alf_ctx_t *Enc_ALF;
+
+    mem_size = alf_get_buffer_size(h->param);
+    memset(mem_ptr16, 0, mem_size);
+
+    Enc_ALF                          = (alf_ctx_t *)mem_ptr16;
+    mem_ptr16                         += sizeof(alf_ctx_t);
+    Enc_ALF->m_alfReDesignIteration  = 3;
+    Enc_ALF->m_uiBitIncrement        = 0;
+
+    for (compIdx = 0; compIdx < IMG_CMPNTS; compIdx++) {
+        Enc_ALF->m_alfCorr[compIdx]  = (AlfCorrData *)mem_ptr16;
+        mem_ptr16 += (num_lcu * sizeof(AlfCorrData));
+    }
+
+    for (compIdx = 0; compIdx < IMG_CMPNTS; compIdx++) {
+        Enc_ALF->m_alfNonSkippedCorr[compIdx] = (AlfCorrData *)mem_ptr16;
+        mem_ptr16 += (num_lcu * sizeof(AlfCorrData));
+    }
+
+    Enc_ALF->m_alfPrevCorr = (AlfCorrData *)mem_ptr16;
+    mem_ptr16 += maxNumTemporalLayer * IMG_CMPNTS * num_lcu * sizeof(AlfCorrData);
+    for (n = 0; n < maxNumTemporalLayer; n++) {
+        for (compIdx = 0; compIdx < IMG_CMPNTS; compIdx++) {
+            init_alf_frame_param(&(Enc_ALF->m_alfPictureParam[n][compIdx]));
+        }
+    }
+
+    for (n = 0; n < NO_VAR_BINS; n++) {
+        Enc_ALF->m_coeffNoFilter[n][ALF_MAX_NUM_COEF - 1] = (1 << ALF_NUM_BIT_SHIFT);
+    }
+
+    Enc_ALF->m_numSlicesDataInOneLCU = (int *)mem_ptr16;
+    mem_ptr16 += (num_lcu * sizeof(int));
+
+    Enc_ALF->tab_lcu_region = (int8_t *)mem_ptr16;
+    mem_ptr16 += (num_lcu * sizeof(int8_t));
+
+    h->is_alf_lcu_on = (bool_t(*)[IMG_CMPNTS])mem_ptr16;
+    mem_ptr16 += (num_lcu * IMG_CMPNTS * sizeof(bool_t));
 
     for (j = 0; j < height_in_lcu; j++) {
         region_idx_y = (quad_h_in_lcu == 0) ? 3 : XAVS2_MIN(j / quad_h_in_lcu, 3);

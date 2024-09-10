@@ -40,8 +40,10 @@
 #define alf_get_buffer_size FPFX(alf_get_buffer_size)
 int  alf_get_buffer_size(const xavs2_param_t *param);
 
-#define alf_init_buffer FPFX(alf_init_buffer)
-void alf_init_buffer(xavs2_t *h, uint8_t *mem_base);
+#define alf_init_buffer8 FPFX(alf_init_buffer8)
+void alf_init_buffer8(xavs2_t *h, uint8_t *mem_base);
+#define alf_init_buffer10 FPFX(alf_init_buffer10)
+void alf_init_buffer10(xavs2_t *h, uint16_t *mem_base16);
 
 #define alf_filter_one_frame FPFX(alf_filter_one_frame)
 void alf_filter_one_frame(xavs2_t *h);

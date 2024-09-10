@@ -56,8 +56,8 @@
 #include <windows.h>
 #endif
 
-#define _LARGEFILE_SOURCE       1
-#define _FILE_OFFSET_BITS       64
+//#define _LARGEFILE_SOURCE       1
+//#define _FILE_OFFSET_BITS       64
 #if defined(__ICL) || defined(_MSC_VER)
 #include "configw.h"
 #else
@@ -165,8 +165,10 @@
 /* align a pointer */
 #  define CACHE_LINE_SIZE       32    /* for x86-64 and x86 */
 #  define ALIGN_POINTER(p)      (p) = (uint8_t *)((intptr_t)((p) + (CACHE_LINE_SIZE - 1)) & (~(intptr_t)(CACHE_LINE_SIZE - 1)))
+#  define ALIGN_POINTER16(p)      (p) = (uint16_t *)((intptr_t)((p) + (CACHE_LINE_SIZE - 1)) & (~(intptr_t)(CACHE_LINE_SIZE - 1)))
 #  define CACHE_LINE_256B       32    /* for x86-64 and x86 */
 #  define ALIGN_256_PTR(p)      (p) = (uint8_t *)((intptr_t)((p) + (CACHE_LINE_256B - 1)) & (~(intptr_t)(CACHE_LINE_256B - 1)))
+#  define ALIGN_256_PTR16(p)      (p) = (uint16_t *)((intptr_t)((p) + (CACHE_LINE_256B - 1)) & (~(intptr_t)(CACHE_LINE_256B - 1)))
 
 #if defined(_MSC_VER)
 #pragma warning(disable:4324)   /* disable warning C4324: 由于 __declspec(align())，结构被填充 */

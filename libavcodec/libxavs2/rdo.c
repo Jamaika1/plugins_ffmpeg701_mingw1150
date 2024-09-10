@@ -1255,7 +1255,7 @@ static void cu_check_intra(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, cu_info_t *best
                 coeff_t *p_coeff_y = p_cu->cu_info.p_coeff[0] + (blockidx << ((p_cu->cu_info.i_level - 1) << 1));
 
                 // get rate for intra prediction mode
-                rate_luma_mode = p_aec->binary.write_intra_pred_mode(p_aec, mode_idx_aec);
+                rate_luma_mode = p_aec->binary.write_intra_pred_mode(h, p_aec, mode_idx_aec);
 
                 // get rate for luminance coefficients
                 if (num_nonzero) {
@@ -1499,7 +1499,7 @@ static void cu_check_intra(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, cu_info_t *best
                 coeff_t *p_coeff_y = p_cu->cu_info.p_coeff[0] + (blockidx << ((p_cu->cu_info.i_level - 1) << 1));
 
                 // get rate for intra prediction mode
-                rate_luma_mode = p_aec->binary.write_intra_pred_mode(p_aec, mode_idx_aec);
+                rate_luma_mode = p_aec->binary.write_intra_pred_mode(h, p_aec, mode_idx_aec);
 
                 // get rate for luminance coefficients
                 if (num_nonzero) {
@@ -4026,7 +4026,7 @@ rdcost_t compress_cu_intra(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, cu_info_t *best
 
     UNUSED_PARAMETER(cost_limit);
     if (i_level > MIN_CU_SIZE_IN_BIT) {
-        split_flag_cost = h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(p_aec, 0, i_level);
+        split_flag_cost = h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(h, p_aec, 0, i_level);
     }
 
     h->lcu.b_enable_rdoq     = (h->param->i_rdoq_level == RDOQ_ALL);
@@ -4473,7 +4473,7 @@ rdcost_t compress_ctu_intra(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, int i_level, i
 
         // cal split cost
         if (b_inside_pic) {
-            split_cu_cost += h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(p_aec, 1, i_level);
+            split_cu_cost += h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(h, p_aec, 1, i_level);
         }
 
         for (i = 0; i < 4; i++) {
@@ -4529,7 +4529,7 @@ rdcost_t compress_ctu_inter(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, int i_level, i
     if (b_check_large_cu) {
         h->copy_aec_state_rdo(&cs_aec, p_aec);
         if (i_level > MIN_CU_SIZE_IN_BIT) {
-            split_flag_cost = h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(&cs_aec, 0, i_level);
+            split_flag_cost = h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(h, &cs_aec, 0, i_level);
         }
 
         large_cu_cost = compress_cu_inter(h, &cs_aec, p_cu, best, avail_modes, large_cu_cost, cost_limit);
@@ -4574,7 +4574,7 @@ rdcost_t compress_ctu_inter(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, int i_level, i
 
         // cal split cost
         if (b_inside_pic) {
-            split_cu_cost += h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(p_aec, 1, i_level);
+            split_cu_cost += h->f_lambda_mode * p_aec->binary.write_ctu_split_flag(h, p_aec, 1, i_level);
         }
 
         for (i = 0; i < 4; i++) {

@@ -157,7 +157,7 @@ void aec_copy_coding_state_sao(aec_t *p_dst, aec_t *p_src)
 static ALWAYS_INLINE
 int aec_get_written_bits(aec_t *p_aec)
 {
-    return (int)(((p_aec->p - p_aec->p_start) << 3) + p_aec->i_bits_to_follow + NUM_FLUSH_BITS - p_aec->num_left_flush_bits);
+    return (int)(((p_aec->p8 - p_aec->p_start8) << 3) + p_aec->i_bits_to_follow + NUM_FLUSH_BITS - p_aec->num_left_flush_bits);
 }
 
 /* ---------------------------------------------------------------------------
@@ -174,28 +174,52 @@ int rdo_get_written_bits(aec_t *p_aec)
  * 向码流文件中输出flush bits
  */
 static INLINE
-void bitstr_flush_bits(aec_t *p_aec)
+void bitstr_flush_bits(xavs2_t *h, aec_t *p_aec)
 {
+    if (h->param->input_sample_bit_depth == 8) {
     switch (NUM_FLUSH_BITS) {
     case 24:
-        p_aec->p[0] = (uint8_t)(p_aec->reg_flush_bits >> 16);
-        p_aec->p[1] = (uint8_t)(p_aec->reg_flush_bits >> 8);
-        p_aec->p[2] = (uint8_t)(p_aec->reg_flush_bits);
-        p_aec->p += 3;
+        p_aec->p8[0] = (uint8_t)(p_aec->reg_flush_bits >> 16);
+        p_aec->p8[1] = (uint8_t)(p_aec->reg_flush_bits >> 8);
+        p_aec->p8[2] = (uint8_t)(p_aec->reg_flush_bits);
+        p_aec->p8 += 3;
         break;
     case 16:
-        p_aec->p[0] = (uint8_t)(p_aec->reg_flush_bits >> 8);
-        p_aec->p[1] = (uint8_t)(p_aec->reg_flush_bits);
-        p_aec->p += 2;
+        p_aec->p8[0] = (uint8_t)(p_aec->reg_flush_bits >> 8);
+        p_aec->p8[1] = (uint8_t)(p_aec->reg_flush_bits);
+        p_aec->p8 += 2;
         break;
     case 8:
-        p_aec->p[0] = (uint8_t)p_aec->reg_flush_bits;
-        p_aec->p += 1;
+        p_aec->p8[0] = (uint8_t)p_aec->reg_flush_bits;
+        p_aec->p8 += 1;
         break;
     default:
         fprintf(stderr, "Unsupported number of flush bits %d\n", NUM_FLUSH_BITS);
         assert(0);
         break;
+    }
+    } else {
+    switch (NUM_FLUSH_BITS) {
+    case 24:
+        p_aec->p16[0] = (uint16_t)(p_aec->reg_flush_bits >> 16);
+        p_aec->p16[1] = (uint16_t)(p_aec->reg_flush_bits >> 8);
+        p_aec->p16[2] = (uint16_t)(p_aec->reg_flush_bits);
+        p_aec->p16 += 3;
+        break;
+    case 16:
+        p_aec->p16[0] = (uint16_t)(p_aec->reg_flush_bits >> 8);
+        p_aec->p16[1] = (uint16_t)(p_aec->reg_flush_bits);
+        p_aec->p16 += 2;
+        break;
+    case 8:
+        p_aec->p16[0] = (uint16_t)p_aec->reg_flush_bits;
+        p_aec->p16 += 1;
+        break;
+    default:
+        fprintf(stderr, "Unsupported number of flush bits %d\n", NUM_FLUSH_BITS);
+        assert(0);
+        break;
+    }
     }
 
     p_aec->reg_flush_bits = 0;
@@ -206,11 +230,11 @@ void bitstr_flush_bits(aec_t *p_aec)
  * 向码流文件中输出one bit
  */
 static INLINE
-void bitstr_put_one_bit(aec_t *p_aec, uint32_t b)
+void bitstr_put_one_bit(xavs2_t *h, aec_t *p_aec, uint32_t b)
 {
     p_aec->reg_flush_bits |= ((b) << --p_aec->num_left_flush_bits);
     if (!p_aec->num_left_flush_bits) {
-        bitstr_flush_bits(p_aec);
+        bitstr_flush_bits(h, p_aec);
         p_aec->num_left_flush_bits = NUM_FLUSH_BITS;
     }
 }
@@ -294,15 +318,17 @@ void aec_init_coding_state   (aec_t *p_aec);
 /* ---------------------------------------------------------------------------
  * aec functions
  */
-#define aec_start FPFX(aec_start)
-void aec_start(xavs2_t *h, aec_t *p_aec, uint8_t *p_bs_start, uint8_t *p_bs_end, int b_writing);
+#define aec_start8 FPFX(aec_start8)
+void aec_start8(xavs2_t *h, aec_t *p_aec, uint8_t *p_bs_start, uint8_t *p_bs_end, int b_writing);
+#define aec_start10 FPFX(aec_start10)
+void aec_start10(xavs2_t *h, aec_t *p_aec, uint16_t *p_bs_start, uint16_t *p_bs_end, int b_writing);
 #define aec_done FPFX(aec_done)
-void aec_done(aec_t *p_aec);
+void aec_done(xavs2_t *h, aec_t *p_aec);
 
 /* AEC */
 #define xavs2_lcu_write FPFX(lcu_write)
 void xavs2_lcu_write(xavs2_t *h, aec_t *p_aec, lcu_info_t *lcu_info, int i_level, int img_x, int img_y);
 #define xavs2_lcu_terminat_bit_write FPFX(lcu_terminat_bit_write)
-void xavs2_lcu_terminat_bit_write(aec_t *p_aec, uint8_t bit);
+void xavs2_lcu_terminat_bit_write(xavs2_t *h, aec_t *p_aec, uint8_t bit);
 
 #endif  // XAVS2_AEC_H

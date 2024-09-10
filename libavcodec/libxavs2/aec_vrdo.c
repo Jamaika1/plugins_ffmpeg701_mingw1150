@@ -72,7 +72,7 @@ static ALWAYS_INLINE int aec_get_shift(uint32_t v)
  */
 #define biari_encode_symbol_vrdo(p_aec, symbol, p_ctx)  \
                                  p_aec->i_bits_to_follow++
-#define DECLARE_CONTEXT(p_ctx)  
+#define DECLARE_CONTEXT(p_ctx)
 
 /* ---------------------------------------------------------------------------
  */
@@ -191,7 +191,7 @@ int aec_write_cutype_vrdo(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_cu_
  * arithmetically encode a pair of intra prediction modes of a given cu
  */
 static
-int aec_write_intra_pred_mode_vrdo(aec_t *p_aec, int ipmode)
+int aec_write_intra_pred_mode_vrdo(xavs2_t *h ,aec_t *p_aec, int ipmode)
 {
     DECLARE_CONTEXT(context_t *p_ctx = p_aec->p_ctx_set->intra_luma_pred_mode);
     int org_bits = rdo_get_written_bits(p_aec);
@@ -674,8 +674,8 @@ int aec_write_dqp_vrdo(aec_t *p_aec, int delta_qp, int last_dqp)
 /* ---------------------------------------------------------------------------
  */
 static ALWAYS_INLINE
-void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag, 
-                           int i_cg, int cg_last_x, int cg_last_y, 
+void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag,
+                           int i_cg, int cg_last_x, int cg_last_y,
                            int num_cg, int num_cg_x_minus1, int num_cg_y_minus1)
 {
     int count;
@@ -705,7 +705,7 @@ void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag,
  */
 static ALWAYS_INLINE
 void aec_write_last_coeff_pos(aec_t *p_aec, int isLastCG,
-                              int pos, 
+                              int pos,
                               int b_dc_diag)
 {
     static const ALIGN32(int8_t tab_bits_pos[4][16]) = {
@@ -781,7 +781,7 @@ int aec_write_run_level_luma_vrdo(aec_t *p_aec, int b_dc_diag,
         pairs = num_pairs - 1;
 
         {
-            aec_write_last_coeff_pos(p_aec, rank == 0, 
+            aec_write_last_coeff_pos(p_aec, rank == 0,
                                      pos, b_dc_diag);
         }
 
@@ -829,7 +829,7 @@ int aec_write_run_level_luma_vrdo(aec_t *p_aec, int b_dc_diag,
 
         /* early terminate? */
         CHECK_EARLY_RETURN_RUNLEVEL(p_aec);
-    }   // for (; i_cg >= 0; i_cg--) 
+    }   // for (; i_cg >= 0; i_cg--)
 
     /* get the number of written bits */
     org_bits = rdo_get_written_bits(p_aec) - org_bits;
@@ -837,7 +837,7 @@ int aec_write_run_level_luma_vrdo(aec_t *p_aec, int b_dc_diag,
 #ifdef DEBUG
     if (rank == 0) {
         xavs2_log(h, XAVS2_LOG_ERROR, "no non-zero run-level luma, POC[%d]: p_cu: (%d, %d), level %d, cu_type %d\n",
-            h->fdec->i_poc, runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level, 
+            h->fdec->i_poc, runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level,
             runlevel->p_cu_info->i_mode);
     }
 #endif
@@ -958,7 +958,7 @@ int aec_write_run_level_chroma_vrdo(aec_t *p_aec, runlevel_t *runlevel, xavs2_t 
 
         /* early terminate? */
         CHECK_EARLY_RETURN_RUNLEVEL(p_aec);
-    }   // for (; i_cg >= 0; i_cg--) 
+    }   // for (; i_cg >= 0; i_cg--)
 
     /* get the number of written bits */
     org_bits = rdo_get_written_bits(p_aec) - org_bits;
@@ -966,7 +966,7 @@ int aec_write_run_level_chroma_vrdo(aec_t *p_aec, runlevel_t *runlevel, xavs2_t 
 #ifdef DEBUG
     if (rank == 0) {
         xavs2_log(h, XAVS2_LOG_ERROR, "no non-zero run-level chroma, p_cu: (%d, %d), level %d, cu_type %d\n",
-            runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level, 
+            runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level,
             runlevel->p_cu_info->i_mode);
     }
 #endif
@@ -978,7 +978,7 @@ int aec_write_run_level_chroma_vrdo(aec_t *p_aec, runlevel_t *runlevel, xavs2_t 
 
 /* ---------------------------------------------------------------------------
  */
-int aec_write_split_flag_vrdo(aec_t *p_aec, int i_cu_split, int i_cu_level)
+int aec_write_split_flag_vrdo(xavs2_t *h, aec_t *p_aec, int i_cu_split, int i_cu_level)
 {
     int org_bits = rdo_get_written_bits(p_aec);
 
@@ -993,7 +993,7 @@ int aec_write_split_flag_vrdo(aec_t *p_aec, int i_cu_split, int i_cu_level)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_mergeflag_vrdo(aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam *p_sao_param)
+int write_sao_mergeflag_vrdo(xavs2_t *h, aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam *p_sao_param)
 {
     int b_merge_left = 0;
     int b_merge_up;
@@ -1029,7 +1029,7 @@ int write_sao_mergeflag_vrdo(aec_t *p_aec, int avail_left, int avail_up, SAOBlkP
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_mode_vrdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_mode_vrdo(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     DECLARE_CONTEXT(context_t *p_ctx = p_aec->p_ctx_set->sao_mode);
     int org_bits = rdo_get_written_bits(p_aec);
@@ -1106,7 +1106,7 @@ static int aec_write_sao_offset_vrdo(aec_t *p_aec, int val, int offset_type)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_offset_vrdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_offset_vrdo(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     int rate = 0;
 
@@ -1137,7 +1137,7 @@ int write_sao_offset_vrdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_type_vrdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_type_vrdo(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     int rate = 0;
     int val;
@@ -1185,7 +1185,7 @@ int write_sao_type_vrdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-int aec_write_alf_lcu_ctrl_vrdo(aec_t *p_aec, uint8_t iflag)
+int aec_write_alf_lcu_ctrl_vrdo(xavs2_t *h, aec_t *p_aec, uint8_t iflag)
 {
     int org_bits = rdo_get_written_bits(p_aec);
     DECLARE_CONTEXT(context_t *p_ctx =  &(p_aec->p_ctx_set->alf_cu_enable_scmodel[0][0]));
@@ -1253,7 +1253,7 @@ int write_cu_header_vrdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu)
 
         /* write intra pred mode */
         for (i = 0; i < num_of_intra_block; i++) {
-            rate += aec_write_intra_pred_mode_vrdo(p_aec, p_cu->cu_info.pred_intra_modes[i]);
+            rate += aec_write_intra_pred_mode_vrdo(h, p_aec, p_cu->cu_info.pred_intra_modes[i]);
         }
 
         if (h->param->chroma_format != CHROMA_400) {
@@ -1314,8 +1314,8 @@ int write_cu_refs_mvds_vrdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu)
     /* write backward reference indexes of this CU, no need for current AVS2 */
 
     /* write DMH mode, "dir_multi_hypothesis_mode" */
-    if (h->i_type == SLICE_TYPE_F /*&& h->param->enable_dmh*/ 
-        && p_cu->cu_info.b8pdir[0] == PDIR_FWD && p_cu->cu_info.b8pdir[1] == PDIR_FWD 
+    if (h->i_type == SLICE_TYPE_F /*&& h->param->enable_dmh*/
+        && p_cu->cu_info.b8pdir[0] == PDIR_FWD && p_cu->cu_info.b8pdir[1] == PDIR_FWD
         && p_cu->cu_info.b8pdir[2] == PDIR_FWD && p_cu->cu_info.b8pdir[3] == PDIR_FWD) {
         if (!(p_cu->cu_info.i_level == B8X8_IN_BIT && p_cu->cu_info.i_mode >= PRED_2NxN && p_cu->cu_info.i_mode <= PRED_nRx2N)) {
             dmh_mode = p_cu->cu_info.dmh_mode;
@@ -1374,8 +1374,8 @@ int write_cu_cbp_dqp_vrdo(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int sl
  */
 static
 int write_luma_block_coeff_vrdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu,
-                                coeff_t *quant_coeff, runlevel_t *runlevel, 
-                                int i_level, int i_stride_shift, int is_intra, 
+                                coeff_t *quant_coeff, runlevel_t *runlevel,
+                                int i_level, int i_stride_shift, int is_intra,
                                 int intra_mode, int max_bits)
 {
     const int16_t(*cg_scan)[2] = NULL;
@@ -1460,7 +1460,7 @@ binary_t gf_aec_vrdo = {
     .est_cu_refs_mvds          = write_cu_refs_mvds_vrdo,
     .est_luma_block_coeff      = write_luma_block_coeff_vrdo,
     .est_chroma_block_coeff    = write_chroma_block_coeff_vrdo,
-    
+
 #if ENABLE_RATE_CONTROL_CU
     .write_cu_cbp_dqp          = write_cu_cbp_dqp_vrdo,
 #else

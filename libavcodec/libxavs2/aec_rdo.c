@@ -268,7 +268,7 @@ int aec_write_cutype_rdo(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_cu_c
  * arithmetically encode a pair of intra prediction modes of a given cu
  */
 static
-int aec_write_intra_pred_mode_rdo(aec_t *p_aec, int ipmode)
+int aec_write_intra_pred_mode_rdo(xavs2_t *h, aec_t *p_aec, int ipmode)
 {
     context_t *p_ctx = p_aec->p_ctx_set->intra_luma_pred_mode;
     int org_bits = rdo_get_written_bits(p_aec);
@@ -840,9 +840,9 @@ int aec_write_dqp_rdo(aec_t *p_aec, int delta_qp, int last_dqp)
 
 /* ---------------------------------------------------------------------------
  */
-static ALWAYS_INLINE 
-void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int intra_pred_class, 
-                           int i_cg, int cg_last_x, int cg_last_y, 
+static ALWAYS_INLINE
+void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int intra_pred_class,
+                           int i_cg, int cg_last_x, int cg_last_y,
                            int num_cg, int num_cg_x_minus1, int num_cg_y_minus1)
 {
     context_t *p_ctx = p_aec->p_ctx_set->last_cg_contexts + (b_luma ? 0 : NUM_LAST_CG_CTX_LUMA);
@@ -890,9 +890,9 @@ void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int intra_pred_class,
 
 /* ---------------------------------------------------------------------------
  */
-static ALWAYS_INLINE 
+static ALWAYS_INLINE
 void aec_write_last_coeff_pos(aec_t *p_aec, int isLastCG, int b_one_cg, int cg_x, int cg_y,
-                              int last_coeff_pos_x, int last_coeff_pos_y, 
+                              int last_coeff_pos_x, int last_coeff_pos_y,
                               int b_luma, int intra_pred_class)
 {
     context_t *p_ctx = p_aec->p_ctx_set->last_pos_contexts + (b_luma ? 0 : NUM_LAST_POS_CTX_LUMA);
@@ -1125,7 +1125,7 @@ int aec_write_run_level_luma_rdo(aec_t *p_aec, int intra_pred_class,
 
         /* early terminate? */
         CHECK_EARLY_RETURN_RUNLEVEL(p_aec);
-    }   // for (; i_cg >= 0; i_cg--) 
+    }   // for (; i_cg >= 0; i_cg--)
 
     /* get the number of written bits */
     org_bits = rdo_get_written_bits(p_aec) - org_bits;
@@ -1133,7 +1133,7 @@ int aec_write_run_level_luma_rdo(aec_t *p_aec, int intra_pred_class,
 #ifdef DEBUG
     if (rank == 0) {
         xavs2_log(h, XAVS2_LOG_ERROR, "no non-zero run-level luma, POC[%d]: p_cu: (%d, %d), level %d, cu_type %d\n",
-            h->fdec->i_poc, runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level, 
+            h->fdec->i_poc, runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level,
             runlevel->p_cu_info->i_mode);
     }
 #endif
@@ -1304,7 +1304,7 @@ int aec_write_run_level_chroma_rdo(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *
 
         /* early terminate? */
         CHECK_EARLY_RETURN_RUNLEVEL(p_aec);
-    }   // for (; i_cg >= 0; i_cg--) 
+    }   // for (; i_cg >= 0; i_cg--)
 
     /* get the number of written bits */
     org_bits = rdo_get_written_bits(p_aec) - org_bits;
@@ -1312,7 +1312,7 @@ int aec_write_run_level_chroma_rdo(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *
 #ifdef DEBUG
     if (rank == 0) {
         xavs2_log(h, XAVS2_LOG_ERROR, "no non-zero run-level chroma, p_cu: (%d, %d), level %d, cu_type %d\n",
-            runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level, 
+            runlevel->p_cu_info->i_scu_x, runlevel->p_cu_info->i_scu_y, runlevel->p_cu_info->i_level,
             runlevel->p_cu_info->i_mode);
     }
 #endif
@@ -1324,7 +1324,7 @@ int aec_write_run_level_chroma_rdo(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *
 
 /* ---------------------------------------------------------------------------
  */
-int aec_write_split_flag_rdo(aec_t *p_aec, int i_cu_split, int i_cu_level)
+int aec_write_split_flag_rdo(xavs2_t *h, aec_t *p_aec, int i_cu_split, int i_cu_level)
 {
     context_t *p_ctx = p_aec->p_ctx_set->split_flag + (MAX_CU_SIZE_IN_BIT - i_cu_level);
     int org_bits = rdo_get_written_bits(p_aec);
@@ -1337,7 +1337,7 @@ int aec_write_split_flag_rdo(aec_t *p_aec, int i_cu_split, int i_cu_level)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_mergeflag_rdo(aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam *p_sao_param)
+int write_sao_mergeflag_rdo(xavs2_t *h, aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam *p_sao_param)
 {
     int b_merge_left = 0;
     int b_merge_up;
@@ -1373,7 +1373,7 @@ int write_sao_mergeflag_rdo(aec_t *p_aec, int avail_left, int avail_up, SAOBlkPa
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_mode_rdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_mode_rdo(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     context_t *p_ctx = p_aec->p_ctx_set->sao_mode;
     int org_bits = rdo_get_written_bits(p_aec);
@@ -1450,7 +1450,7 @@ static int aec_write_sao_offset_rdo(aec_t *p_aec, int val, int offset_type)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_offset_rdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_offset_rdo(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     int rate = 0;
 
@@ -1481,7 +1481,7 @@ int write_sao_offset_rdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_type_rdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_type_rdo(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     int rate = 0;
     int val;
@@ -1529,7 +1529,7 @@ int write_sao_type_rdo(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-int aec_write_alf_lcu_ctrl_rdo(aec_t *p_aec, uint8_t iflag)
+int aec_write_alf_lcu_ctrl_rdo(xavs2_t *h, aec_t *p_aec, uint8_t iflag)
 {
     int org_bits = rdo_get_written_bits(p_aec);
     context_t *p_ctx =  &(p_aec->p_ctx_set->alf_cu_enable_scmodel[0][0]);
@@ -1596,7 +1596,7 @@ int write_cu_header_rdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu)
 
         /* write intra pred mode */
         for (i = 0; i < num_of_intra_block; i++) {
-            rate += aec_write_intra_pred_mode_rdo(p_aec, p_cu->cu_info.pred_intra_modes[i]);
+            rate += aec_write_intra_pred_mode_rdo(h, p_aec, p_cu->cu_info.pred_intra_modes[i]);
         }
 
         if (h->param->chroma_format != CHROMA_400) {
@@ -1657,8 +1657,8 @@ int write_cu_refs_mvds_rdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu)
     /* write backward reference indexes of this CU, no need for current AVS2 */
 
     /* write DMH mode, "dir_multi_hypothesis_mode" */
-    if (h->i_type == SLICE_TYPE_F /*&& h->param->enable_dmh*/ 
-        && p_cu->cu_info.b8pdir[0] == PDIR_FWD && p_cu->cu_info.b8pdir[1] == PDIR_FWD 
+    if (h->i_type == SLICE_TYPE_F /*&& h->param->enable_dmh*/
+        && p_cu->cu_info.b8pdir[0] == PDIR_FWD && p_cu->cu_info.b8pdir[1] == PDIR_FWD
         && p_cu->cu_info.b8pdir[2] == PDIR_FWD && p_cu->cu_info.b8pdir[3] == PDIR_FWD) {
         if (!(p_cu->cu_info.i_level == B8X8_IN_BIT && p_cu->cu_info.i_mode >= PRED_2NxN && p_cu->cu_info.i_mode <= PRED_nRx2N)) {
             dmh_mode = p_cu->cu_info.dmh_mode;
@@ -1716,7 +1716,7 @@ int write_cu_cbp_dqp_rdo(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int sli
 /* ---------------------------------------------------------------------------
  */
 static
-int write_luma_block_coeff_rdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, coeff_t *quant_coeff, runlevel_t *runlevel, 
+int write_luma_block_coeff_rdo(xavs2_t *h, aec_t *p_aec, cu_t *p_cu, coeff_t *quant_coeff, runlevel_t *runlevel,
                                int i_level, int i_stride_shift, int is_intra, int intra_mode, int max_bits)
 {
     const int16_t(*cg_scan)[2] = NULL;
@@ -1801,7 +1801,7 @@ binary_t gf_aec_rdo = {
     .est_cu_refs_mvds          = write_cu_refs_mvds_rdo,
     .est_luma_block_coeff      = write_luma_block_coeff_rdo,
     .est_chroma_block_coeff    = write_chroma_block_coeff_rdo,
-    
+
 #if ENABLE_RATE_CONTROL_CU
     .write_cu_cbp_dqp          = write_cu_cbp_dqp_rdo,
 #else

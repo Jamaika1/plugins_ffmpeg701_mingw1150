@@ -274,6 +274,7 @@ int xavs2_threadpool_init(xavs2_param_t* param, xavs2_threadpool_t **p_pool, int
 {
     xavs2_threadpool_t *pool;
     uint8_t *mem_ptr = NULL;
+    uint16_t *mem_ptr16 = NULL;
     int size_mem = 0;
     int i;
 
@@ -288,9 +289,6 @@ int xavs2_threadpool_init(xavs2_param_t* param, xavs2_threadpool_t **p_pool, int
 
     if (param->input_sample_bit_depth == 8) {
     CHECKED_MALLOCZERO8(mem_ptr, uint8_t *, size_mem);
-    } else {
-    CHECKED_MALLOCZERO10(mem_ptr, uint8_t *, size_mem);
-    }
     pool          = (xavs2_threadpool_t *)mem_ptr;
     mem_ptr      += sizeof(xavs2_threadpool_t);
     ALIGN_POINTER(mem_ptr);
@@ -304,11 +302,7 @@ int xavs2_threadpool_init(xavs2_param_t* param, xavs2_threadpool_t **p_pool, int
     if (xavs2_sync_job_list_init(&pool->uninit, pool->i_threads) ||
         xavs2_sync_job_list_init(&pool->run,    pool->i_threads) ||
         xavs2_sync_job_list_init(&pool->done,   pool->i_threads)) {
-        if (param->input_sample_bit_depth == 8) {
         goto fail8;
-        } else {
-        goto fail10;
-        }
     }
 
     for (i = 0; i < pool->i_threads; i++) {
@@ -321,21 +315,50 @@ int xavs2_threadpool_init(xavs2_param_t* param, xavs2_threadpool_t **p_pool, int
 
     for (i = 0; i < pool->i_threads; i++) {
         if (xavs2_create_thread(pool->thread_handle + i, (xavs2_tfunc_t)proc_xavs2_threadpool_thread, pool)) {
-            if (param->input_sample_bit_depth == 8) {
             goto fail8;
-            } else {
-            goto fail10;
-            }
         }
     }
 
     return 0;
 
-    if (param->input_sample_bit_depth == 8) {
 fail8:
     } else {
+    CHECKED_MALLOCZERO10(mem_ptr16, uint16_t *, size_mem);
+    pool          = (xavs2_threadpool_t *)mem_ptr16;
+    mem_ptr16      += sizeof(xavs2_threadpool_t);
+    ALIGN_POINTER16(mem_ptr16);
+
+    *p_pool = pool;
+
+    pool->init_func = init_func;
+    pool->init_arg  = init_arg;
+    pool->i_threads = threads;
+
+    if (xavs2_sync_job_list_init(&pool->uninit, pool->i_threads) ||
+        xavs2_sync_job_list_init(&pool->run,    pool->i_threads) ||
+        xavs2_sync_job_list_init(&pool->done,   pool->i_threads)) {
+        goto fail10;
+    }
+
+    for (i = 0; i < pool->i_threads; i++) {
+        threadpool_job_t *job = (threadpool_job_t *)mem_ptr16;
+        mem_ptr16 += sizeof(threadpool_job_t);
+        ALIGN_POINTER16(mem_ptr16);
+
+        xavs2_sync_job_list_push(&pool->uninit, job);
+    }
+
+    for (i = 0; i < pool->i_threads; i++) {
+        if (xavs2_create_thread(pool->thread_handle + i, (xavs2_tfunc_t)proc_xavs2_threadpool_thread, pool)) {
+            goto fail10;
+        }
+    }
+
+    return 0;
+
 fail10:
     }
+
     return -1;
 }
 

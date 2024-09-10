@@ -198,7 +198,8 @@ typedef struct xavs2_picture_t {
  */
 typedef struct xavs2_outpacket_t {
     void          *private_data;      /* private pointer, DONOT change it */
-    const uint8_t *stream;            /* pointer to bitstream data buffer */
+    const uint8_t *stream8;           /* pointer to bitstream data buffer */
+    const uint16_t *stream16;         /* pointer to bitstream data buffer */
     int            len;               /* length  of bitstream data */
     int            state;             /* state of current frame encoded */
     int            type;              /* type  of current frame encoded */

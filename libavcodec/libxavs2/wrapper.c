@@ -42,7 +42,7 @@
 
 /* ---------------------------------------------------------------------------
  */
-void frame_buffer_init(xavs2_handler_t *h_mgr, uint8_t **mem_base, xavs2_frame_buffer_t *frm_buf,
+void frame_buffer_init8(xavs2_handler_t *h_mgr, uint8_t **mem_base, xavs2_frame_buffer_t *frm_buf,
                        int num_frm, int frm_type)
 {
     int i;
@@ -58,15 +58,43 @@ void frame_buffer_init(xavs2_handler_t *h_mgr, uint8_t **mem_base, xavs2_frame_b
 
     if (mem_base == NULL) {
         for (i = 0; i < num_frm; i++) {
-            frm_buf->frames[i] = xavs2_frame_new(h_mgr->p_coder, NULL, frm_type);
+            frm_buf->frames[i] = xavs2_frame_new8(h_mgr->p_coder, NULL, frm_type);
         }
     } else {
         uint8_t *mem_ptr = *mem_base;
         for (i = 0; i < num_frm; i++) {
-            frm_buf->frames[i] = xavs2_frame_new(h_mgr->p_coder, &mem_ptr, frm_type);
+            frm_buf->frames[i] = xavs2_frame_new8(h_mgr->p_coder, &mem_ptr, frm_type);
             ALIGN_POINTER(mem_ptr);
         }
         *mem_base = mem_ptr;
+    }
+}
+
+void frame_buffer_init10(xavs2_handler_t *h_mgr, uint16_t **mem_base16, xavs2_frame_buffer_t *frm_buf,
+                       int num_frm, int frm_type)
+{
+    int i;
+
+    memset(frm_buf, 0, sizeof(xavs2_frame_buffer_t));
+
+    frm_buf->COI     = 0;
+    frm_buf->COI_IDR = 0;
+    frm_buf->POC_IDR = 0;
+    frm_buf->num_frames = num_frm;
+    frm_buf->i_frame_b  = 0;
+    frm_buf->ip_pic_idx = 0;
+
+    if (mem_base16 == NULL) {
+        for (i = 0; i < num_frm; i++) {
+            frm_buf->frames[i] = xavs2_frame_new10(h_mgr->p_coder, NULL, frm_type);
+        }
+    } else {
+        uint16_t *mem_ptr16 = *mem_base16;
+        for (i = 0; i < num_frm; i++) {
+            frm_buf->frames[i] = xavs2_frame_new10(h_mgr->p_coder, &mem_ptr16, frm_type);
+            ALIGN_POINTER16(mem_ptr16);
+        }
+        *mem_base16 = mem_ptr16;
     }
 }
 

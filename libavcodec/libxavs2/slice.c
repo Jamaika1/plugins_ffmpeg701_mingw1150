@@ -140,11 +140,14 @@ void xavs2_slices_init(xavs2_t *h)
         p_slice->i_first_lcu_y  = 0;
         p_slice->i_lcu_row_num  = h->i_height_in_lcu;
         p_slice->i_last_lcu_y   = p_slice->i_first_lcu_y + p_slice->i_lcu_row_num - 1;
-        p_slice->p_slice_bs_buf = h->p_bs_buf_slice;
+        if (h->param->input_sample_bit_depth == 8) {
+            p_slice->p_slice_bs_buf8 = h->p_bs_buf_slice8;
+        } else {
+            p_slice->p_slice_bs_buf16 = h->p_bs_buf_slice16;
+        }
         p_slice->len_slice_bs_buf = h->i_bs_buf_slice;
     } else {
         /* multi-slice per frame */
-        uint8_t *p_bs_start   = h->p_bs_buf_slice;
         const int i_slice_num = h->param->slice_num;
         int i_rest_rows       = h->i_height_in_lcu;
         int i_len_per_row     = (h->i_bs_buf_slice - i_slice_num * CACHE_LINE_256B) / i_rest_rows;
@@ -173,12 +176,23 @@ void xavs2_slices_init(xavs2_t *h)
             p_slice->i_last_lcu_y   = p_slice->i_first_lcu_y + p_slice->i_lcu_row_num - 1;
 
             /* init slice bs, start at align 128-byte */
-            ALIGN_256_PTR(p_bs_start);/* align 256B */
+            if (h->param->input_sample_bit_depth == 8) {
+            uint8_t *p_bs_start8   = h->p_bs_buf_slice8;
+            ALIGN_256_PTR(p_bs_start8);/* align 256B */
             i_bs_len = i_len_per_row * p_slice->i_lcu_row_num;
             i_bs_len = (i_bs_len >> 8) << 8;   /* the length is a multiple of 256 */
-            p_slice->p_slice_bs_buf   = p_bs_start;
+            p_slice->p_slice_bs_buf8   = p_bs_start8;
             p_slice->len_slice_bs_buf = i_bs_len;
-            p_bs_start += i_bs_len;
+            p_bs_start8 += i_bs_len;
+            } else {
+            uint16_t *p_bs_start16   = h->p_bs_buf_slice16;
+            ALIGN_256_PTR16(p_bs_start16);/* align 256B */
+            i_bs_len = i_len_per_row * p_slice->i_lcu_row_num;
+            i_bs_len = (i_bs_len >> 8) << 8;   /* the length is a multiple of 256 */
+            p_slice->p_slice_bs_buf16   = p_bs_start16;
+            p_slice->len_slice_bs_buf = i_bs_len;
+            p_bs_start16 += i_bs_len;
+            }
 
             /* update row id for next slice */
             i_first_row_id += i_avg_rows;
@@ -580,16 +594,24 @@ void xavs2_slice_write_start(xavs2_t *h)
     slice->i_qp = h->i_qp;
 
     /* init bs_t, reserve space to store the length of bitstream */
-    xavs2_bs_init(&slice->bs, slice->p_slice_bs_buf, slice->len_slice_bs_buf);
+    if (h->param->input_sample_bit_depth == 8) {
+        xavs2_bs_init8(&slice->bs, slice->p_slice_bs_buf8, slice->len_slice_bs_buf);
+    } else {
+        xavs2_bs_init10(&slice->bs, slice->p_slice_bs_buf16, slice->len_slice_bs_buf);
+    }
 
     sao_slice_onoff_decision(h, h->slice_sao_on);
 
     /* write slice header */
     xavs2_slice_header_write(h, slice);
-    bs_byte_align(&slice->bs);
+    bs_byte_align(h, &slice->bs);
 
     /* init AEC */
-    aec_start(h, p_aec, slice->bs.p_start + PSEUDO_CODE_SIZE, slice->bs.p_end, 0);
+    if (h->param->input_sample_bit_depth == 8) {
+        aec_start8(h, p_aec, slice->bs.p_start8 + PSEUDO_CODE_SIZE, slice->bs.p_end8, 0);
+    } else {
+        aec_start10(h, p_aec, slice->bs.p_start16 + PSEUDO_CODE_SIZE, slice->bs.p_end16, 0);
+    }
 
     /* init slice buffers */
     if (h->param->input_sample_bit_depth == 8) {

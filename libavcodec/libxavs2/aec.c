@@ -61,7 +61,7 @@ static const int tab_b8xy_to_zigzag[8][8] = {
  * 向码流文件中输出one bit和剩余的位数
  */
 static INLINE
-void bitstt_put_one_bit_and_remainder(aec_t *p_aec, const int b)
+void bitstt_put_one_bit_and_remainder(xavs2_t *h, aec_t *p_aec, const int b)
 {
     uint32_t N = 1 + p_aec->i_bits_to_follow;   // 总共输出的比特数
 
@@ -72,20 +72,29 @@ void bitstt_put_one_bit_and_remainder(aec_t *p_aec, const int b)
         int num_left_bits = N - header_bits - (num_left_bytes << 3);   // 多余的比特数
 
         p_aec->reg_flush_bits |= header_byte;
-        bitstr_flush_bits(p_aec);
+        bitstr_flush_bits(h, p_aec);
         p_aec->num_left_flush_bits = NUM_FLUSH_BITS - num_left_bits;
 
         if (b == 0) {
             /* b 为零时中间的bits全部填充 1 */
             while (num_left_bytes != 0) {
-                *(p_aec->p) = 0xff;
-                p_aec->p++;
+                if (h->param->input_sample_bit_depth == 8) {
+                    *(p_aec->p8) = 0xff;
+                    p_aec->p8++;
+                } else {
+                    *(p_aec->p16) = 0xff;
+                    p_aec->p16++;
+                }
                 num_left_bytes--;
             }
             /* 最后填充 num_left_bits 位到 reg_flush_bits 的最高位 */
             p_aec->reg_flush_bits = 0xffu >> (8 - num_left_bits) << p_aec->num_left_flush_bits;
         } else {
-            p_aec->p += num_left_bytes;
+            if (h->param->input_sample_bit_depth == 8) {
+                p_aec->p8 += num_left_bytes;
+            } else {
+                p_aec->p16 += num_left_bytes;
+            }
         }
     } else  {  /* 当前需要输出的bit数量小于码流中写入字节剩余的bit数量 */
         uint32_t bits = (1 << p_aec->i_bits_to_follow) - (!b);  // 输出的比特组成的二进制值
@@ -93,7 +102,7 @@ void bitstt_put_one_bit_and_remainder(aec_t *p_aec, const int b)
         p_aec->reg_flush_bits |= bits << (p_aec->num_left_flush_bits - N);
         p_aec->num_left_flush_bits -= N;
         if (p_aec->num_left_flush_bits == 0) {
-            bitstr_flush_bits(p_aec);
+            bitstr_flush_bits(h, p_aec);
             p_aec->reg_flush_bits      = 0;
             p_aec->num_left_flush_bits = NUM_FLUSH_BITS;
         }
@@ -135,7 +144,7 @@ static ALWAYS_INLINE int aec_get_shift(uint32_t v)
  * logarithm arithmetic coder
  */
 static INLINE
-void biari_encode_symbol_aec(aec_t *p_aec, uint8_t symbol, context_t *p_ctx)
+void biari_encode_symbol_aec(xavs2_t *h, aec_t *p_aec, uint8_t symbol, context_t *p_ctx)
 {
     uint32_t lg_pmps = p_ctx->LG_PMPS;
 #if !CTRL_OPT_AEC
@@ -150,12 +159,12 @@ void biari_encode_symbol_aec(aec_t *p_aec, uint8_t symbol, context_t *p_ctx)
     if (symbol == p_ctx->MPS) { // MPS happens
         if (s) {
             if (low & (1 << 9)) {
-                bitstt_put_one_bit_and_remainder(p_aec, 1);
+                bitstt_put_one_bit_and_remainder(h, p_aec, 1);
             } else if (low & (1 << 8)) {
                 p_aec->i_bits_to_follow++;
                 low &= ((1 << 8) ^ 0xFFFFFFFF);
             } else {
-                bitstt_put_one_bit_and_remainder(p_aec, 0);
+                bitstt_put_one_bit_and_remainder(h, p_aec, 0);
             }
             low <<= 1;
         }
@@ -188,12 +197,12 @@ void biari_encode_symbol_aec(aec_t *p_aec, uint8_t symbol, context_t *p_ctx)
             bitstogo--;
             bit_oa = ((low_buf >> bitstogo) & 1);
             if (bit_o) {
-                bitstt_put_one_bit_and_remainder(p_aec, 1);
+                bitstt_put_one_bit_and_remainder(h, p_aec, 1);
             } else if (bit_oa) { // 01
                 p_aec->i_bits_to_follow++;
                 bit_oa = 0;
             } else { // 00
-                bitstt_put_one_bit_and_remainder(p_aec, 0);
+                bitstt_put_one_bit_and_remainder(h, p_aec, 0);
             }
         }
 
@@ -224,37 +233,37 @@ void biari_encode_symbol_aec(aec_t *p_aec, uint8_t symbol, context_t *p_ctx)
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-void biari_encode_tu_aec(aec_t *p_aec, int num_zeros, int max_len, context_t *p_ctx)
+void biari_encode_tu_aec(xavs2_t *h, aec_t *p_aec, int num_zeros, int max_len, context_t *p_ctx)
 {
     max_len -= num_zeros;
 
     while (num_zeros != 0) {
-        biari_encode_symbol_aec(p_aec, 0, p_ctx);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
         num_zeros--;
     }
 
     if (max_len) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
     }
 }
 
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-void biari_encode_symbol_eq_prob_aec(aec_t *p_aec, uint8_t symbol)
+void biari_encode_symbol_eq_prob_aec(xavs2_t *h, aec_t *p_aec, uint8_t symbol)
 {
     uint32_t low_buf = (p_aec->i_low << 1) + (symbol ? (p_aec->i_t1 + 256) : 0);
     uint8_t bit_oa   = (uint8_t)((low_buf >> 9) & 1);
 
     // out bit
     if ((low_buf >> 10) & 1) {
-        bitstt_put_one_bit_and_remainder(p_aec, 1);
+        bitstt_put_one_bit_and_remainder(h, p_aec, 1);
     } else {
         if (bit_oa) {   // 01
             p_aec->i_bits_to_follow++;
             bit_oa = 0;
         } else {        // 00
-            bitstt_put_one_bit_and_remainder(p_aec, 0);
+            bitstt_put_one_bit_and_remainder(h, p_aec, 0);
         }
     }
 
@@ -264,17 +273,17 @@ void biari_encode_symbol_eq_prob_aec(aec_t *p_aec, uint8_t symbol)
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-void biari_encode_symbols_eq_prob_aec(aec_t *p_aec, uint32_t val, int len)
+void biari_encode_symbols_eq_prob_aec(xavs2_t *h, aec_t *p_aec, uint32_t val, int len)
 {
     while (--len >= 0) {
-        biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)((val >> len) & 1));
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)((val >> len) & 1));
     }
 }
 
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-void biari_encode_symbol_final_aec(aec_t *p_aec, uint8_t symbol)
+void biari_encode_symbol_final_aec(xavs2_t *h, aec_t *p_aec, uint8_t symbol)
 {
     uint32_t t   = p_aec->i_t1;
     uint32_t low = p_aec->i_low;
@@ -293,13 +302,13 @@ void biari_encode_symbol_final_aec(aec_t *p_aec, uint8_t symbol)
             bit_oa = (uint8_t)((low_buf >> bitstogo) & 1);
 
             if (bit_o) {
-                bitstt_put_one_bit_and_remainder(p_aec, 1);
+                bitstt_put_one_bit_and_remainder(h, p_aec, 1);
             } else {
                 if (bit_oa) {   // 01
                     p_aec->i_bits_to_follow++;
                     bit_oa = 0;
                 } else {        // 00
-                    bitstt_put_one_bit_and_remainder(p_aec, 0);
+                    bitstt_put_one_bit_and_remainder(h, p_aec, 0);
                 }
             }
         }
@@ -309,13 +318,13 @@ void biari_encode_symbol_final_aec(aec_t *p_aec, uint8_t symbol)
     } else { // MPS
         if (!t) {
             if (low & (1 << 9)) {
-                bitstt_put_one_bit_and_remainder(p_aec, 1);
+                bitstt_put_one_bit_and_remainder(h, p_aec, 1);
             } else {
                 if (low & (1 << 8)) {
                     p_aec->i_bits_to_follow++;
                     low &= ((1 << 8) ^ 0xFFFFFFFF);
                 } else {
-                    bitstt_put_one_bit_and_remainder(p_aec, 0);
+                    bitstt_put_one_bit_and_remainder(h, p_aec, 0);
                 }
             }
             p_aec->i_low = low << 1;
@@ -341,7 +350,7 @@ void biari_encode_symbol_final_aec(aec_t *p_aec, uint8_t symbol)
  * cu type for B/F/P frame
  */
 static INLINE
-int aec_write_cutype(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_cu_cbp, int is_amp_enabled)
+int aec_write_cutype(xavs2_t *h, aec_t *p_aec, int i_cu_type, int i_cu_level, int i_cu_cbp, int is_amp_enabled)
 {
     context_t *p_ctx = p_aec->p_ctx_set->cu_type_contexts;
     int org_bits = aec_get_written_bits(p_aec);
@@ -353,66 +362,66 @@ int aec_write_cutype(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_cu_cbp, 
 
     switch (act_sym) {
     case 0:     // SKIP
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
         break;
     case 1:     // DIRECT
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
         break;
     case 2:     // 2Nx2N
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 2);
         break;
     case 3:     // 2NxN, 2NxnU, 2NxnD
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 3);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 3);
         if (is_amp_enabled && i_cu_level >= B16X16_IN_BIT) {
             p_ctx = p_aec->p_ctx_set->shape_of_partition_index;
             if (i_cu_type == PRED_2NxN) {
-                biari_encode_symbol_aec(p_aec, 1, p_ctx);   // SMP - AMP signal bit
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx);   // SMP - AMP signal bit
             } else {
-                biari_encode_symbol_aec(p_aec, 0, p_ctx);   // SMP - AMP signal bit
-                biari_encode_symbol_aec(p_aec, (uint8_t)(i_cu_type == PRED_2NxnU), p_ctx + 1);  // AMP shape
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx);   // SMP - AMP signal bit
+                biari_encode_symbol_aec(h, p_aec, (uint8_t)(i_cu_type == PRED_2NxnU), p_ctx + 1);  // AMP shape
             }
         }
         break;
     case 4:     // Nx2N, nLx2N, nRx2N
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 4);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 4);
         if (is_amp_enabled && i_cu_level >= B16X16_IN_BIT) {
             p_ctx = p_aec->p_ctx_set->shape_of_partition_index;
             if (i_cu_type == PRED_Nx2N) {
-                biari_encode_symbol_aec(p_aec, 1, p_ctx);   // SMP - AMP signal bit
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx);   // SMP - AMP signal bit
             } else {
-                biari_encode_symbol_aec(p_aec, 0, p_ctx);   // SMP - AMP signal bit
-                biari_encode_symbol_aec(p_aec, (uint8_t)(i_cu_type == PRED_nLx2N), p_ctx + 1);  // AMP shape
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx);   // SMP - AMP signal bit
+                biari_encode_symbol_aec(h, p_aec, (uint8_t)(i_cu_type == PRED_nLx2N), p_ctx + 1);  // AMP shape
             }
         }
         break;
     //case 5:     // NxN, not enabled
-    //    biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-    //    biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-    //    biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-    //    biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);
-    //    biari_encode_symbol_aec(p_aec, 0, p_ctx + 4);
+    //    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+    //    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+    //    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+    //    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);
+    //    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 4);
     //    if (i_cu_level > B8X8_IN_BIT) {
     //        biari_encode_symbol_final_aec(p_aec, 1);
     //    }
     //    break;
     default:    // case 6:  // Intra
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 4);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 4);
         if (i_cu_level > B8X8_IN_BIT) {
-            biari_encode_symbol_final_aec(p_aec, 0);
+            biari_encode_symbol_final_aec(h, p_aec, 0);
         }
         break;
     }
@@ -431,21 +440,21 @@ int aec_write_cutype(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_cu_cbp, 
  * arithmetically encode a pair of intra prediction modes of a given cu
  */
 static
-int aec_write_intra_pred_mode(aec_t *p_aec, int ipmode)
+int aec_write_intra_pred_mode(xavs2_t *h, aec_t *p_aec, int ipmode)
 {
     context_t *p_ctx = p_aec->p_ctx_set->intra_luma_pred_mode;
     int org_bits = aec_get_written_bits(p_aec);
 
     if (ipmode >= 0) {
-        biari_encode_symbol_aec(p_aec, 0,                               p_ctx    );
-        biari_encode_symbol_aec(p_aec, (uint8_t)((ipmode & 0x10) >> 4), p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, (uint8_t)((ipmode & 0x08) >> 3), p_ctx + 2);
-        biari_encode_symbol_aec(p_aec, (uint8_t)((ipmode & 0x04) >> 2), p_ctx + 3);
-        biari_encode_symbol_aec(p_aec, (uint8_t)((ipmode & 0x02) >> 1), p_ctx + 4);
-        biari_encode_symbol_aec(p_aec, (uint8_t)((ipmode & 0x01)     ), p_ctx + 5);
+        biari_encode_symbol_aec(h, p_aec, 0,                               p_ctx    );
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)((ipmode & 0x10) >> 4), p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)((ipmode & 0x08) >> 3), p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)((ipmode & 0x04) >> 2), p_ctx + 3);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)((ipmode & 0x02) >> 1), p_ctx + 4);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)((ipmode & 0x01)     ), p_ctx + 5);
     } else {
-        biari_encode_symbol_aec(p_aec, 1,                     p_ctx    );
-        biari_encode_symbol_aec(p_aec, (uint8_t)(ipmode + 2), p_ctx + 6);
+        biari_encode_symbol_aec(h, p_aec, 1,                     p_ctx    );
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)(ipmode + 2), p_ctx + 6);
     }
 
 #if XAVS2_TRACE
@@ -470,20 +479,20 @@ int aec_write_ref(xavs2_t *h, aec_t *p_aec, int ref_idx)
 
     /* 第0位用0号上下文，第1位用1号上下文，其他用2号上下文 */
     if (act_sym == 0) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
     } else {
         int act_ctx = 0;
-        biari_encode_symbol_aec(p_aec, 0, p_ctx++);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx++);
 
         while (--act_sym != 0) {
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
             if (!act_ctx) {
                 p_ctx++;
             }
         }
 
         if (ref_idx < h->i_ref - 1) {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
         }
     }
 
@@ -495,7 +504,7 @@ int aec_write_ref(xavs2_t *h, aec_t *p_aec, int ref_idx)
  * arithmetically encode the motion vector data
  */
 static INLINE
-int aec_write_mvd(aec_t *p_aec, int mvd, int xy)
+int aec_write_mvd(xavs2_t *h, aec_t *p_aec, int mvd, int xy)
 {
     context_t *p_ctx = p_aec->p_ctx_set->mvd_contexts[xy];
     int org_bits = aec_get_written_bits(p_aec);
@@ -503,28 +512,28 @@ int aec_write_mvd(aec_t *p_aec, int mvd, int xy)
 
     if (act_sym < 3) { // 0, 1, 2
         if (act_sym == 0) {
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
         } else if (act_sym == 1) {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
         } else {  // act_sym == 2
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
         }
     } else {
         int exp_golomb_order = 0;
 
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 2);
 
         if ((act_sym & 1) == 1) { // odds >3
-            biari_encode_symbol_eq_prob_aec(p_aec, 0);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, 0);
 
             act_sym = (act_sym - 3) >> 1;
         } else {    // even >3
-            biari_encode_symbol_eq_prob_aec(p_aec, 1);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, 1);
 
             act_sym = (act_sym - 4) >> 1;
         }
@@ -534,13 +543,13 @@ int aec_write_mvd(aec_t *p_aec, int mvd, int xy)
             act_sym -= (1 << exp_golomb_order);
             exp_golomb_order++;
         }
-        biari_encode_symbols_eq_prob_aec(p_aec, 1, exp_golomb_order + 1);    // Exp-Golomb: prefix and 1
-        biari_encode_symbols_eq_prob_aec(p_aec, act_sym, exp_golomb_order);  // Exp-Golomb: suffix
+        biari_encode_symbols_eq_prob_aec(h, p_aec, 1, exp_golomb_order + 1);    // Exp-Golomb: prefix and 1
+        biari_encode_symbols_eq_prob_aec(h, p_aec, act_sym, exp_golomb_order);  // Exp-Golomb: suffix
     }
 
     if (mvd != 0) {
         // mv sign
-        biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)(mvd < 0));
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)(mvd < 0));
     }
 
     /* return the number of written bits */
@@ -550,7 +559,7 @@ int aec_write_mvd(aec_t *p_aec, int mvd, int xy)
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-int aec_write_dmh_mode(aec_t *p_aec, int i_cu_level, int dmh_mode)
+int aec_write_dmh_mode(xavs2_t *h, aec_t *p_aec, int i_cu_level, int dmh_mode)
 {
     static const int iEncMapTab[9] = { 0, 5, 6, 1, 2, 7, 8, 3, 4 };
     context_t *p_ctx = p_aec->p_ctx_set->pu_type_index + 3;
@@ -558,27 +567,27 @@ int aec_write_dmh_mode(aec_t *p_aec, int i_cu_level, int dmh_mode)
     int symbol   = dmh_mode != 0;
 
     p_ctx += (i_cu_level - MIN_CU_SIZE_IN_BIT) * 3;
-    biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx);
+    biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx);
 
     if (symbol) {
         int iMapVal = iEncMapTab[dmh_mode];
 
         if (iMapVal < 3) {
             symbol = (iMapVal != 1);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-            biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)symbol);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)symbol);
         } else if (iMapVal < 5) {
             symbol = (iMapVal != 3);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-            biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)symbol);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)symbol);
         } else {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 2);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 2);
             symbol = (iMapVal >= 7);
-            biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)symbol);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)symbol);
             symbol = !(iMapVal & 1);
-            biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)symbol);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)symbol);
         }
     }
 
@@ -590,16 +599,16 @@ int aec_write_dmh_mode(aec_t *p_aec, int i_cu_level, int dmh_mode)
  * write "transform_split_flag" and SDIP type for intra CU
  */
 static INLINE
-int aec_write_intra_cutype(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_tu_split, int is_sdip_enabled)
+int aec_write_intra_cutype(xavs2_t *h, aec_t *p_aec, int i_cu_type, int i_cu_level, int i_tu_split, int is_sdip_enabled)
 {
     context_t *p_ctx = p_aec->p_ctx_set->transform_split_flag;
     int org_bits = aec_get_written_bits(p_aec);
     uint8_t transform_split_flag = i_tu_split != TU_SPLIT_NON;  /* just write split or not */
 
     if (i_cu_level == B8X8_IN_BIT) {
-        biari_encode_symbol_aec(p_aec, transform_split_flag, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, transform_split_flag, p_ctx + 1);
     } else if (is_sdip_enabled && (i_cu_level == B32X32_IN_BIT || i_cu_level == B16X16_IN_BIT)) {
-        biari_encode_symbol_aec(p_aec, transform_split_flag, p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, transform_split_flag, p_ctx + 2);
     }
 
 #if XAVS2_TRACE
@@ -612,7 +621,7 @@ int aec_write_intra_cutype(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_tu
         if ((i_cu_level == B32X32_IN_BIT || i_cu_level == B16X16_IN_BIT) && i_tu_split) {
             p_ctx = p_aec->p_ctx_set->intra_pu_type_contexts;
 
-            biari_encode_symbol_aec(p_aec, i_cu_type == PRED_I_2Nxn, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, i_cu_type == PRED_I_2Nxn, p_ctx);
 #if XAVS2_TRACE
             if (i_cu_type != PRED_I_2Nxn && i_cu_type != PRED_I_nx2N) {
                 xavs2_log(NULL, XAVS2_LOG_ERROR, "!!!error cu_type!!!\n");
@@ -636,7 +645,7 @@ int aec_write_intra_cutype(aec_t *p_aec, int i_cu_type, int i_cu_level, int i_tu
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-int aec_write_pdir(aec_t *p_aec, int i_cu_type, int i_cu_level, int pdir0, int pdir1)
+int aec_write_pdir(xavs2_t *h, aec_t *p_aec, int i_cu_type, int i_cu_level, int pdir0, int pdir1)
 {
     int new_pdir[4] = { 2, 1, 3, 0 };
     context_t *p_ctx = p_aec->p_ctx_set->pu_type_index;
@@ -649,12 +658,12 @@ int aec_write_pdir(aec_t *p_aec, int i_cu_type, int i_cu_level, int pdir0, int p
         /* 一个CU只有一个PU的情况，这个PU可以有四个方向，使用上下文3个，编号: 0, 1, 2 */
         act_sym = pdir0;
         while (act_sym >= 1) {
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + act_ctx);
             act_sym--;
             act_ctx++;
         }
         if (pdir0 != 3) {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + act_ctx);
         }
     } else if ((i_cu_type >= PRED_2NxN && i_cu_type <= PRED_nRx2N) && i_cu_level == B8X8_IN_BIT) {
         /* 一个CU分为两个PU，且CU大小为8x8，这时预测块为4x8或8x4，每个PU只能是单方向的预测，
@@ -664,9 +673,9 @@ int aec_write_pdir(aec_t *p_aec, int i_cu_type, int i_cu_level, int pdir0, int p
         pdir1 = new_pdir[pdir1];
 
         act_sym = (pdir0 != 1);
-        biari_encode_symbol_aec(p_aec, (int8_t)act_sym, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, (int8_t)act_sym, p_ctx + 0);
         act_sym = (pdir0 == pdir1);
-        biari_encode_symbol_aec(p_aec, (int8_t)act_sym, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, (int8_t)act_sym, p_ctx + 1);
     } else if (i_cu_type >= PRED_2NxN || i_cu_type <= PRED_nRx2N) { //1010
         /* act_ctx: 3,...,14 */
         pdir0 = new_pdir[pdir0];
@@ -676,50 +685,50 @@ int aec_write_pdir(aec_t *p_aec, int i_cu_type, int i_cu_level, int pdir0, int p
 
         /* 3,4,5 */
         while (act_sym >= 1) {
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + act_ctx);
             act_sym--;
             act_ctx++;
         }
         if (pdir0 != 3) {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + act_ctx);
         }
 
         symbol = (pdir0 == pdir1);
-        biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 6);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 6);
 
         /* 7,...,14 */
         if (!symbol) {
             switch (pdir0) {
             case 0:
                 symbol = (pdir1 == 1);
-                biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 7);
+                biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 7);
                 if (!symbol) {
                     symbol = (pdir1 == 2);
-                    biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 8);
+                    biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 8);
                 }
                 break;
             case 1:
                 symbol = (pdir1 == 0);
-                biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 9);
+                biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 9);
                 if (!symbol) {
                     symbol = (pdir1 == 2);
-                    biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 10);
+                    biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 10);
                 }
                 break;
             case 2:
                 symbol = (pdir1 == 0);
-                biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 11);
+                biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 11);
                 if (!symbol) {
                     symbol = (pdir1 == 1);
-                    biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 12);
+                    biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 12);
                 }
                 break;
             case 3:
                 symbol = (pdir1 == 0);
-                biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 13);
+                biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 13);
                 if (!symbol) {
                     symbol = (pdir1 == 1);
-                    biari_encode_symbol_aec(p_aec, (uint8_t)symbol, p_ctx + 14);
+                    biari_encode_symbol_aec(h, p_aec, (uint8_t)symbol, p_ctx + 14);
                 }
                 break;
             }
@@ -733,7 +742,7 @@ int aec_write_pdir(aec_t *p_aec, int i_cu_type, int i_cu_level, int pdir0, int p
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-int aec_write_pdir_dhp(aec_t *p_aec, int i_cu_type, int pdir0, int pdir1)
+int aec_write_pdir_dhp(xavs2_t *h, aec_t *p_aec, int i_cu_type, int pdir0, int pdir1)
 {
     context_t *p_ctx = p_aec->p_ctx_set->pu_type_index;
     int org_bits = aec_get_written_bits(p_aec);
@@ -742,10 +751,10 @@ int aec_write_pdir_dhp(aec_t *p_aec, int i_cu_type, int pdir0, int pdir1)
     pdir1 = (pdir1 != 0);
 
     if (i_cu_type == PRED_2Nx2N) {
-        biari_encode_symbol_aec(p_aec, (uint8_t)pdir0, p_ctx);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)pdir0, p_ctx);
     } else if (i_cu_type >= PRED_2NxN || i_cu_type <= PRED_nRx2N) { // 1010
-        biari_encode_symbol_aec(p_aec, (uint8_t)pdir0,            p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, (uint8_t)(pdir0 == pdir1), p_ctx + 2);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)pdir0,            p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)(pdir0 == pdir1), p_ctx + 2);
     }
 
     /* return the number of written bits */
@@ -755,19 +764,19 @@ int aec_write_pdir_dhp(aec_t *p_aec, int i_cu_type, int pdir0, int pdir1)
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-int aec_write_wpm(aec_t *p_aec, int ref_idx, int num_ref)
+int aec_write_wpm(xavs2_t *h, aec_t *p_aec, int ref_idx, int num_ref)
 {
     context_t *p_ctx = p_aec->p_ctx_set->weighted_skip_mode;
     int org_bits = aec_get_written_bits(p_aec);
     int i, idx_bin = 0;
 
     for (i = 0; i < ref_idx; i++) {
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + idx_bin);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + idx_bin);
         idx_bin = XAVS2_MIN(idx_bin + 1, 2);
     }
 
     if (ref_idx < num_ref - 1) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + idx_bin);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + idx_bin);
     }
 
     /* return the number of written bits */
@@ -777,18 +786,18 @@ int aec_write_wpm(aec_t *p_aec, int ref_idx, int num_ref)
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-int aec_write_spatial_skip_mode(aec_t *p_aec, int mode)
+int aec_write_spatial_skip_mode(xavs2_t *h, aec_t *p_aec, int mode)
 {
     context_t *p_ctx = p_aec->p_ctx_set->cu_subtype_index;
     int org_bits = aec_get_written_bits(p_aec);
     int offset;
 
     for (offset = 0; offset < mode; offset++) {
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + offset);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + offset);
     }
 
     if (mode < DS_MAX_NUM) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + offset);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + offset);
     }
 
     /* return the number of written bits */
@@ -799,7 +808,7 @@ int aec_write_spatial_skip_mode(aec_t *p_aec, int mode)
  * arithmetically encode the chroma intra prediction mode of an 8x8 block
  */
 static INLINE
-int aec_write_intra_pred_cmode(aec_t *p_aec, cu_info_t *p_cu_info, int i_left_cmode)
+int aec_write_intra_pred_cmode(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int i_left_cmode)
 {
     context_t *p_ctx  = p_aec->p_ctx_set->intra_chroma_pred_mode;
     int i_chroma_mode = p_cu_info->i_intra_mode_c;
@@ -807,32 +816,32 @@ int aec_write_intra_pred_cmode(aec_t *p_aec, cu_info_t *p_cu_info, int i_left_cm
     int act_ctx       = i_left_cmode != DM_PRED_C;   // ? 1 : 0;
 
     if (i_chroma_mode == DM_PRED_C) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + act_ctx);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + act_ctx);
     } else {
         int lmode = tab_intra_mode_luma2chroma[p_cu_info->real_intra_modes[0]];
         int is_redundant = lmode >= 0;
 
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + act_ctx);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + act_ctx);
         i_chroma_mode -= (1 + (is_redundant && i_chroma_mode > lmode));
 
         p_ctx += 2;
         switch (i_chroma_mode) {
         case 0:
-            biari_encode_symbol_aec(p_aec, 1, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
             break;
         case 1:
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
             break;
         case 2:
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
             break;
         case 3:
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
             break;
         default:
             xavs2_log(NULL, XAVS2_LOG_ERROR, "invalid chroma mode %d\n", i_chroma_mode);
@@ -895,7 +904,7 @@ static int write_cbp_bit(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int sli
     }
 
     /* write bits */
-    biari_encode_symbol_aec(p_aec, (uint8_t)bit, p_ctx);
+    biari_encode_symbol_aec(h, p_aec, (uint8_t)bit, p_ctx);
 
     /* return the number of written bits */
     return aec_get_written_bits(p_aec) - org_bits;
@@ -921,27 +930,27 @@ int aec_write_cu_cbp(aec_t *p_aec, cu_info_t *p_cu_info, int slice_index_cur_cu,
 
         if (i_cu_cbp) {
             // write tr_size
-            biari_encode_symbol_aec(p_aec, (uint8_t)transform_split_flag, p_aec->p_ctx_set->transform_split_flag);
+            biari_encode_symbol_aec(h, p_aec, (uint8_t)transform_split_flag, p_aec->p_ctx_set->transform_split_flag);
 
             // write cbp for chroma
             if (h->param->chroma_format != CHROMA_400) {
                 switch ((i_cu_cbp >> 4) & 0x03) {
                 case 0:
-                    biari_encode_symbol_aec(p_aec, 0, p_ctx);
+                    biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
                     break;
                 case 1:
-                    biari_encode_symbol_aec(p_aec, 1, p_ctx);
-                    biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-                    biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
+                    biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
+                    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+                    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
                     break;
                 case 2:
-                    biari_encode_symbol_aec(p_aec, 1, p_ctx);
-                    biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
-                    biari_encode_symbol_aec(p_aec, 1, p_ctx + 2);
+                    biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
+                    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
+                    biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 2);
                     break;
                 case 3:
-                    biari_encode_symbol_aec(p_aec, 1, p_ctx);
-                    biari_encode_symbol_aec(p_aec, 1, p_ctx + 2);
+                    biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
+                    biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 2);
                     break;
                 }
             }
@@ -976,21 +985,21 @@ int aec_write_cu_cbp(aec_t *p_aec, cu_info_t *p_cu_info, int slice_index_cur_cu,
         if (h->param->chroma_format != CHROMA_400) {
             switch ((i_cu_cbp >> 4) & 0x03) {
             case 0:
-                biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
                 break;
             case 1:
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-                biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);
-                biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);
                 break;
             case 2:
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-                biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + 3);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 3);
                 break;
             case 3:
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + 3);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 3);
                 break;
             }
         }
@@ -1004,7 +1013,7 @@ int aec_write_cu_cbp(aec_t *p_aec, cu_info_t *p_cu_info, int slice_index_cur_cu,
 /* ---------------------------------------------------------------------------
  */
 static INLINE
-int aec_write_dqp(aec_t *p_aec, int delta_qp, int last_dqp)
+int aec_write_dqp(xavs2_t *h, aec_t *p_aec, int delta_qp, int last_dqp)
 {
     context_t *p_ctx = p_aec->p_ctx_set->delta_qp_contexts;
     int org_bits = aec_get_written_bits(p_aec);
@@ -1012,20 +1021,20 @@ int aec_write_dqp(aec_t *p_aec, int delta_qp, int last_dqp)
     int act_sym  = (delta_qp > 0) ? (2 * delta_qp - 1) : (-2 * delta_qp);
 
     if (act_sym == 0) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + act_ctx);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + act_ctx);
     } else {
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + act_ctx);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + act_ctx);
         act_ctx = 2;
         if (act_sym == 1) {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + act_ctx);
         } else {
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + act_ctx);
             act_ctx++;
             while (act_sym > 2) {
-                biari_encode_symbol_aec(p_aec, 0, p_ctx + act_ctx);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx + act_ctx);
                 act_sym--;
             }
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + act_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + act_ctx);
         }
     }
 
@@ -1037,7 +1046,7 @@ int aec_write_dqp(aec_t *p_aec, int delta_qp, int last_dqp)
 /* ---------------------------------------------------------------------------
  */
 static ALWAYS_INLINE
-void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag,
+void aec_write_last_cg_pos(xavs2_t *h, aec_t *p_aec, int b_luma, int b_dc_diag,
                            int i_cg, int cg_last_x, int cg_last_y,
                            int num_cg, int num_cg_x_minus1, int num_cg_y_minus1)
 {
@@ -1047,21 +1056,21 @@ void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag,
     if (num_cg == 4) {   // 8x8
         switch (i_cg) {
         case 0:
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
             break;
         case 1:
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
             break;
         case 2:
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 2);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 2);
             break;
         default:  // case 3:
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 2);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 2);
             break;
         }
     } else {
@@ -1071,15 +1080,15 @@ void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag,
         }
 
         if (cg_last_x == 0 && cg_last_y == 0) {
-            biari_encode_symbol_aec(p_aec, 0, p_ctx + 3);   /* last_cg0_flag */
+            biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 3);   /* last_cg0_flag */
         } else {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx + 3);   /* last_cg0_flag */
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 3);   /* last_cg0_flag */
             /* last_cg_x */
-            biari_encode_tu_aec(p_aec, cg_last_x, num_cg_x_minus1, p_ctx + 4);
+            biari_encode_tu_aec(h, p_aec, cg_last_x, num_cg_x_minus1, p_ctx + 4);
 
             /* last_cg_y or last_cg_y_minus1 */
             count = (cg_last_x == 0);  // 若cg_last_x为零，则cg_last_y可少写一个零（两者至少有一个非零）
-            biari_encode_tu_aec(p_aec, cg_last_y - count, num_cg_y_minus1 - count, p_ctx + 5);
+            biari_encode_tu_aec(h, p_aec, cg_last_y - count, num_cg_y_minus1 - count, p_ctx + 5);
         }
     }
 }
@@ -1087,7 +1096,7 @@ void aec_write_last_cg_pos(aec_t *p_aec, int b_luma, int b_dc_diag,
 /* ---------------------------------------------------------------------------
  */
 static ALWAYS_INLINE
-void aec_write_last_coeff_pos(aec_t *p_aec, context_t *p_ctx, int isLastCG,
+void aec_write_last_coeff_pos(xavs2_t *h, aec_t *p_aec, context_t *p_ctx, int isLastCG,
                               int b_one_cg, int cg_x, int cg_y,
                               int last_coeff_pos_x, int last_coeff_pos_y,
                               int b_luma, int b_dc_diag)
@@ -1120,42 +1129,42 @@ void aec_write_last_coeff_pos(aec_t *p_aec, context_t *p_ctx, int isLastCG,
 
     switch (last_coeff_pos_x) {
     case 0:
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
         break;
     case 1:
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
         break;
     case 2:
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
         break;
     default:  // case 3:
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
         break;
     }
 
     p_ctx += 2;
     switch (last_coeff_pos_y) {
     case 0:
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 0);
         break;
     case 1:
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
         break;
     case 2:
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 1, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx + 1);
         break;
     default:  // case 3:
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 0);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
-        biari_encode_symbol_aec(p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx + 1);
         break;
     }
 }
@@ -1202,9 +1211,9 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
         if (rank > 0) {
             p_ctx = p_aec->p_ctx_set->nonzero_cg_flag + (i_cg != 0);
             if (i) {            // i > 0 即 cg_flag 为1，表明有非零系数
-                biari_encode_symbol_aec(p_aec, 1, p_ctx);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
             } else {
-                biari_encode_symbol_aec(p_aec, 0, p_ctx);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
                 continue;       // 无非零系数，结束当前CG编码
             }
             CGx = p_tab_cg_scan[i_cg][0];
@@ -1216,7 +1225,7 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
 
                 CGx = p_tab_cg_scan[i_cg][0];
                 CGy = p_tab_cg_scan[i_cg][1];
-                aec_write_last_cg_pos(p_aec, 1, b_dc_diag, i_cg, CGx, CGy, num_cg, num_cg_x, num_cg_y);
+                aec_write_last_cg_pos(h, p_aec, 1, b_dc_diag, i_cg, CGx, CGy, num_cg, num_cg_x, num_cg_y);
             }
         } else {
             continue;
@@ -1231,7 +1240,7 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
             int scan_pos = tab_1d_scan_4x4[15 - pos];
             int x_in_cg = scan_pos & 3;
             int y_in_cg = scan_pos >> 2;
-            aec_write_last_coeff_pos(p_aec, p_ctx_last_coeff_pos, rank == 0, num_cg == 1,
+            aec_write_last_coeff_pos(h, p_aec, p_ctx_last_coeff_pos, rank == 0, num_cg == 1,
                                      CGx, CGy, x_in_cg, y_in_cg, 1, b_dc_diag);
         }
 
@@ -1250,7 +1259,7 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
             if (symbol > 31) {
                 int exp_golomb_order = 0;
 
-                biari_encode_symbol_final_aec(p_aec, 1);  // "coeff_level_minus1_band[i]", > 32
+                biari_encode_symbol_final_aec(h, p_aec, 1);  // "coeff_level_minus1_band[i]", > 32
 
                 /* coeff_level_minus1_pos_in_band[i] */
                 symbol -= 32;
@@ -1258,17 +1267,17 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
                     symbol -= (1 << exp_golomb_order);
                     exp_golomb_order++;
                 }
-                biari_encode_symbols_eq_prob_aec(p_aec, 1, exp_golomb_order + 1);  // Exp-Golomb: prefix and 1
-                biari_encode_symbols_eq_prob_aec(p_aec, symbol, exp_golomb_order); // Exp-Golomb: suffix
+                biari_encode_symbols_eq_prob_aec(h, p_aec, 1, exp_golomb_order + 1);  // Exp-Golomb: prefix and 1
+                biari_encode_symbols_eq_prob_aec(h, p_aec, symbol, exp_golomb_order); // Exp-Golomb: suffix
             } else {
                 int pairsInCGIdx = XAVS2_MIN(2, ((pairsInCG + 1) >> 1));
 
-                biari_encode_symbol_final_aec(p_aec, 0);  // "coeff_level_minus1_band[i]", <= 32
+                biari_encode_symbol_final_aec(h, p_aec, 0);  // "coeff_level_minus1_band[i]", <= 32
 
                 /* coeff_level_minus1_pos_in_band[i] */
                 p_ctx = p_aec->p_ctx_set->coeff_level;
                 p_ctx += 10 * (i_cg == 0 && pos > 12) + XAVS2_MIN(rank, pairsInCGIdx + 2) + ((5 * pairsInCGIdx) >> 1);
-                biari_encode_tu_aec(p_aec, symbol, 31, p_ctx);
+                biari_encode_tu_aec(h, p_aec, symbol, 31, p_ctx);
             }
 
             level_max = XAVS2_MAX(level_max, absLevel);
@@ -1296,7 +1305,7 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
 
                 if (symbol-- > 0) {
                     assert(offset >= 0 && offset < NUM_MAP_CTX);
-                    biari_encode_symbol_aec(p_aec, 0, p_ctx + offset);
+                    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + offset);
                     ctxpos++;
                 } else {
                     break;
@@ -1306,7 +1315,7 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
             pos += (Run + 1);   // update position
             if (pos < NUM_OF_COEFFS_IN_CG) {
                 assert(offset >= 0 && offset < NUM_MAP_CTX);
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + offset);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + offset);
             } else {
                 pairs--;
                 pairsInCG++;
@@ -1315,7 +1324,7 @@ int aec_write_run_level_luma(aec_t *p_aec, int b_dc_diag,
         }   // run-level loop
 
         /* 4, sign of coefficient */
-        biari_encode_symbols_eq_prob_aec(p_aec, Level_sign >> 1, num_pairs);
+        biari_encode_symbols_eq_prob_aec(h, p_aec, Level_sign >> 1, num_pairs);
     }   // for (; i_cg >= 0; i_cg--)
 
     /* get the number of written bits */
@@ -1375,9 +1384,9 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
         if (rank > 0) {
             p_ctx = p_aec->p_ctx_set->nonzero_cg_flag + (NUM_SIGN_CG_CTX_LUMA);
             if (i) {            // i > 0 即 cg_flag 为1，表明有非零系数
-                biari_encode_symbol_aec(p_aec, 1, p_ctx);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
             } else {
-                biari_encode_symbol_aec(p_aec, 0, p_ctx);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
                 continue;       // 无非零系数，结束当前CG编码
             }
             CGx = p_tab_cg_scan[i_cg][0];
@@ -1389,7 +1398,7 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
 
                 CGx = p_tab_cg_scan[i_cg][0];
                 CGy = p_tab_cg_scan[i_cg][1];
-                aec_write_last_cg_pos(p_aec, 0, INTRA_PRED_DC_DIAG, i_cg, CGx, CGy, num_cg, num_cg_x, num_cg_y);
+                aec_write_last_cg_pos(h, p_aec, 0, INTRA_PRED_DC_DIAG, i_cg, CGx, CGy, num_cg, num_cg_x, num_cg_y);
             }
         } else {
             continue;  // 未找到第一个包含非零系数的CG
@@ -1404,7 +1413,7 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
             int scan_pos = tab_1d_scan_4x4[15 - pos];
             int x_in_cg = scan_pos & 3;
             int y_in_cg = scan_pos >> 2;
-            aec_write_last_coeff_pos(p_aec, p_ctx_last_coeff_pos, rank == 0, num_cg == 1, CGx, CGy, x_in_cg, y_in_cg,
+            aec_write_last_coeff_pos(h, p_aec, p_ctx_last_coeff_pos, rank == 0, num_cg == 1, CGx, CGy, x_in_cg, y_in_cg,
                                      0, 1);
         }
 
@@ -1423,7 +1432,7 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
             if (symbol > 31) {
                 int exp_golomb_order = 0;
 
-                biari_encode_symbol_final_aec(p_aec, 1);  // "coeff_level_minus1_band[i]", > 32
+                biari_encode_symbol_final_aec(h, p_aec, 1);  // "coeff_level_minus1_band[i]", > 32
 
                 /* coeff_level_minus1_pos_in_band[i] */
                 symbol -= 32;
@@ -1431,17 +1440,17 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
                     symbol -= (1 << exp_golomb_order);
                     exp_golomb_order++;
                 }
-                biari_encode_symbols_eq_prob_aec(p_aec, 1, exp_golomb_order + 1);  // Exp-Golomb: prefix and 1
-                biari_encode_symbols_eq_prob_aec(p_aec, symbol, exp_golomb_order); // Exp-Golomb: suffix
+                biari_encode_symbols_eq_prob_aec(h, p_aec, 1, exp_golomb_order + 1);  // Exp-Golomb: prefix and 1
+                biari_encode_symbols_eq_prob_aec(h, p_aec, symbol, exp_golomb_order); // Exp-Golomb: suffix
             } else {
                 int pairsInCGIdx = XAVS2_MIN(2, ((pairsInCG + 1) >> 1));
 
-                biari_encode_symbol_final_aec(p_aec, 0);  // "coeff_level_minus1_band[i]", <= 32
+                biari_encode_symbol_final_aec(h, p_aec, 0);  // "coeff_level_minus1_band[i]", <= 32
 
                 /* coeff_level_minus1_pos_in_band[i] */
                 p_ctx = p_aec->p_ctx_set->coeff_level;
                 p_ctx += 10 * (i_cg == 0 && pos > 12) + XAVS2_MIN(rank, pairsInCGIdx + 2) + ((5 * pairsInCGIdx) >> 1) + 20;
-                biari_encode_tu_aec(p_aec, symbol, 31, p_ctx);
+                biari_encode_tu_aec(h, p_aec, symbol, 31, p_ctx);
             }
 
             level_max = XAVS2_MAX(level_max, absLevel);
@@ -1468,7 +1477,7 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
 
                 if (symbol-- > 0) {
                     assert(offset >= 0 && offset < NUM_MAP_CTX);
-                    biari_encode_symbol_aec(p_aec, 0, p_ctx + offset);
+                    biari_encode_symbol_aec(h, p_aec, 0, p_ctx + offset);
                     ctxpos++;
                 } else {
                     break;
@@ -1478,7 +1487,7 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
             pos += (Run + 1);   // update position
             if (pos < NUM_OF_COEFFS_IN_CG) {
                 assert(offset >= 0 && offset < NUM_MAP_CTX);
-                biari_encode_symbol_aec(p_aec, 1, p_ctx + offset);
+                biari_encode_symbol_aec(h, p_aec, 1, p_ctx + offset);
             } else {
                 pairs--;
                 pairsInCG++;
@@ -1487,7 +1496,7 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
         }   // run-level loop
 
         /* 4, sign of coefficient */
-        biari_encode_symbols_eq_prob_aec(p_aec, Level_sign >> 1, num_pairs);
+        biari_encode_symbols_eq_prob_aec(h, p_aec, Level_sign >> 1, num_pairs);
     }   // for (; i_cg >= 0; i_cg--)
 
     /* get the number of written bits */
@@ -1508,12 +1517,12 @@ int aec_write_run_level_chroma(aec_t *p_aec, runlevel_t *runlevel, xavs2_t *h)
 
 /* ---------------------------------------------------------------------------
  */
-int aec_write_split_flag(aec_t *p_aec, int i_cu_split, int i_cu_level)
+int aec_write_split_flag(xavs2_t *h, aec_t *p_aec, int i_cu_split, int i_cu_level)
 {
     context_t *p_ctx = p_aec->p_ctx_set->split_flag + (MAX_CU_SIZE_IN_BIT - i_cu_level);
     int org_bits = aec_get_written_bits(p_aec);
 
-    biari_encode_symbol_aec(p_aec, (uint8_t)i_cu_split, p_ctx);
+    biari_encode_symbol_aec(h, p_aec, (uint8_t)i_cu_split, p_ctx);
 
 #if XAVS2_TRACE
     if (p_aec->b_writting) {
@@ -1528,7 +1537,7 @@ int aec_write_split_flag(aec_t *p_aec, int i_cu_split, int i_cu_level)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_mergeflag(aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam *p_sao_param)
+int write_sao_mergeflag(xavs2_t *h, aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam *p_sao_param)
 {
     int b_merge_left = 0;
     int b_merge_up;
@@ -1549,12 +1558,12 @@ int write_sao_mergeflag(aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam 
 
     if (ctx_offset == 1) {
         assert(val <= 1);
-        biari_encode_symbol_aec(p_aec, (uint8_t)val, p_ctx + 0);
+        biari_encode_symbol_aec(h, p_aec, (uint8_t)val, p_ctx + 0);
     } else if (ctx_offset == 2) {
         assert(val <= 2);
-        biari_encode_symbol_aec(p_aec, val & 0x01, p_ctx + 1);
+        biari_encode_symbol_aec(h, p_aec, val & 0x01, p_ctx + 1);
         if (val != 1) {
-            biari_encode_symbol_aec(p_aec, (val >> 1) & 0x01, p_ctx + 2);
+            biari_encode_symbol_aec(h, p_aec, (val >> 1) & 0x01, p_ctx + 2);
         }
     }
 
@@ -1564,20 +1573,20 @@ int write_sao_mergeflag(aec_t *p_aec, int avail_left, int avail_up, SAOBlkParam 
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_mode(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_mode(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     context_t *p_ctx = p_aec->p_ctx_set->sao_mode;
     int org_bits = aec_get_written_bits(p_aec);
     int sao_type = saoBlkParam->typeIdc;
 
     if (sao_type == SAO_TYPE_OFF) {
-        biari_encode_symbol_aec(p_aec, 1, p_ctx);
+        biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
     } else if (sao_type == SAO_TYPE_BO) {
-        biari_encode_symbol_aec(p_aec, 0, p_ctx);
-        biari_encode_symbol_eq_prob_aec(p_aec, 1);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, 1);
     } else {  // SAO_TYPE_EO (0~3)
-        biari_encode_symbol_aec(p_aec, 0, p_ctx);
-        biari_encode_symbol_eq_prob_aec(p_aec, 0);
+        biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, 0);
     }
 
     /* return the number of written bits */
@@ -1586,7 +1595,7 @@ int write_sao_mode(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-static int aec_write_sao_offset(aec_t *p_aec, int val, int offset_type)
+static int aec_write_sao_offset(xavs2_t *h, aec_t *p_aec, int val, int offset_type)
 {
     /* ---------------------------------------------------------------------------
      */
@@ -1609,30 +1618,30 @@ static int aec_write_sao_offset(aec_t *p_aec, int val, int offset_type)
 
     if (act_sym == 0) {
         if (offset_type == SAO_CLASS_BO) {
-            biari_encode_symbol_aec(p_aec, 1, p_ctx);
+            biari_encode_symbol_aec(h, p_aec, 1, p_ctx);
         } else {
-            biari_encode_symbol_eq_prob_aec(p_aec, 1);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, 1);
         }
     } else {
         int maxvalue = tab_saoclip[offset_type][2];
         int temp = act_sym;
         while (temp != 0) {
             if (offset_type == SAO_CLASS_BO && temp == act_sym) {
-                biari_encode_symbol_aec(p_aec, 0, p_ctx);
+                biari_encode_symbol_aec(h, p_aec, 0, p_ctx);
             } else {
-                biari_encode_symbol_eq_prob_aec(p_aec, 0);
+                biari_encode_symbol_eq_prob_aec(h, p_aec, 0);
             }
 
             temp--;
         }
         if (act_sym < maxvalue) {
-            biari_encode_symbol_eq_prob_aec(p_aec, 1);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, 1);
         }
     }
 
     if (offset_type == SAO_CLASS_BO && act_sym) {
         // write sign symbol
-        biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)(val >= 0 ? 0 : 1));
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)(val >= 0 ? 0 : 1));
     }
 
     /* return the number of written bits */
@@ -1641,7 +1650,7 @@ static int aec_write_sao_offset(aec_t *p_aec, int val, int offset_type)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_offset(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_offset(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     int rate = 0;
 
@@ -1654,17 +1663,17 @@ int write_sao_offset(aec_t *p_aec, SAOBlkParam *saoBlkParam)
         bandIdxBO[2] = (saoBlkParam->startBand + saoBlkParam->deltaBand) & 31;
         bandIdxBO[3] = bandIdxBO[2] + 1;
 
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[bandIdxBO[0]], SAO_CLASS_BO);
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[bandIdxBO[1]], SAO_CLASS_BO);
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[bandIdxBO[2]], SAO_CLASS_BO);
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[bandIdxBO[3]], SAO_CLASS_BO);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[bandIdxBO[0]], SAO_CLASS_BO);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[bandIdxBO[1]], SAO_CLASS_BO);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[bandIdxBO[2]], SAO_CLASS_BO);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[bandIdxBO[3]], SAO_CLASS_BO);
     } else {
         assert(saoBlkParam->typeIdc >= SAO_TYPE_EO_0 && saoBlkParam->typeIdc <= SAO_TYPE_EO_45);
 
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[SAO_CLASS_EO_FULL_VALLEY], SAO_CLASS_EO_FULL_VALLEY);
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[SAO_CLASS_EO_HALF_VALLEY], SAO_CLASS_EO_HALF_VALLEY);
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[SAO_CLASS_EO_HALF_PEAK], SAO_CLASS_EO_HALF_PEAK);
-        rate += aec_write_sao_offset(p_aec, saoBlkParam->offset[SAO_CLASS_EO_FULL_PEAK], SAO_CLASS_EO_FULL_PEAK);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[SAO_CLASS_EO_FULL_VALLEY], SAO_CLASS_EO_FULL_VALLEY);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[SAO_CLASS_EO_HALF_VALLEY], SAO_CLASS_EO_HALF_VALLEY);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[SAO_CLASS_EO_HALF_PEAK], SAO_CLASS_EO_HALF_PEAK);
+        rate += aec_write_sao_offset(h, p_aec, saoBlkParam->offset[SAO_CLASS_EO_FULL_PEAK], SAO_CLASS_EO_FULL_PEAK);
     }
 
     return rate;
@@ -1672,7 +1681,7 @@ int write_sao_offset(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-int write_sao_type(aec_t *p_aec, SAOBlkParam *saoBlkParam)
+int write_sao_type(xavs2_t *h, aec_t *p_aec, SAOBlkParam *saoBlkParam)
 {
     int rate = 0;
     int val;
@@ -1683,28 +1692,28 @@ int write_sao_type(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
         /* start band */
         val = saoBlkParam->startBand;
-        biari_encode_symbol_eq_prob_aec(p_aec, val & 0x01);
-        biari_encode_symbol_eq_prob_aec(p_aec, (val >> 1) & 0x01);
-        biari_encode_symbol_eq_prob_aec(p_aec, (val >> 2) & 0x01);
-        biari_encode_symbol_eq_prob_aec(p_aec, (val >> 3) & 0x01);
-        biari_encode_symbol_eq_prob_aec(p_aec, (val >> 4) & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, val & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (val >> 1) & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (val >> 2) & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (val >> 3) & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (val >> 4) & 0x01);
 
         /* delta band */
         assert(saoBlkParam->deltaBand >= 2);
         val = saoBlkParam->deltaBand - 2;
 
         while (val >= (1 << exp_golomb_order)) {
-            biari_encode_symbol_eq_prob_aec(p_aec, 0);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, 0);
             val -= (1 << exp_golomb_order);
             exp_golomb_order++;
         }
         if (exp_golomb_order == 4) {
             exp_golomb_order = 0;
         } else {
-            biari_encode_symbol_eq_prob_aec(p_aec, 1);
+            biari_encode_symbol_eq_prob_aec(h, p_aec, 1);
         }
         while (exp_golomb_order--) { // next binary part
-            biari_encode_symbol_eq_prob_aec(p_aec, (uint8_t)((val >> exp_golomb_order) & 1));
+            biari_encode_symbol_eq_prob_aec(h, p_aec, (uint8_t)((val >> exp_golomb_order) & 1));
         }
 
 #if XAVS2_TRACE
@@ -1717,8 +1726,8 @@ int write_sao_type(aec_t *p_aec, SAOBlkParam *saoBlkParam)
         assert(saoBlkParam->typeIdc >= SAO_TYPE_EO_0 && saoBlkParam->typeIdc <= SAO_TYPE_EO_45);
         val = saoBlkParam->typeIdc;
 
-        biari_encode_symbol_eq_prob_aec(p_aec, val & 0x01);
-        biari_encode_symbol_eq_prob_aec(p_aec, (val >> 1) & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, val & 0x01);
+        biari_encode_symbol_eq_prob_aec(h, p_aec, (val >> 1) & 0x01);
 
 #if XAVS2_TRACE
         if (p_aec->b_writting) {
@@ -1732,12 +1741,12 @@ int write_sao_type(aec_t *p_aec, SAOBlkParam *saoBlkParam)
 
 /* ---------------------------------------------------------------------------
  */
-int aec_write_alf_lcu_ctrl(aec_t *p_aec, uint8_t iflag)
+int aec_write_alf_lcu_ctrl(xavs2_t *h, aec_t *p_aec, uint8_t iflag)
 {
     int org_bits = aec_get_written_bits(p_aec);
     context_t *p_ctx =  &(p_aec->p_ctx_set->alf_cu_enable_scmodel[0][0]);
 
-    biari_encode_symbol_aec(p_aec, iflag, p_ctx);
+    biari_encode_symbol_aec(h, p_aec, iflag, p_ctx);
 
     /* return the number of written bits */
     return aec_get_written_bits(p_aec) - org_bits;
@@ -1756,10 +1765,10 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
 
     // write bits for inter cu type
     if (h->i_type != SLICE_TYPE_I) {
-        rate += aec_write_cutype(p_aec, mode, level, p_cu_info->i_cbp, h->param->enable_amp);
+        rate += aec_write_cutype(h, p_aec, mode, level, p_cu_info->i_cbp, h->param->enable_amp);
 
         if (h->i_type == SLICE_TYPE_B && (mode >= PRED_2Nx2N && mode <= PRED_nRx2N)) {
-            rate += aec_write_pdir(p_aec, mode, level, p_cu_info->b8pdir[0], p_cu_info->b8pdir[1]);
+            rate += aec_write_pdir(h, p_aec, mode, level, p_cu_info->b8pdir[0], p_cu_info->b8pdir[1]);
 #if XAVS2_TRACE
             if (p_aec->b_writting) {
                 if (h->i_type == SLICE_TYPE_B) {
@@ -1775,7 +1784,7 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
         } else if (h->i_type == SLICE_TYPE_F && h->param->enable_dhp && (h->i_ref > 1) &&
                    ((mode >= PRED_2Nx2N && mode <= PRED_nRx2N && level >  B8X8_IN_BIT) ||
                     (mode == PRED_2Nx2N                       && level == B8X8_IN_BIT))) {
-            rate += aec_write_pdir_dhp(p_aec, mode, p_cu_info->b8pdir[0], p_cu_info->b8pdir[1]);
+            rate += aec_write_pdir_dhp(h, p_aec, mode, p_cu_info->b8pdir[0], p_cu_info->b8pdir[1]);
 #if XAVS2_TRACE
             if (p_aec->b_writting) {
                 if (mode >= PRED_2NxN && mode <= PRED_nRx2N) {
@@ -1793,7 +1802,7 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
             int weighted_skip_mode = p_cu_info->directskip_wsm_idx;
             /* write weighted skip mode */
             if (h->param->enable_wsm && h->i_ref > 1) {
-                rate += aec_write_wpm(p_aec, weighted_skip_mode, h->i_ref);
+                rate += aec_write_wpm(h, p_aec, weighted_skip_mode, h->i_ref);
 
 #if XAVS2_TRACE
                 if (p_aec->b_writting) {
@@ -1805,7 +1814,7 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
             /* write bits for F-spatial-skip mode */
             if (h->param->enable_mhp_skip && weighted_skip_mode == 0) {
                 int ds_mode = p_cu_info->directskip_mhp_idx;
-                rate += aec_write_spatial_skip_mode(p_aec, ds_mode + 1);
+                rate += aec_write_spatial_skip_mode(h, p_aec, ds_mode + 1);
 #if XAVS2_TRACE
                 if (p_aec->b_writting) {
                     xavs2_trace("p_directskip_mode = %3d \n", ds_mode + 1);
@@ -1817,7 +1826,7 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
         /* write bits for b-direct-skip mode */
         if (SLICE_TYPE_B == h->i_type && IS_SKIP_MODE(mode)) {
             int ds_mode = p_cu_info->directskip_mhp_idx;
-            rate += aec_write_spatial_skip_mode(p_aec, ds_mode + 1);
+            rate += aec_write_spatial_skip_mode(h, p_aec, ds_mode + 1);
 #if XAVS2_TRACE
             if (p_aec->b_writting) {
                 xavs2_trace("directskip_mhp_idx = %3d \n", ds_mode + 1);
@@ -1838,11 +1847,11 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
 #endif
 
         /* write "transform_split_flag" and intra CU type for SDIP */
-        rate += aec_write_intra_cutype(p_aec, mode, level, p_cu_info->i_tu_split, h->param->enable_sdip);
+        rate += aec_write_intra_cutype(h, p_aec, mode, level, p_cu_info->i_tu_split, h->param->enable_sdip);
 
         /* write intra pred mode */
         for (i = 0; i < num_of_intra_block; i++) {
-            rate += aec_write_intra_pred_mode(p_aec, p_cu_info->pred_intra_modes[i]);
+            rate += aec_write_intra_pred_mode(h, p_aec, p_cu_info->pred_intra_modes[i]);
         }
 
         if (h->param->chroma_format != CHROMA_400) {
@@ -1851,7 +1860,7 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
             if (p_cu_info->i_scu_x > 0) {
                 i_left_cmode = h->cu_info[scu_xy - 1].i_intra_mode_c;
             }
-            rate += aec_write_intra_pred_cmode(p_aec, p_cu_info, i_left_cmode);
+            rate += aec_write_intra_pred_cmode(h, p_aec, p_cu_info, i_left_cmode);
         }
     }
 
@@ -1862,14 +1871,14 @@ int write_cu_header(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int scu_xy)
 /* ---------------------------------------------------------------------------
  * writes motion vectors of an 8x8 block
  */
-static ALWAYS_INLINE int write_mvd(aec_t *p_aec, cu_info_t *p_cu_info, int k, int bwd_flag)
+static ALWAYS_INLINE int write_mvd(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info, int k, int bwd_flag)
 {
     int curr_mvd_x = p_cu_info->mvd[bwd_flag][k].x;
     int curr_mvd_y = p_cu_info->mvd[bwd_flag][k].y;
     int rate;
 
-    rate  = aec_write_mvd(p_aec, curr_mvd_x, 0);
-    rate += aec_write_mvd(p_aec, curr_mvd_y, 1);
+    rate  = aec_write_mvd(h, p_aec, curr_mvd_x, 0);
+    rate += aec_write_mvd(h, p_aec, curr_mvd_y, 1);
 
 #if XAVS2_TRACE
     if (p_aec->b_writting) {
@@ -1932,7 +1941,7 @@ int write_cu_refs_mvds(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info)
         && p_cu_info->b8pdir[2] == PDIR_FWD && p_cu_info->b8pdir[3] == PDIR_FWD) {
         if (!(p_cu_info->i_level == B8X8_IN_BIT && p_cu_info->i_mode >= PRED_2NxN && p_cu_info->i_mode <= PRED_nRx2N)) {
             dmh_mode = p_cu_info->dmh_mode;
-            rate += aec_write_dmh_mode(p_aec, p_cu_info->i_level, dmh_mode);
+            rate += aec_write_dmh_mode(h, p_aec, p_cu_info->i_level, dmh_mode);
 #if XAVS2_TRACE
             if (p_aec->b_writting) {
                 xavs2_trace("dmh_mode = %3d\n", dmh_mode);
@@ -1945,7 +1954,7 @@ int write_cu_refs_mvds(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info)
     for (k = 0; k < p_cu_info->num_pu; k++) {
         pdir = p_cu_info->b8pdir[k];
         if (pdir != PDIR_BWD) {
-            rate += write_mvd(p_aec, p_cu_info, k, 0);
+            rate += write_mvd(h, p_aec, p_cu_info, k, 0);
         }
     }
 
@@ -1954,7 +1963,7 @@ int write_cu_refs_mvds(xavs2_t *h, aec_t *p_aec, cu_info_t *p_cu_info)
         for (k = 0; k < p_cu_info->num_pu; k++) {
             pdir = p_cu_info->b8pdir[k];
             if (pdir == PDIR_BWD || pdir == PDIR_BID) { // has backward vector
-                rate += write_mvd(p_aec, p_cu_info, k, 1);
+                rate += write_mvd(h, p_aec, p_cu_info, k, 1);
             }
         }
     }
@@ -2159,7 +2168,7 @@ void xavs2_lcu_write(xavs2_t *h, aec_t *p_aec, lcu_info_t *lcu_info, int i_level
         int i;
 
         if (inside) {
-            aec_write_split_flag(p_aec, 1, i_level);
+            aec_write_split_flag(h, p_aec, 1, i_level);
         }
 
         /* 4 sub-CU */
@@ -2177,7 +2186,7 @@ void xavs2_lcu_write(xavs2_t *h, aec_t *p_aec, lcu_info_t *lcu_info, int i_level
     } else {
         assert(inside);
         if (i_level > MIN_CU_SIZE_IN_BIT) {
-            aec_write_split_flag(p_aec, 0, i_level);
+            aec_write_split_flag(h, p_aec, 0, i_level);
         }
 
         xavs2_cu_write(h, p_aec, lcu_info, p_cu_info, i_level, img_x, img_y);
@@ -2187,9 +2196,9 @@ void xavs2_lcu_write(xavs2_t *h, aec_t *p_aec, lcu_info_t *lcu_info, int i_level
 /* ---------------------------------------------------------------------------
  * write termination symbol after encoding one lcu
  */
-void xavs2_lcu_terminat_bit_write(aec_t *p_aec, uint8_t bit)
+void xavs2_lcu_terminat_bit_write(xavs2_t* h, aec_t *p_aec, uint8_t bit)
 {
-    biari_encode_symbol_final_aec(p_aec, bit);
+    biari_encode_symbol_final_aec(h, p_aec, bit);
 
 #if XAVS2_TRACE
     if (p_aec->b_writting) {

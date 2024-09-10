@@ -74,32 +74,56 @@ static const uint16_t tab_lg_pmps_offset[6] = {
  * 向码流文件中输出所有剩余bits，结束码流
  */
 static INLINE
-void bitstr_end_stream(aec_t *p_aec)
+void bitstr_end_stream(xavs2_t *h, aec_t *p_aec)
 {
     if (p_aec->num_left_flush_bits == NUM_FLUSH_BITS) {
         return;
     }
 
+    if (h->param->input_sample_bit_depth == 8) {
     switch (NUM_FLUSH_BITS - p_aec->num_left_flush_bits) {
     case 24:
-        p_aec->p[0] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
-        p_aec->p[1] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 16));
-        p_aec->p[2] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 24));
-        p_aec->p += 3;
+        p_aec->p8[0] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
+        p_aec->p8[1] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 16));
+        p_aec->p8[2] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 24));
+        p_aec->p8 += 3;
         break;
     case 16:
-        p_aec->p[0] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
-        p_aec->p[1] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 16));
-        p_aec->p += 2;
+        p_aec->p8[0] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
+        p_aec->p8[1] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 16));
+        p_aec->p8 += 2;
         break;
     case 8:
-        p_aec->p[0] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
-        p_aec->p += 1;
+        p_aec->p8[0] = (uint8_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
+        p_aec->p8 += 1;
         break;
     default:
         fprintf(stderr, "Un-aligned tail bits %d\n", p_aec->num_left_flush_bits);
         assert(0);
         break;
+    }
+    } else {
+    switch (NUM_FLUSH_BITS - p_aec->num_left_flush_bits) {
+    case 24:
+        p_aec->p16[0] = (uint16_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
+        p_aec->p16[1] = (uint16_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 16));
+        p_aec->p16[2] = (uint16_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 24));
+        p_aec->p16 += 3;
+        break;
+    case 16:
+        p_aec->p16[0] = (uint16_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
+        p_aec->p16[1] = (uint16_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 16));
+        p_aec->p16 += 2;
+        break;
+    case 8:
+        p_aec->p16[0] = (uint16_t)(p_aec->reg_flush_bits >> (NUM_FLUSH_BITS - 8));
+        p_aec->p16 += 1;
+        break;
+    default:
+        fprintf(stderr, "Un-aligned tail bits %d\n", p_aec->num_left_flush_bits);
+        assert(0);
+        break;
+    }
     }
 
     p_aec->num_left_flush_bits = NUM_FLUSH_BITS;
@@ -112,7 +136,7 @@ void bitstr_end_stream(aec_t *p_aec)
  * 向码流文件中输出one bit和剩余的位数
  */
 static INLINE
-void bitstt_put_one_bit_and_remainder(aec_t *p_aec, const int b)
+void bitstt_put_one_bit_and_remainder(xavs2_t *h, aec_t *p_aec, const int b)
 {
     uint32_t N = 1 + p_aec->i_bits_to_follow;   // 总共输出的比特数
 
@@ -123,20 +147,29 @@ void bitstt_put_one_bit_and_remainder(aec_t *p_aec, const int b)
         int num_left_bits = N - header_bits - (num_left_bytes << 3);   // 多余的比特数
 
         p_aec->reg_flush_bits |= header_byte;
-        bitstr_flush_bits(p_aec);
+        bitstr_flush_bits(h, p_aec);
         p_aec->num_left_flush_bits = NUM_FLUSH_BITS - num_left_bits;
 
         if (b == 0) {
             /* b 为零时中间的bits全部填充 1 */
             while (num_left_bytes != 0) {
-                *(p_aec->p) = 0xff;
-                p_aec->p++;
+                if (h->param->input_sample_bit_depth == 8) {
+                    *(p_aec->p8) = 0xff;
+                    p_aec->p8++;
+                } else {
+                    *(p_aec->p16) = 0xff;
+                    p_aec->p16++;
+                }
                 num_left_bytes--;
             }
             /* 最后填充 num_left_bits 位到 reg_flush_bits 的最高位 */
             p_aec->reg_flush_bits = 0xffu >> (8 - num_left_bits) << p_aec->num_left_flush_bits;
         } else {
-            p_aec->p += num_left_bytes;
+            if (h->param->input_sample_bit_depth == 8) {
+                p_aec->p8 += num_left_bytes;
+            } else {
+                p_aec->p16 += num_left_bytes;
+            }
         }
     } else  {  /* 当前需要输出的bit数量小于码流中写入字节剩余的bit数量 */
         uint32_t bits = (1 << p_aec->i_bits_to_follow) - (!b);  // 输出的比特组成的二进制值
@@ -144,7 +177,7 @@ void bitstt_put_one_bit_and_remainder(aec_t *p_aec, const int b)
         p_aec->reg_flush_bits |= bits << (p_aec->num_left_flush_bits - N);
         p_aec->num_left_flush_bits -= N;
         if (p_aec->num_left_flush_bits == 0) {
-            bitstr_flush_bits(p_aec);
+            bitstr_flush_bits(h, p_aec);
             p_aec->reg_flush_bits      = 0;
             p_aec->num_left_flush_bits = NUM_FLUSH_BITS;
         }
@@ -279,11 +312,11 @@ void init_aec_context_tab(void)
 /* ---------------------------------------------------------------------------
  * initializes the aec_t for the arithmetic coder
  */
-void aec_start(xavs2_t *h, aec_t *p_aec, uint8_t *p_bs_start, uint8_t *p_bs_end, int b_writing)
+void aec_start8(xavs2_t *h, aec_t *p_aec, uint8_t *p_bs_start, uint8_t *p_bs_end, int b_writing)
 {
-    p_aec->p_start          = p_bs_start;
-    p_aec->p                = p_bs_start;
-    p_aec->p_end            = p_bs_end;
+    p_aec->p_start8         = p_bs_start;
+    p_aec->p8               = p_bs_start;
+    p_aec->p_end8           = p_bs_end;
     p_aec->i_low            = 0;
     p_aec->i_t1             = 0xFF;
     p_aec->i_bits_to_follow = 0;
@@ -292,7 +325,30 @@ void aec_start(xavs2_t *h, aec_t *p_aec, uint8_t *p_bs_start, uint8_t *p_bs_end,
     p_aec->num_left_flush_bits = NUM_FLUSH_BITS + 1;      // to swallow first redundant bit
     p_aec->reg_flush_bits      = 0;
     if (b_writing) {
-        memset(p_aec->p_start, 0, p_bs_end - p_bs_start);
+        memset(p_aec->p_start8, 0, p_bs_end - p_bs_start);
+    }
+
+    /* int function handles */
+    aec_set_function_handles(h, &p_aec->binary, b_writing);
+
+    /* init contexts */
+    init_contexts(p_aec);
+}
+
+void aec_start10(xavs2_t *h, aec_t *p_aec, uint16_t *p_bs_start, uint16_t *p_bs_end, int b_writing)
+{
+    p_aec->p_start16        = p_bs_start;
+    p_aec->p16              = p_bs_start;
+    p_aec->p_end16          = p_bs_end;
+    p_aec->i_low            = 0;
+    p_aec->i_t1             = 0xFF;
+    p_aec->i_bits_to_follow = 0;
+    p_aec->b_writting       = 0;
+
+    p_aec->num_left_flush_bits = NUM_FLUSH_BITS + 1;      // to swallow first redundant bit
+    p_aec->reg_flush_bits      = 0;
+    if (b_writing) {
+        memset(p_aec->p_start16, 0, p_bs_end - p_bs_start);
     }
 
     /* int function handles */
@@ -305,33 +361,33 @@ void aec_start(xavs2_t *h, aec_t *p_aec, uint8_t *p_bs_start, uint8_t *p_bs_end,
 /* ---------------------------------------------------------------------------
  * terminates the arithmetic codeword, writes stop bit and stuffing bytes (if any)
  */
-void aec_done(aec_t *p_aec)
+void aec_done(xavs2_t *h, aec_t *p_aec)
 {
     int i;
     uint8_t bit_out_standing = (uint8_t)((p_aec->i_low >> (B_BITS - 1)) & 1);
     uint8_t bit_ending;
 
-    bitstt_put_one_bit_and_remainder(p_aec, bit_out_standing);
+    bitstt_put_one_bit_and_remainder(h, p_aec, bit_out_standing);
 
     bit_ending = (uint8_t)((p_aec->i_low >> (B_BITS - 2)) & 1);
-    bitstr_put_one_bit(p_aec, bit_ending);
+    bitstr_put_one_bit(h, p_aec, bit_ending);
 
     /* end of AEC */
-    bitstr_put_one_bit(p_aec, 1);
+    bitstr_put_one_bit(h, p_aec, 1);
     for (i = 0; i < 7; i++) {
-        bitstr_put_one_bit(p_aec, 0);
+        bitstr_put_one_bit(h, p_aec, 0);
     }
 
     /* write stuffing pattern */
-    bitstr_put_one_bit(p_aec, 1);
+    bitstr_put_one_bit(h, p_aec, 1);
     if (p_aec->num_left_flush_bits != NUM_FLUSH_BITS) {
         for (i = p_aec->num_left_flush_bits & 7; i > 0; i--) {
-            bitstr_put_one_bit(p_aec, 0);
+            bitstr_put_one_bit(h, p_aec, 0);
         }
     }
 
     /* end bitstream */
-    bitstr_end_stream(p_aec);
+    bitstr_end_stream(h, p_aec);
 }
 
 /* ---------------------------------------------------------------------------

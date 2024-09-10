@@ -58,56 +58,100 @@ extern int g_bit_count;         /* global bit    count for trace */
 
 /* ---------------------------------------------------------------------------
  */
-static ALWAYS_INLINE void xavs2_bs_init(bs_t *bs, void *p_data, int i_data)
+static ALWAYS_INLINE void xavs2_bs_init8(bs_t *bs, void *p_data, int i_data)
 {
-    bs->p_start = (uint8_t *)p_data;
-    bs->p       = (uint8_t *)p_data;
-    bs->p_end   = bs->p_start + i_data;
+    bs->p_start8 = (uint8_t *)p_data;
+    bs->p8       = (uint8_t *)p_data;
+    bs->p_end8  = bs->p_start8 + i_data;
+    bs->i_left   = 8;
+}
+
+static ALWAYS_INLINE void xavs2_bs_init10(bs_t *bs, void *p_data, int i_data)
+{
+    bs->p_start16 = (uint16_t *)p_data;
+    bs->p16       = (uint16_t *)p_data;
+    bs->p_end16   = bs->p_start16 + i_data;
     bs->i_left  = 8;
 }
 
 /* ---------------------------------------------------------------------------
  */
-static ALWAYS_INLINE int xavs2_bs_pos(bs_t *bs)
+static ALWAYS_INLINE int xavs2_bs_pos8(bs_t *bs)
 {
-    return ((int)(8 * (bs->p - bs->p_start) + 8 - bs->i_left));
+    return ((int)(8 * (bs->p8 - bs->p_start8) + 8 - bs->i_left));
+}
+
+static ALWAYS_INLINE int xavs2_bs_pos10(bs_t *bs)
+{
+    return ((int)(8 * (bs->p16 - bs->p_start16) + 8 - bs->i_left));
 }
 
 /* ---------------------------------------------------------------------------
  * writes UVLC code to the bitstream buffer
  */
-static ALWAYS_INLINE void xavs2_bs_write(bs_t *bs, uint32_t code, int len)
+static ALWAYS_INLINE void xavs2_bs_write(xavs2_t *h, bs_t *bs, uint32_t code, int len)
 {
-    assert(bs->p < bs->p_end);
+    if (h->param->input_sample_bit_depth == 8) {
+    assert(bs->p8 < bs->p_end8);
 
     while (len > 0) {
         if (len < 32) {
             code &= (1 << len) - 1;
         }
         if (len < bs->i_left) {
-            (*bs->p) = (uint8_t)(((*bs->p) << len) | code);
+            (*bs->p8) = (uint8_t)(((*bs->p8) << len) | code);
             bs->i_left -= len;
             break;
         } else {
-            (*bs->p) = (uint8_t)(((*bs->p) << bs->i_left) | (code >> (len - bs->i_left)));
-            bs->p++;
+            (*bs->p8) = (uint8_t)(((*bs->p8) << bs->i_left) | (code >> (len - bs->i_left)));
+            bs->p8++;
             len -= bs->i_left;
             bs->i_left = 8;
         }
+    }
+    } else {
+    assert(bs->p16 < bs->p_end16);
+
+    while (len > 0) {
+        if (len < 32) {
+            code &= (1 << len) - 1;
+        }
+        if (len < bs->i_left) {
+            (*bs->p16) = (uint16_t)(((*bs->p16) << len) | code);
+            bs->i_left -= len;
+            break;
+        } else {
+            (*bs->p16) = (uint16_t)(((*bs->p16) << bs->i_left) | (code >> (len - bs->i_left)));
+            bs->p16++;
+            len -= bs->i_left;
+            bs->i_left = 8;
+        }
+    }
     }
 }
 
 /* ---------------------------------------------------------------------------
  */
-static ALWAYS_INLINE void xavs2_bs_write1(bs_t *bs, uint8_t i_bit)
+static ALWAYS_INLINE void xavs2_bs_write1(xavs2_t *h, bs_t *bs, uint8_t i_bit)
 {
-    if (bs->p < bs->p_end) {
-        (*bs->p) <<= 1;
-        (*bs->p) |= i_bit;
+    if (h->param->input_sample_bit_depth == 8) {
+    if (bs->p8 < bs->p_end8) {
+        (*bs->p8) <<= 1;
+        (*bs->p8) |= i_bit;
         if (--bs->i_left == 0) {
             bs->i_left = 8;
-            bs->p++;
+            bs->p8++;
         }
+    }
+    } else {
+    if (bs->p16 < bs->p_end16) {
+        (*bs->p16) <<= 1;
+        (*bs->p16) |= i_bit;
+        if (--bs->i_left == 0) {
+            bs->i_left = 8;
+            bs->p16++;
+        }
+    }
     }
 }
 
@@ -115,13 +159,13 @@ static ALWAYS_INLINE void xavs2_bs_write1(bs_t *bs, uint8_t i_bit)
  * one bit "1" is added to the end of stream, then some bits "0" are added
  * to byte aligned position.
  */
-static ALWAYS_INLINE void xavs2_bs_stuff_bits(bs_t *bs)
+static ALWAYS_INLINE void xavs2_bs_stuff_bits(xavs2_t *h, bs_t *bs)
 {
     if (bs->i_left != 8) {
-        xavs2_bs_write1(bs, 1);
-        xavs2_bs_write(bs, 0, bs->i_left & 7);
+        xavs2_bs_write1(h, bs, 1);
+        xavs2_bs_write(h, bs, 0, bs->i_left & 7);
     } else {
-        xavs2_bs_write(bs, 0x80, 8);
+        xavs2_bs_write(h, bs, 0x80, 8);
     }
 }
 #define bs_stuff_bits   xavs2_bs_stuff_bits
@@ -130,12 +174,12 @@ static ALWAYS_INLINE void xavs2_bs_stuff_bits(bs_t *bs)
  * one bit "1" is added to the end of stream, then some bits "0" are added
  * to byte aligned position.
  */
-static ALWAYS_INLINE int xavs2_bs_byte_align(bs_t *bs)
+static ALWAYS_INLINE int xavs2_bs_byte_align(xavs2_t *h, bs_t *bs)
 {
     if (bs->i_left != 8) {
         int bits = bs->i_left;
-        xavs2_bs_write1(bs, 1);
-        xavs2_bs_write(bs, 0, bs->i_left & 7);
+        xavs2_bs_write1(h, bs, 1);
+        xavs2_bs_write(h, bs, 0, bs->i_left & 7);
         return bits;
     }
 
@@ -246,9 +290,9 @@ static void write_trace_info2(char *trace_string, int value, int len)
  * ---------------------------------------------------------------------------
  */
 #if XAVS2_TRACE
-static ALWAYS_INLINE int xavs2_bs_write_ue(bs_t *bs, char *trace_string, int value)
+static ALWAYS_INLINE int xavs2_bs_write_ue(xavs2_t *h, bs_t *bs, char *trace_string, int value)
 #else
-static ALWAYS_INLINE int xavs2_bs_write_ue(bs_t *bs, int value)
+static ALWAYS_INLINE int xavs2_bs_write_ue(xavs2_t *h, bs_t *bs, int value)
 #endif
 {
     int i, nn, len, inf, suffix_len, bit_pattern;
@@ -265,7 +309,7 @@ static ALWAYS_INLINE int xavs2_bs_write_ue(bs_t *bs, int value)
     suffix_len = len >> 1;
     bit_pattern = (1 << suffix_len) | (inf & ((1 << suffix_len) - 1));
 
-    xavs2_bs_write(bs, bit_pattern, len);
+    xavs2_bs_write(h, bs, bit_pattern, len);
 
 #if XAVS2_TRACE
     write_trace_info(trace_string, bit_pattern, value, len);
@@ -285,15 +329,15 @@ static ALWAYS_INLINE int xavs2_bs_write_ue(bs_t *bs, int value)
  * ---------------------------------------------------------------------------
  */
 #if XAVS2_TRACE
-static ALWAYS_INLINE int xavs2_bs_write_se(bs_t *bs, char *trace_string, int value)
+static ALWAYS_INLINE int xavs2_bs_write_se(xavs2_t *h, bs_t *bs, char *trace_string, int value)
 #else
-static ALWAYS_INLINE int xavs2_bs_write_se(bs_t *bs, int value)
+static ALWAYS_INLINE int xavs2_bs_write_se(xavs2_t *h, bs_t *bs, int value)
 #endif
 {
 #if XAVS2_TRACE
-    return xavs2_bs_write_ue(bs, trace_string, value <= 0 ? -value * 2 : value * 2 - 1);
+    return xavs2_bs_write_ue(h, bs, trace_string, value <= 0 ? -value * 2 : value * 2 - 1);
 #else
-    return xavs2_bs_write_ue(bs, value <= 0 ? -value * 2 : value * 2 - 1);
+    return xavs2_bs_write_ue(h, bs, value <= 0 ? -value * 2 : value * 2 - 1);
 #endif
 }
 
@@ -309,12 +353,12 @@ static ALWAYS_INLINE int xavs2_bs_write_se(bs_t *bs, int value)
  * ---------------------------------------------------------------------------
  */
 #if XAVS2_TRACE
-static ALWAYS_INLINE int xavs2_bs_write_uv(bs_t *bs, int len, char *trace_string, int value, int b_trace)
+static ALWAYS_INLINE int xavs2_bs_write_uv(xavs2_t *h, bs_t *bs, int len, char *trace_string, int value, int b_trace)
 #else
-static ALWAYS_INLINE int xavs2_bs_write_uv(bs_t *bs, int len, int value)
+static ALWAYS_INLINE int xavs2_bs_write_uv(xavs2_t *h, bs_t *bs, int len, int value)
 #endif
 {
-    xavs2_bs_write(bs, value, len);
+    xavs2_bs_write(h, bs, value, len);
 
 #if XAVS2_TRACE
     if (b_trace) {
@@ -326,16 +370,17 @@ static ALWAYS_INLINE int xavs2_bs_write_uv(bs_t *bs, int len, int value)
 }
 
 #if XAVS2_TRACE
-#define ue_v(bs, value, trace_string)       xavs2_bs_write_ue(bs, trace_string, value)
-#define se_v(bs, value, trace_string)       xavs2_bs_write_se(bs, trace_string, value)
-#define u_v(bs, len, value, trace_string)   xavs2_bs_write_uv(bs, len, trace_string, value, 1)
-#define u_0(bs, len, value, trace_string)   xavs2_bs_write_uv(bs, len, trace_string, value, 0)    /* no trace */
+#define ue_v(h, bs, value, trace_string)       xavs2_bs_write_ue(h, bs, trace_string, value)
+#define se_v(h, bs, value, trace_string)       xavs2_bs_write_se(h, bs, trace_string, value)
+#define u_v(h, bs, len, value, trace_string)   xavs2_bs_write_uv(h, bs, len, trace_string, value, 1)
+#define u_0(h, bs, len, value, trace_string)   xavs2_bs_write_uv(h, bs, len, trace_string, value, 0)    /* no trace */
 
 #else
-#define ue_v(bs, value, trace_string)       xavs2_bs_write_ue(bs, value)
-#define se_v(bs, value, trace_string)       xavs2_bs_write_se(bs, value)
-#define u_v(bs, len, value, trace_string)   xavs2_bs_write_uv(bs, len, value)
-#define u_0(bs, len, value, trace_string)   xavs2_bs_write_uv(bs, len, value)
+#define ue_v(h, bs, value, trace_string)       xavs2_bs_write_ue(h, bs, value)
+#define se_v(h, bs, value, trace_string)       xavs2_bs_write_se(h, bs, value)
+#define u_v(h, bs, len, value, trace_string)   xavs2_bs_write_uv(h, bs, len, value)
+#define u_0(h, bs, len, value, trace_string)   xavs2_bs_write_uv(h, bs, len, value)
+
 #endif
 
 #endif  // XAVS2_BITSTREAM_H

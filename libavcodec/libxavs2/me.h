@@ -115,8 +115,10 @@
 
 #define xavs2_me_get_buf_size FPFX(me_get_buf_size)
 int  xavs2_me_get_buf_size(const xavs2_param_t *param);
-#define xavs2_me_init FPFX(me_init)
-void xavs2_me_init(xavs2_t *h, uint8_t **mem_base);
+#define xavs2_me_init8 FPFX(me_init8)
+void xavs2_me_init8(xavs2_t *h, uint8_t **mem_base);
+#define xavs2_me_init10 FPFX(me_init10)
+void xavs2_me_init10(xavs2_t *h, uint16_t **mem_base16);
 #define xavs2_me_init_umh_threshold FPFX(me_init_umh_threshold)
 void xavs2_me_init_umh_threshold(xavs2_t *h, double *bsize, int i_qp);
 

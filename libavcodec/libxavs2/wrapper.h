@@ -222,8 +222,10 @@ int get_next_frame_id(int idx_cur)
 /* ---------------------------------------------------------------------------
  * frame buffer operation
  */
-#define frame_buffer_init FPFX(frame_buffer_init)
-void frame_buffer_init(xavs2_handler_t *h_mgr, uint8_t **mem_base, xavs2_frame_buffer_t *frm_buf, int num_frm, int frm_type);
+#define frame_buffer_init8 FPFX(frame_buffer_init8)
+void frame_buffer_init8(xavs2_handler_t *h_mgr, uint8_t **mem_base, xavs2_frame_buffer_t *frm_buf, int num_frm, int frm_type);
+#define frame_buffer_init10 FPFX(frame_buffer_init10)
+void frame_buffer_init10(xavs2_handler_t *h_mgr, uint16_t **mem_base16, xavs2_frame_buffer_t *frm_buf, int num_frm, int frm_type);
 #define frame_buffer_destroy FPFX(frame_buffer_destroy)
 void frame_buffer_destroy(xavs2_handler_t *h_mgr, xavs2_frame_buffer_t *frm_buf);
 

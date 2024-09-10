@@ -41,7 +41,7 @@
 #define xavs2_sequence_write FPFX(sequence_write)
 int  xavs2_sequence_write(xavs2_t *h, bs_t *p_bs);
 #define xavs2_user_data_write FPFX(user_data_write)
-int  xavs2_user_data_write(bs_t *p_bs);
+int  xavs2_user_data_write(xavs2_t *h, bs_t *p_bs);
 #define xavs2_intra_picture_header_write FPFX(intra_picture_header_write)
 int  xavs2_intra_picture_header_write(xavs2_t *h, bs_t *p_bs);
 #define xavs2_inter_picture_header_write FPFX(inter_picture_header_write)

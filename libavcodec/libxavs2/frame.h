@@ -44,8 +44,10 @@
  * ===========================================================================
  */
 
-#define xavs2_frame_new FPFX(frame_new)
-xavs2_frame_t *xavs2_frame_new(xavs2_t *h, uint8_t **mem_base, int alloc_type);
+#define xavs2_frame_new8 FPFX(frame_new8)
+xavs2_frame_t *xavs2_frame_new8(xavs2_t *h, uint8_t **mem_base, int alloc_type);
+#define xavs2_frame_new10 FPFX(frame_new10)
+xavs2_frame_t *xavs2_frame_new10(xavs2_t *h, uint16_t **mem_base16, int alloc_type);
 #define xavs2_frame_delete FPFX(frame_delete)
 void xavs2_frame_delete(xavs2_handler_t *h_mgr, xavs2_frame_t *frame);
 
@@ -66,7 +68,7 @@ void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame);
 #define xavs2_frame_expand_border_lcurow FPFX(frame_expand_border_lcurow)
 void xavs2_frame_expand_border_lcurow(xavs2_t *h, xavs2_frame_t *frame, int i_lcu_y);
 
-#define xavs2_frame_expand_border_mod8 FPFX(frame_expand_border_mod8)
-void xavs2_frame_expand_border_mod8(xavs2_t *h, xavs2_frame_t *frame);
+#define xavs2_frame_expand_border_mod FPFX(frame_expand_border_mod)
+void xavs2_frame_expand_border_mod(xavs2_t *h, xavs2_frame_t *frame);
 
 #endif  /* XAVS2_FRAME_H */

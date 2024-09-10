@@ -59,7 +59,10 @@
 #include "ratecontrol.h"
 
 /* "video_sequence_end_code", 0xB1 */
-static const uint8_t end_code[16] = {
+static const uint8_t end_code8[16] = {
+    0x00, 0x00, 0x01, 0xB1
+};
+static const uint16_t end_code16[16] = {
     0x00, 0x00, 0x01, 0xB1
 };
 static const int     len_end_code = 4;
@@ -129,14 +132,14 @@ static void release_one_frame(xavs2_t *h, xavs2_frame_t *frame)
  * fill packet data for output
  */
 static ALWAYS_INLINE
-void encoder_fill_packet_data(xavs2_handler_t *h_mgr, xavs2_outpacket_t *packet, xavs2_frame_t *frame)
+void encoder_fill_packet_data8(xavs2_handler_t *h_mgr, xavs2_outpacket_t *packet, xavs2_frame_t *frame)
 {
     assert(packet != NULL);
     packet->private_data = frame;
     packet->opaque       = h_mgr->user_data;
 
     if (frame == NULL) {
-        packet->stream   = end_code;
+        packet->stream8  = end_code8;
         packet->len      = 0;
         packet->state    = XAVS2_STATE_FLUSH_END;
         packet->type     = 0;
@@ -149,7 +152,39 @@ void encoder_fill_packet_data(xavs2_handler_t *h_mgr, xavs2_outpacket_t *packet,
     } else {
         assert(frame->i_bs_len > 0);
 
-        packet->stream   = frame->p_bs_buf;
+        packet->stream8  = frame->p_bs_buf8;
+        packet->len      = frame->i_bs_len;
+        packet->state    = XAVS2_STATE_ENCODED;
+        packet->type     = frame->i_frm_type;
+        packet->pts      = frame->i_pts;
+        packet->dts      = frame->i_dts;
+        h_mgr->max_out_pts = XAVS2_MAX(h_mgr->max_out_pts, frame->i_pts);
+        h_mgr->max_out_dts = XAVS2_MAX(h_mgr->max_out_dts, frame->i_dts);
+    }
+}
+
+static ALWAYS_INLINE
+void encoder_fill_packet_data10(xavs2_handler_t *h_mgr, xavs2_outpacket_t *packet, xavs2_frame_t *frame)
+{
+    assert(packet != NULL);
+    packet->private_data = frame;
+    packet->opaque       = h_mgr->user_data;
+
+    if (frame == NULL) {
+        packet->stream16 = end_code16;
+        packet->len      = 0;
+        packet->state    = XAVS2_STATE_FLUSH_END;
+        packet->type     = 0;
+        packet->pts      = h_mgr->max_out_pts;
+        packet->dts      = h_mgr->max_out_dts;
+        if (h_mgr->b_seq_end == 0) {
+            packet->len = len_end_code;
+            h_mgr->b_seq_end = 1;
+        }
+    } else {
+        assert(frame->i_bs_len > 0);
+
+        packet->stream16 = frame->p_bs_buf16;
         packet->len      = frame->i_bs_len;
         packet->state    = XAVS2_STATE_ENCODED;
         packet->type     = frame->i_frm_type;
@@ -186,7 +221,7 @@ void encoder_output_frame_bitstream(xavs2_handler_t *h_mgr, xavs2_frame_t *frame
  * Return     : none
  * ---------------------------------------------------------------------------
  */
-void encoder_fetch_one_encoded_frame(xavs2_handler_t *h_mgr, xavs2_outpacket_t *packet, int is_flush)
+void encoder_fetch_one_encoded_frame(xavs2_t *h, xavs2_handler_t *h_mgr, xavs2_outpacket_t *packet, int is_flush)
 {
     int num_encoding_frames = h_mgr->num_encode - h_mgr->num_output;  // 正在编码帧数
     int num_frames_threads  = h_mgr->i_frm_threads;      // 并行帧数
@@ -198,13 +233,21 @@ void encoder_fetch_one_encoded_frame(xavs2_handler_t *h_mgr, xavs2_outpacket_t *
     if (is_flush && h_mgr->num_input == h_mgr->num_output) {
         /* all frames are encoded and have been output;
          * return video_end_code to finish encoding */
-        encoder_fill_packet_data(h_mgr, packet, NULL);
+        if (h->param->input_sample_bit_depth == 8) {
+            encoder_fill_packet_data8(h_mgr, packet, NULL);
+        } else {
+            encoder_fill_packet_data10(h_mgr, packet, NULL);
+        }
     } else if (num_encoding_frames > num_frames_threads || is_flush) {
         /* now we should wait for one frame output */
         xavs2_frame_t *frame = (xavs2_frame_t *)xl_remove_head(&h_mgr->list_frames_output, 1);
 
         if (frame != NULL) {
-            encoder_fill_packet_data(h_mgr, packet, frame);
+            if (h->param->input_sample_bit_depth == 8) {
+                encoder_fill_packet_data8(h_mgr, packet, frame);
+            } else {
+                encoder_fill_packet_data10(h_mgr, packet, frame);
+            }
             h_mgr->num_output++;
             assert(frame->i_bs_len > 0);
         }
@@ -215,16 +258,29 @@ void encoder_fetch_one_encoded_frame(xavs2_handler_t *h_mgr, xavs2_outpacket_t *
  * check pseudo code and merge slice data with slice header bits
  */
 static ALWAYS_INLINE
-void check_pseudo_code_and_merge_slice_data(bs_t *p_bs, aec_t *p_aec)
+void check_pseudo_code_and_merge_slice_data8(bs_t *p_bs, aec_t *p_aec)
 {
-    uint8_t *dst = p_bs->p;           /* point to the end of previous bitstream */
-    uint8_t *src = p_aec->p_start;    /* point to the start position of source */
-    uint8_t *end = p_aec->p;          /* point to the end   position of source */
+    uint8_t *dst = p_bs->p8;           /* point to the end of previous bitstream */
+    uint8_t *src = p_aec->p_start8;    /* point to the start position of source */
+    uint8_t *end = p_aec->p8;          /* point to the end   position of source */
 
     assert(p_bs->i_left == 8);
 
     /* check pseudo code */
-    p_bs->p = nal_escape_c(dst, src, end);
+    p_bs->p8 = nal_escape_c8(dst, src, end);
+}
+
+static ALWAYS_INLINE
+void check_pseudo_code_and_merge_slice_data10(bs_t *p_bs, aec_t *p_aec)
+{
+    uint16_t *dst = p_bs->p16;           /* point to the end of previous bitstream */
+    uint16_t *src = p_aec->p_start16;    /* point to the start position of source */
+    uint16_t *end = p_aec->p16;          /* point to the end   position of source */
+
+    assert(p_bs->i_left == 8);
+
+    /* check pseudo code */
+    p_bs->p16 = nal_escape_c10(dst, src, end);
 }
 
 /* ---------------------------------------------------------------------------
@@ -592,7 +648,11 @@ void encoder_encode_frame_header(xavs2_t *h)
     int overhead = 30;  /* number of overhead bytes (include I/P/B picture header) */
 
     /* init bitstream context */
-    xavs2_bs_init(p_bs, h->p_bs_buf_header, h->i_bs_buf_header);
+    if (h->param->input_sample_bit_depth == 8) {
+        xavs2_bs_init8(p_bs, h->p_bs_buf_header8, h->i_bs_buf_header);
+    } else {
+        xavs2_bs_init10(p_bs, h->p_bs_buf_header16, h->i_bs_buf_header);
+    }
 
     /* create sequence header if need ------------------------------
      */
@@ -607,7 +667,7 @@ void encoder_encode_frame_header(xavs2_t *h)
 
             /* generate user data */
             nal_start(h, NAL_AUD, NAL_PRIORITY_HIGHEST);
-            xavs2_user_data_write(p_bs);
+            xavs2_user_data_write(h, p_bs);
             nal_end(h);
 
             overhead += h->p_nal[h->i_nal - 1].i_payload;
@@ -623,7 +683,7 @@ void encoder_encode_frame_header(xavs2_t *h)
     }
     // write picture header (ALF)
     xavs2_picture_header_alf_write(h, h->pic_alf_params, p_bs);
-    bs_stuff_bits(p_bs);        // stuff bits after finishing ALF
+    bs_stuff_bits(h, p_bs);        // stuff bits after finishing ALF
     nal_end(h);                 // nal for picture header
 }
 
@@ -673,7 +733,11 @@ static void *encoder_aec_encode_one_frame(xavs2_t *h)
 
             if (lcu_xy == slice->i_first_lcu_xy) {
                 /* slice start : initialize the aec engine */
-                aec_start(h, p_aec, slice->bs.p_start + PSEUDO_CODE_SIZE, slice->bs.p_end, 1);
+                if (h->param->input_sample_bit_depth == 8) {
+                aec_start8(h, p_aec, slice->bs.p_start8 + PSEUDO_CODE_SIZE, slice->bs.p_end8, 1);
+                } else {
+                aec_start10(h, p_aec, slice->bs.p_start16 + PSEUDO_CODE_SIZE, slice->bs.p_end16, 1);
+                }
                 p_aec->b_writting = 1;
             }
 
@@ -685,7 +749,7 @@ static void *encoder_aec_encode_one_frame(xavs2_t *h)
                 int alf_comp;
                 for (alf_comp = 0; alf_comp < 3; alf_comp++) {
                     if (h->pic_alf_on[alf_comp]) {
-                        p_aec->binary.write_alf_lcu_ctrl(p_aec, h->is_alf_lcu_on[lcu_xy][alf_comp]);
+                        p_aec->binary.write_alf_lcu_ctrl(h, p_aec, h->is_alf_lcu_on[lcu_xy][alf_comp]);
                     }
                 }
             }
@@ -693,20 +757,25 @@ static void *encoder_aec_encode_one_frame(xavs2_t *h)
             xavs2_lcu_write(h, p_aec, lcu, h->i_lcu_level, lcu->pix_x, lcu->pix_y);
 
             /* for the last LCU in SLice, write 1, otherwise write 0 */
-            xavs2_lcu_terminat_bit_write(p_aec, lcu_xy == slice->i_last_lcu_xy);
+            xavs2_lcu_terminat_bit_write(h, p_aec, lcu_xy == slice->i_last_lcu_xy);
         }
 
         /* 仅考虑LCU行级的Slice划分方式 */
         if (lcu_xy >= slice->i_last_lcu_xy) {
             int bs_len;
             /* slice done */
-            aec_done(p_aec);
+            aec_done(h, p_aec);
 
             /* check pseudo start code, and store bit stream length */
-            check_pseudo_code_and_merge_slice_data(&slice->bs, p_aec);
-            bs_len = xavs2_bs_pos(&slice->bs) / 8;
-
-            nal_merge_slice(h, slice->p_slice_bs_buf, bs_len, h->i_nal_type, h->i_nal_ref_idc);
+            if (h->param->input_sample_bit_depth == 8) {
+                check_pseudo_code_and_merge_slice_data8(&slice->bs, p_aec);
+                bs_len = xavs2_bs_pos8(&slice->bs) / 8;
+                nal_merge_slice8(h, slice->p_slice_bs_buf8, bs_len, h->i_nal_type, h->i_nal_ref_idc);
+            } else {
+                check_pseudo_code_and_merge_slice_data10(&slice->bs, p_aec);
+                bs_len = xavs2_bs_pos10(&slice->bs) / 8;
+                nal_merge_slice10(h, slice->p_slice_bs_buf16, bs_len, h->i_nal_type, h->i_nal_ref_idc);
+            }
         }
     }
 
@@ -1282,6 +1351,7 @@ xavs2_t *encoder_create_frame_context(const xavs2_param_t *param, int idx_frm_en
     cu_info_t *p_cu_info;
     size_t mem_size = 0;
     uint8_t *mem_base;
+    uint16_t *mem_base16;
 
     num_me_bytes = (num_me_bytes + 255) >> 8 << 8;    /* align number of bytes to 256 */
     qpel_frame_size = (qpel_frame_size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
@@ -1370,13 +1440,13 @@ xavs2_t *encoder_create_frame_context(const xavs2_param_t *param, int idx_frm_en
     ALIGN_POINTER(mem_base);    /* align pointer */
 
     /* bitstream buffer (frame header) */
-    h->p_bs_buf_header = mem_base;
+    h->p_bs_buf_header8 = mem_base;
     h->i_bs_buf_header = sizeof(uint8_t) * XAVS2_BS_HEAD_LEN;
     mem_base          += sizeof(uint8_t) * XAVS2_BS_HEAD_LEN;
     ALIGN_POINTER(mem_base);    /* align pointer */
 
     /* bitstream buffer for all slices */
-    h->p_bs_buf_slice = mem_base;
+    h->p_bs_buf_slice8 = mem_base;
     h->i_bs_buf_slice = sizeof(uint8_t) * bs_size;
     mem_base         += sizeof(uint8_t) * bs_size;
     ALIGN_POINTER(mem_base);    /* align pointer */
@@ -1486,7 +1556,7 @@ xavs2_t *encoder_create_frame_context(const xavs2_param_t *param, int idx_frm_en
 
 
     /* init memory space in me module */
-    xavs2_me_init(h, &mem_base);
+    xavs2_me_init8(h, &mem_base);
 
     /* allocate frame_info_t (one for each frame context) */
     h->frameinfo = (frame_info_t *)mem_base;
@@ -1553,23 +1623,23 @@ xavs2_t *encoder_create_frame_context(const xavs2_param_t *param, int idx_frm_en
 
     // allocate memory for current frame
     if (h->param->enable_tdrdo) {
-        h->img_luma_pre = xavs2_frame_new(h, &mem_base, FT_TEMP);
+        h->img_luma_pre = xavs2_frame_new8(h, &mem_base, FT_TEMP);
         ALIGN_POINTER(mem_base);
     } else {
         h->img_luma_pre = NULL;
     }
 
     if (h->param->enable_sao) {
-        h->img_sao = xavs2_frame_new(h, &mem_base, FT_TEMP);
+        h->img_sao = xavs2_frame_new8(h, &mem_base, FT_TEMP);
         ALIGN_POINTER(mem_base);
     } else {
         h->img_sao = NULL;
     }
 
     if (h->param->enable_alf) {
-        h->img_alf = xavs2_frame_new(h, &mem_base, FT_TEMP);
+        h->img_alf = xavs2_frame_new8(h, &mem_base, FT_TEMP);
         ALIGN_POINTER(mem_base);
-        alf_init_buffer(h, mem_base);
+        alf_init_buffer8(h, mem_base);
         mem_base += size_alf;
         ALIGN_POINTER(mem_base);
     } else {
@@ -1597,15 +1667,14 @@ xavs2_t *encoder_create_frame_context(const xavs2_param_t *param, int idx_frm_en
     return h;
 
 fail8:
-    return NULL;
     } else {
     mem_size = sizeof(xavs2_t)                       +  /* xavs2_t */
                sizeof(nal_t)   * (MAX_SLICES + 6)    +  /* all nal units */
-               sizeof(uint8_t) * XAVS2_BS_HEAD_LEN   +  /* bitstream buffer (frame header only) */
-               sizeof(uint8_t) * bs_size             +  /* bitstream buffer for all slices */
+               sizeof(uint16_t) * XAVS2_BS_HEAD_LEN   +  /* bitstream buffer (frame header only) */
+               sizeof(uint16_t) * bs_size             +  /* bitstream buffer for all slices */
                sizeof(slice_t) * MAX_SLICES          +  /* slice array */
                sizeof(pel10_t)   * (frame_w * 2) * num_slices + /* buffer for intra_border */
-               sizeof(uint8_t) * w_in_scu * 32 * num_slices + /* buffer for edge filter flag (of one LCU row) */
+               sizeof(uint16_t) * w_in_scu * 32 * num_slices + /* buffer for edge filter flag (of one LCU row) */
                sizeof(int8_t)  * ipm_size      * num_slices + /* intra prediction mode buffer */
                sizeof(int8_t)  * size_4x4            +  /* inter prediction direction */
                sizeof(int8_t)  * size_4x4 * 2        +  /* reference frames */
@@ -1630,13 +1699,13 @@ fail8:
 
     /* alloc memory space */
     mem_size = ((mem_size + CACHE_LINE_SIZE - 1) / CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    CHECKED_MALLOC10(mem_base, uint8_t *, mem_size);
+    CHECKED_MALLOC10(mem_base16, uint16_t *, mem_size);
 
     /* assign handle pointer of the xavs2 encoder */
-    h = (xavs2_t *)mem_base;
+    h = (xavs2_t *)mem_base16;
     memset(h, 0, sizeof(xavs2_t));
-    mem_base += sizeof(xavs2_t);
-    ALIGN_POINTER(mem_base);          /* align pointer */
+    mem_base16 += sizeof(xavs2_t);
+    ALIGN_POINTER16(mem_base16);          /* align pointer */
 
     /* init log module */
     h->module_log.i_log_level = param->i_log_level;
@@ -1675,52 +1744,52 @@ fail8:
      */
 
     /* point to all nal units */
-    h->p_nal  = (nal_t *)mem_base;
-    mem_base += sizeof(nal_t) * (MAX_SLICES + 6);
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->p_nal  = (nal_t *)mem_base16;
+    mem_base16 += sizeof(nal_t) * (MAX_SLICES + 6);
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* bitstream buffer (frame header) */
-    h->p_bs_buf_header = mem_base;
-    h->i_bs_buf_header = sizeof(uint8_t) * XAVS2_BS_HEAD_LEN;
-    mem_base          += sizeof(uint8_t) * XAVS2_BS_HEAD_LEN;
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->p_bs_buf_header16 = mem_base16;
+    h->i_bs_buf_header = sizeof(uint16_t) * XAVS2_BS_HEAD_LEN;
+    mem_base16          += sizeof(uint16_t) * XAVS2_BS_HEAD_LEN;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* bitstream buffer for all slices */
-    h->p_bs_buf_slice = mem_base;
-    h->i_bs_buf_slice = sizeof(uint8_t) * bs_size;
-    mem_base         += sizeof(uint8_t) * bs_size;
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->p_bs_buf_slice16 = mem_base16;
+    h->i_bs_buf_slice = sizeof(uint16_t) * bs_size;
+    mem_base16         += sizeof(uint16_t) * bs_size;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* slice array */
     for (i = 0; i < num_slices; i++) {
-        slice_t *p_slice = (slice_t *)mem_base;
+        slice_t *p_slice = (slice_t *)mem_base16;
         h->slices[i] = p_slice;
-        mem_base    += sizeof(slice_t);
-        ALIGN_POINTER(mem_base);    /* align pointer */
+        mem_base16    += sizeof(slice_t);
+        ALIGN_POINTER16(mem_base16);    /* align pointer */
 
         /* intra prediction mode buffer */
-        p_slice->slice_ipredmode  = (int8_t *)mem_base;
-        mem_base                 += sizeof(int8_t) * ipm_size;
+        p_slice->slice_ipredmode  = (int8_t *)mem_base16;
+        mem_base16                 += sizeof(int8_t) * ipm_size;
         p_slice->slice_ipredmode += (h->i_width_in_minpu + 16) + 16;
-        ALIGN_POINTER(mem_base);    /* align pointer */
+        ALIGN_POINTER16(mem_base16);    /* align pointer */
 
         /* assign pointer to intra_border buffer */
-        p_slice->slice_intra_border10[0] = (pel10_t *)mem_base;
-        mem_base          += h->i_width * sizeof(pel10_t);
-        ALIGN_POINTER(mem_base);
-        p_slice->slice_intra_border10[1] = (pel10_t *)mem_base;
-        mem_base          += (h->i_width / 2) * sizeof(pel10_t);
-        ALIGN_POINTER(mem_base);
-        p_slice->slice_intra_border10[2] = (pel10_t *)mem_base;
-        mem_base          += (h->i_width / 2) * sizeof(pel10_t);
-        ALIGN_POINTER(mem_base);
+        p_slice->slice_intra_border10[0] = (pel10_t *)mem_base16;
+        mem_base16          += h->i_width * sizeof(pel10_t);
+        ALIGN_POINTER16(mem_base16);
+        p_slice->slice_intra_border10[1] = (pel10_t *)mem_base16;
+        mem_base16          += (h->i_width / 2) * sizeof(pel10_t);
+        ALIGN_POINTER16(mem_base16);
+        p_slice->slice_intra_border10[2] = (pel10_t *)mem_base16;
+        mem_base16          += (h->i_width / 2) * sizeof(pel10_t);
+        ALIGN_POINTER16(mem_base16);
 
         /* buffer for edge filter flag (of one LCU row) */
-        p_slice->slice_deblock_flag[0] = (uint8_t *)mem_base;
-        mem_base            += h->i_width_in_mincu * (MAX_CU_SIZE / MIN_PU_SIZE) * sizeof(uint8_t);
-        p_slice->slice_deblock_flag[1] = (uint8_t *)mem_base;
-        mem_base            += h->i_width_in_mincu * (MAX_CU_SIZE / MIN_PU_SIZE) * sizeof(uint8_t);
-        ALIGN_POINTER(mem_base);
+        p_slice->slice_deblock_flag[0] = (uint8_t *)mem_base16;
+        mem_base16            += h->i_width_in_mincu * (MAX_CU_SIZE / MIN_PU_SIZE) * sizeof(uint16_t);
+        p_slice->slice_deblock_flag[1] = (uint8_t *)mem_base16;
+        mem_base16            += h->i_width_in_mincu * (MAX_CU_SIZE / MIN_PU_SIZE) * sizeof(uint16_t);
+        ALIGN_POINTER16(mem_base16);
     }
 
     slice_init_bufer10(h, h->slices[0]);
@@ -1746,66 +1815,66 @@ fail8:
     h->lcu.p_fdec10[2] = h->lcu.fdec_buf10 + FDEC_STRIDE * MAX_CU_SIZE + (FDEC_STRIDE / 2);
 
     /* slice index of CTUs */
-    h->lcu_slice_idx = (int8_t *)mem_base;
-    mem_base += w_in_lcu * h_in_lcu * sizeof(int8_t);
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->lcu_slice_idx = (int8_t *)mem_base16;
+    mem_base16 += w_in_lcu * h_in_lcu * sizeof(int8_t);
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* inter prediction mode */
-    h->dir_pred = (int8_t *)mem_base;
-    mem_base += sizeof(int8_t) * size_4x4;
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->dir_pred = (int8_t *)mem_base16;
+    mem_base16 += sizeof(int8_t) * size_4x4;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* reference frames */
-    h->fwd_1st_ref = (int8_t *)mem_base;
-    mem_base      += sizeof(int8_t) * size_4x4;
-    ALIGN_POINTER(mem_base);    /* align pointer */
-    h->bwd_2nd_ref = (int8_t *)mem_base;
-    mem_base      += sizeof(int8_t) * size_4x4;
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->fwd_1st_ref = (int8_t *)mem_base16;
+    mem_base16      += sizeof(int8_t) * size_4x4;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
+    h->bwd_2nd_ref = (int8_t *)mem_base16;
+    mem_base16      += sizeof(int8_t) * size_4x4;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* reference motion vectors */
-    h->fwd_1st_mv = (mv_t *)mem_base;
-    mem_base     += sizeof(mv_t) * size_4x4;
-    ALIGN_POINTER(mem_base);    /* align pointer */
-    h->bwd_2nd_mv = (mv_t *)mem_base;
-    mem_base     += sizeof(mv_t) * size_4x4;
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->fwd_1st_mv = (mv_t *)mem_base16;
+    mem_base16     += sizeof(mv_t) * size_4x4;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
+    h->bwd_2nd_mv = (mv_t *)mem_base16;
+    mem_base16     += sizeof(mv_t) * size_4x4;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* temporary buffer for 1/4 interpolation: a,1,b, alone buffer */
-    h->img4Y_tmp[0] = (mct_t *)mem_base;
+    h->img4Y_tmp[0] = (mct_t *)mem_base16;
     h->img4Y_tmp[1] = h->img4Y_tmp[0] + qpel_frame_size;
     h->img4Y_tmp[2] = h->img4Y_tmp[0] + qpel_frame_size * 2;
-    mem_base       += qpel_frame_size * 3 * sizeof(mct_t);
-    ALIGN_POINTER(mem_base);
+    mem_base16       += qpel_frame_size * 3 * sizeof(mct_t);
+    ALIGN_POINTER16(mem_base16);
 
     /* SAO data */
-    h->sao_stat_datas = (SAOStatData (*)[NUM_SAO_COMPONENTS][NUM_SAO_NEW_TYPES])mem_base;
+    h->sao_stat_datas = (SAOStatData (*)[NUM_SAO_COMPONENTS][NUM_SAO_NEW_TYPES])mem_base16;
     memset(h->sao_stat_datas[0], 0, size_sao_stats);
-    mem_base += size_sao_stats;
-    ALIGN_POINTER(mem_base);
+    mem_base16 += size_sao_stats;
+    ALIGN_POINTER16(mem_base16);
 
-    h->sao_blk_params = (SAOBlkParam (*)[NUM_SAO_COMPONENTS])mem_base;
+    h->sao_blk_params = (SAOBlkParam (*)[NUM_SAO_COMPONENTS])mem_base16;
     memset(h->sao_blk_params[0], 0, size_sao_param);
-    mem_base += size_sao_param;
-    ALIGN_POINTER(mem_base);
+    mem_base16 += size_sao_param;
+    ALIGN_POINTER16(mem_base16);
 
-    h->num_sao_lcu_off = (int (*)[NUM_SAO_COMPONENTS])mem_base;
+    h->num_sao_lcu_off = (int (*)[NUM_SAO_COMPONENTS])mem_base16;
     memset(h->num_sao_lcu_off[0], 0, size_sao_onoff);
-    mem_base += size_sao_onoff;
-    ALIGN_POINTER(mem_base);
+    mem_base16 += size_sao_onoff;
+    ALIGN_POINTER16(mem_base16);
 
 
     /* init memory space in me module */
-    xavs2_me_init(h, &mem_base);
+    xavs2_me_init10(h, &mem_base16);
 
     /* allocate frame_info_t (one for each frame context) */
-    h->frameinfo = (frame_info_t *)mem_base;
-    mem_base    += sizeof(frame_info_t);
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->frameinfo = (frame_info_t *)mem_base16;
+    mem_base16    += sizeof(frame_info_t);
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
-    h->frameinfo->rows = (row_info_t *)mem_base;
-    mem_base          += sizeof(row_info_t) * h_in_lcu;
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    h->frameinfo->rows = (row_info_t *)mem_base16;
+    mem_base16          += sizeof(row_info_t) * h_in_lcu;
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* set available tables */
     set_available_tables(h);
@@ -1823,8 +1892,8 @@ fail8:
         row->h     = 0;
         row->row   = i;
         row->coded = -1;
-        row->lcus  = (lcu_info_t *)mem_base;
-        mem_base  += sizeof(lcu_info_t) * w_in_lcu;
+        row->lcus  = (lcu_info_t *)mem_base16;
+        mem_base16  += sizeof(lcu_info_t) * w_in_lcu;
 
         if (xavs2_thread_mutex_init(&row->mutex, NULL)) {
             goto fail10;
@@ -1836,15 +1905,15 @@ fail8:
     }
 
     /* check memory size */
-    ALIGN_POINTER(mem_base);    /* align pointer */
+    ALIGN_POINTER16(mem_base16);    /* align pointer */
 
     /* -------------------------------------------------------------
      * allocate other alone spaces for xavs2 encoder
      */
 
-    h->cu_info = (cu_info_t *)mem_base;
-    mem_base  += frame_size_in_scu * sizeof(cu_info_t);
-    ALIGN_POINTER(mem_base);
+    h->cu_info = (cu_info_t *)mem_base16;
+    mem_base16  += frame_size_in_scu * sizeof(cu_info_t);
+    ALIGN_POINTER16(mem_base16);
 
     p_cu_info = h->cu_info;
     for (j = 0; j < h_in_scu; j++) {
@@ -1857,36 +1926,36 @@ fail8:
     }
 
     /* motion estimation buffer */
-    h->all_mincost = (dist_t(*)[MAX_INTER_MODES][MAX_REFS])mem_base;
-    mem_base += num_me_bytes;
-    ALIGN_POINTER(mem_base);
+    h->all_mincost = (dist_t(*)[MAX_INTER_MODES][MAX_REFS])mem_base16;
+    mem_base16 += num_me_bytes;
+    ALIGN_POINTER16(mem_base16);
 
     // allocate memory for current frame
     if (h->param->enable_tdrdo) {
-        h->img_luma_pre = xavs2_frame_new(h, &mem_base, FT_TEMP);
-        ALIGN_POINTER(mem_base);
+        h->img_luma_pre = xavs2_frame_new10(h, &mem_base16, FT_TEMP);
+        ALIGN_POINTER16(mem_base16);
     } else {
         h->img_luma_pre = NULL;
     }
 
     if (h->param->enable_sao) {
-        h->img_sao = xavs2_frame_new(h, &mem_base, FT_TEMP);
-        ALIGN_POINTER(mem_base);
+        h->img_sao = xavs2_frame_new10(h, &mem_base16, FT_TEMP);
+        ALIGN_POINTER16(mem_base16);
     } else {
         h->img_sao = NULL;
     }
 
     if (h->param->enable_alf) {
-        h->img_alf = xavs2_frame_new(h, &mem_base, FT_TEMP);
-        ALIGN_POINTER(mem_base);
-        alf_init_buffer(h, mem_base);
-        mem_base += size_alf;
-        ALIGN_POINTER(mem_base);
+        h->img_alf = xavs2_frame_new10(h, &mem_base16, FT_TEMP);
+        ALIGN_POINTER16(mem_base16);
+        alf_init_buffer10(h, mem_base16);
+        mem_base16 += size_alf;
+        ALIGN_POINTER16(mem_base16);
     } else {
         h->img_alf = NULL;
     }
 
-    if ((uintptr_t)(h) + mem_size < (uintptr_t)(mem_base)) {
+    if ((uintptr_t)(h) + mem_size < (uintptr_t)(mem_base16)) {
         /* malloc size allocation error: no enough memory */
         goto fail10;
     }
@@ -1907,8 +1976,8 @@ fail8:
     return h;
 
 fail10:
-    return NULL;
     }
+    return NULL;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2163,7 +2232,7 @@ static void init_decoding_frame(xavs2_t *h)
     }
 
     /* set ref_dpoc */
-    for (i = 0; i < sizeof(h->fdec->ref_dpoc) / sizeof(h->fdec->ref_dpoc[0]); i++) {
+    for (i = 0; i < (int)(sizeof(h->fdec->ref_dpoc) / sizeof(h->fdec->ref_dpoc[0])); i++) {
         h->fdec->ref_dpoc[i] = MULTIx2;
         h->fdec->ref_dpoc_multi[i] = 1;
     }

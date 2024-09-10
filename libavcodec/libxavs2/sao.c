@@ -801,7 +801,7 @@ rdcost_t sao_rdo_new_params(xavs2_t *h, aec_t *p_aec, int avail_left, int avail_
 
     sao_cur_param[SAO_Y].mergeIdx = SAO_MERGE_NONE; // SET AS NOT MERGE MODE
     if (avail_left + avail_up) {
-        bits = p_aec->binary.write_sao_mergeflag(p_aec, avail_left, avail_up, &(sao_cur_param[SAO_Y]));
+        bits = p_aec->binary.write_sao_mergeflag(h, p_aec, avail_left, avail_up, &(sao_cur_param[SAO_Y]));
         total_rdcost += bits * sao_lambda;
     }
     for (compIdx = 0; compIdx < 3; compIdx++) {
@@ -812,7 +812,7 @@ rdcost_t sao_rdo_new_params(xavs2_t *h, aec_t *p_aec, int avail_left, int avail_
             // for off mode
             sao_cur_param[compIdx].mergeIdx = SAO_MERGE_NONE;
             sao_cur_param[compIdx].typeIdc = SAO_TYPE_OFF;
-            bits = p_aec->binary.write_sao_mode(p_aec, &(sao_cur_param[compIdx]));
+            bits = p_aec->binary.write_sao_mode(h, p_aec, &(sao_cur_param[compIdx]));
             mincost = sao_lambda * bits;
             aec_copy_coding_state_sao(&h->cs_data.cs_sao_temp, p_aec);
             // for other normal mode
@@ -825,9 +825,9 @@ rdcost_t sao_rdo_new_params(xavs2_t *h, aec_t *p_aec, int avail_left, int avail_
                         find_offset(type, stat_data[compIdx], &temp_sao_param[compIdx], sao_lambda);
                         curcost = get_distortion(compIdx, type, stat_data, temp_sao_param);
 
-                        bits = p_aec->binary.write_sao_mode(p_aec, &(temp_sao_param[compIdx]));
-                        bits += p_aec->binary.write_sao_offset(p_aec, &(temp_sao_param[compIdx]));
-                        bits += p_aec->binary.write_sao_type(p_aec, &(temp_sao_param[compIdx]));
+                        bits = p_aec->binary.write_sao_mode(h, p_aec, &(temp_sao_param[compIdx]));
+                        bits += p_aec->binary.write_sao_offset(h, p_aec, &(temp_sao_param[compIdx]));
+                        bits += p_aec->binary.write_sao_type(h, p_aec, &(temp_sao_param[compIdx]));
 
                         curcost += sao_lambda * bits;
 
@@ -896,7 +896,7 @@ rdcost_t sao_rdcost_merge(xavs2_t *h, aec_t *p_aec, rdcost_t sao_labmda,
             curcost += get_distortion(compIdx, type, stat_data, sao_cur_param);
         }
     }
-    currate = p_aec->binary.write_sao_mergeflag(p_aec, merge_avail[SAO_MERGE_LEFT], merge_avail[SAO_MERGE_ABOVE], sao_cur_param);
+    currate = p_aec->binary.write_sao_mergeflag(h, p_aec, merge_avail[SAO_MERGE_LEFT], merge_avail[SAO_MERGE_ABOVE], sao_cur_param);
     curcost += sao_labmda * currate;
 
     return curcost;
@@ -1411,17 +1411,17 @@ void write_saoparam_one_lcu(xavs2_t *h, aec_t *p_aec, int lcu_x, int lcu_y, bool
         avail_up   = merge_avail[1];
 
         if (avail_left || avail_up) {
-            p_aec->binary.write_sao_mergeflag(p_aec, avail_left, avail_up, &sao_cur_param[SAO_Y]);
+            p_aec->binary.write_sao_mergeflag(h, p_aec, avail_left, avail_up, &sao_cur_param[SAO_Y]);
         }
 
         if (sao_cur_param[SAO_Y].mergeIdx == SAO_MERGE_NONE) {
             int compIdx;
             for (compIdx = SAO_Y; compIdx < NUM_SAO_COMPONENTS; compIdx++) {
                 if (slice_sao_on[compIdx]) {
-                    p_aec->binary.write_sao_mode(p_aec, &sao_cur_param[compIdx]);
+                    p_aec->binary.write_sao_mode(h, p_aec, &sao_cur_param[compIdx]);
                     if (sao_cur_param[compIdx].typeIdc != SAO_TYPE_OFF) {
-                        p_aec->binary.write_sao_offset(p_aec, &sao_cur_param[compIdx]);
-                        p_aec->binary.write_sao_type(p_aec, &sao_cur_param[compIdx]);
+                        p_aec->binary.write_sao_offset(h, p_aec, &sao_cur_param[compIdx]);
+                        p_aec->binary.write_sao_type(h, p_aec, &sao_cur_param[compIdx]);
                     }
                 }
             }
