@@ -24,7 +24,7 @@
 #define X265_API_IMPORTS 1
 #endif
 
-#include <x265.h>
+#include "libx265/x265.h"
 #include <float.h>
 
 #include "libavutil/avassert.h"
@@ -34,13 +34,13 @@
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
-#include "avcodec.h"
-#include "codec_internal.h"
-#include "dovi_rpu.h"
-#include "encode.h"
-#include "packet_internal.h"
-#include "atsc_a53.h"
-#include "sei.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/dovi_rpu.h"
+#include "libavcodec/encode.h"
+#include "libavcodec/packet_internal.h"
+#include "libavcodec/atsc_a53.h"
+#include "libavcodec/sei.h"
 
 typedef struct ReorderedData {
     int64_t duration;
@@ -375,6 +375,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
                        ctx->api->api_build_number);
                 return AVERROR_INVALIDDATA;
             }
+#if X265_BUILD >= 210
+            ctx->params->bEnableAlpha = 0;
+#endif
             ctx->params->internalCsp = X265_CSP_I400;
             break;
         }
@@ -386,12 +389,39 @@ FF_ENABLE_DEPRECATION_WARNINGS
             ctx->params->vui.bEnableColorDescriptionPresentFlag = 1;
         }
 
+#if X265_BUILD >= 210
+        if (avctx->pix_fmt == AV_PIX_FMT_BGRA) {
+            ctx->params->bEnableAlpha = 1;
+            ctx->params->internalCsp = X265_CSP_BGRA;
+        } else if (avctx->pix_fmt == AV_PIX_FMT_YUVA444P ||
+                   avctx->pix_fmt == AV_PIX_FMT_YUVA444P10LE ||
+                   avctx->pix_fmt == AV_PIX_FMT_YUVA444P12LE) {
+            ctx->params->bEnableAlpha = 1;
+            ctx->params->internalCsp = X265_CSP_I444;
+        } else {
+            ctx->params->bEnableAlpha = 0;
+            ctx->params->internalCsp = X265_CSP_I444;
+        }
+#else
         ctx->params->internalCsp = X265_CSP_I444;
+#endif
         break;
     // 4:2:0, 4:2:2
     case 1:
+#if X265_BUILD >= 210
+        if (avctx->pix_fmt == AV_PIX_FMT_YUVA420P ||
+            avctx->pix_fmt == AV_PIX_FMT_YUVA420P10LE ||
+            //avctx->pix_fmt == AV_PIX_FMT_YUVA420P12LE ||
+            avctx->pix_fmt == AV_PIX_FMT_YUVA422P ||
+            avctx->pix_fmt == AV_PIX_FMT_YUVA422P10LE ||
+            avctx->pix_fmt == AV_PIX_FMT_YUVA422P12LE) {
+            ctx->params->bEnableAlpha = 1;
+        } else {
+            ctx->params->bEnableAlpha = 0;
+        }
+#endif
         ctx->params->internalCsp = desc->log2_chroma_h == 1 ?
-            X265_CSP_I420 : X265_CSP_I422;
+                X265_CSP_I420 : X265_CSP_I422;
         break;
     default:
         av_log(avctx, AV_LOG_ERROR,
@@ -660,14 +690,13 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                                 const AVFrame *pic, int *got_packet)
 {
     libx265Context *ctx = avctx->priv_data;
-    x265_picture x265pic;
 #if X265_BUILD >= 210
-    x265_picture x265pic_layers_out[MAX_SCALABLE_LAYERS];
-    x265_picture* x265pic_lyrptr_out[MAX_SCALABLE_LAYERS];
+    x265_picture x265pic[MAX_VIEWS];
+    x265_picture* x265pic_out[MAX_LAYERS];
 #else
-    x265_picture x265pic_solo_out = { 0 };
+    x265_picture x265pic;
+    x265_picture x265pic_out = { 0 };
 #endif
-    x265_picture* x265pic_out;
     x265_nal *nal;
     x265_sei *sei;
     uint8_t *dst;
@@ -677,9 +706,15 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int ret;
     int i;
 
+#if X265_BUILD >= 210
+    ctx->api->picture_init(ctx->params, &x265pic[0]);
+
+    sei = &x265pic[0].userSEI;
+#else
     ctx->api->picture_init(ctx->params, &x265pic);
 
     sei = &x265pic.userSEI;
+#endif
     sei->numPayloads = 0;
 
     if (pic) {
@@ -687,6 +722,27 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         ReorderedData *rd;
         int rd_idx;
 
+#if X265_BUILD >= 210
+        x265pic[0].format = 0;
+
+        for (i = 0; i < 3; i++) {
+           x265pic[0].planes[i] = pic->data[i];
+           x265pic[0].stride[i] = pic->linesize[i];
+        }
+
+        if (avctx->pix_fmt ==  AV_PIX_FMT_BGRA ||
+            avctx->pix_fmt ==  AV_PIX_FMT_YUVA420P || avctx->pix_fmt ==  AV_PIX_FMT_YUVA420P10LE ||
+            avctx->pix_fmt ==  AV_PIX_FMT_YUVA422P || avctx->pix_fmt ==  AV_PIX_FMT_YUVA422P10LE || avctx->pix_fmt ==  AV_PIX_FMT_YUVA422P12LE ||
+            avctx->pix_fmt ==  AV_PIX_FMT_YUVA444P || avctx->pix_fmt ==  AV_PIX_FMT_YUVA444P10LE || avctx->pix_fmt ==  AV_PIX_FMT_YUVA444P12LE) {
+           x265pic[0].planes[3] = pic->data[3];
+           x265pic[0].stride[3] = pic->linesize[3];
+        }
+
+        x265pic[0].pts      = pic->pts;
+        x265pic[0].bitDepth = av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth;
+
+        x265pic[0].sliceType = pic->pict_type == AV_PICTURE_TYPE_I ?
+#else
         for (i = 0; i < 3; i++) {
            x265pic.planes[i] = pic->data[i];
            x265pic.stride[i] = pic->linesize[i];
@@ -696,18 +752,27 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         x265pic.bitDepth = av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth;
 
         x265pic.sliceType = pic->pict_type == AV_PICTURE_TYPE_I ?
+#endif
                                               (ctx->forced_idr ? X265_TYPE_IDR : X265_TYPE_I) :
                             pic->pict_type == AV_PICTURE_TYPE_P ? X265_TYPE_P :
                             pic->pict_type == AV_PICTURE_TYPE_B ? X265_TYPE_B :
                             X265_TYPE_AUTO;
 
+#if X265_BUILD >= 210
+        ret = libx265_encode_set_roi(ctx, pic, &x265pic[0]);
+#else
         ret = libx265_encode_set_roi(ctx, pic, &x265pic);
+#endif
         if (ret < 0)
             return ret;
 
         rd_idx = rd_get(ctx);
         if (rd_idx < 0) {
+#if X265_BUILD >= 210
+            free_picture(ctx, &x265pic[0]);
+#else
             free_picture(ctx, &x265pic);
+#endif
             return rd_idx;
         }
         rd = &ctx->rd[rd_idx];
@@ -718,12 +783,20 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             ret = av_buffer_replace(&rd->frame_opaque_ref, pic->opaque_ref);
             if (ret < 0) {
                 rd_release(ctx, rd_idx);
+#if X265_BUILD >= 210
+                free_picture(ctx, &x265pic[0]);
+#else
                 free_picture(ctx, &x265pic);
+#endif
                 return ret;
             }
         }
 
+#if X265_BUILD >= 210
+        x265pic[0].userData = (void*)(intptr_t)(rd_idx + 1);
+#else
         x265pic.userData = (void*)(intptr_t)(rd_idx + 1);
+#endif
 
         if (ctx->a53_cc) {
             void *sei_data;
@@ -741,7 +814,11 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                         (sei->numPayloads + 1) * sizeof(*sei_payload));
                 if (!tmp) {
                     av_free(sei_data);
+#if X265_BUILD >= 210
+                    free_picture(ctx, &x265pic[0]);
+#else
                     free_picture(ctx, &x265pic);
+#endif
                     return AVERROR(ENOMEM);
                 }
                 ctx->sei_data = tmp;
@@ -767,7 +844,11 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                         &ctx->sei_data_size,
                         (sei->numPayloads + 1) * sizeof(*sei_payload));
                 if (!tmp) {
+#if X265_BUILD >= 210
+                    free_picture(ctx, &x265pic[0]);
+#else
                     free_picture(ctx, &x265pic);
+#endif
                     return AVERROR(ENOMEM);
                 }
                 ctx->sei_data = tmp;
@@ -775,7 +856,11 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                 sei_payload = &sei->payloads[sei->numPayloads];
                 sei_payload->payload = av_memdup(side_data->data, side_data->size);
                 if (!sei_payload->payload) {
+#if X265_BUILD >= 210
+                    free_picture(ctx, &x265pic[0]);
+#else
                     free_picture(ctx, &x265pic);
+#endif
                     return AVERROR(ENOMEM);
                 }
                 sei_payload->payloadSize = side_data->size;
@@ -789,36 +874,52 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         sd = av_frame_get_side_data(pic, AV_FRAME_DATA_DOVI_METADATA);
         if (ctx->dovi.cfg.dv_profile && sd) {
             const AVDOVIMetadata *metadata = (const AVDOVIMetadata *)sd->data;
+#if X265_BUILD >= 210
+            ret = ff_dovi_rpu_generate(&ctx->dovi, metadata, FF_DOVI_WRAP_NAL,
+                                       &x265pic[0].rpu.payload,
+                                       &x265pic[0].rpu.payloadSize);
+            if (ret < 0) {
+                free_picture(ctx, &x265pic[0]);
+#else
             ret = ff_dovi_rpu_generate(&ctx->dovi, metadata, FF_DOVI_WRAP_NAL,
                                        &x265pic.rpu.payload,
                                        &x265pic.rpu.payloadSize);
             if (ret < 0) {
                 free_picture(ctx, &x265pic);
+#endif
                 return ret;
             }
         } else if (ctx->dovi.cfg.dv_profile) {
             av_log(avctx, AV_LOG_ERROR, "Dolby Vision enabled, but received frame "
                    "without AV_FRAME_DATA_DOVI_METADATA");
+#if X265_BUILD >= 210
+            free_picture(ctx, &x265pic[0]);
+#else
             free_picture(ctx, &x265pic);
+#endif
             return AVERROR_INVALIDDATA;
         }
 #endif
     }
 
 #if X265_BUILD >= 210
-    for (i = 0; i < MAX_SCALABLE_LAYERS; i++)
-        x265pic_lyrptr_out[i] = &x265pic_layers_out[i];
-
-    ret = ctx->api->encoder_encode(ctx->encoder, &nal, &nnal,
-                                   pic ? &x265pic : NULL, x265pic_lyrptr_out);
+    //for (i = 0; i < MAX_LAYERS; i++) {
+        x265pic_out[0] = &x265pic[0];
+        ret = ctx->api->encoder_encode(ctx->encoder, &nal, &nnal,
+                                   pic ? &x265pic[0] : NULL, &x265pic_out[0]);
+    //}
 #else
     ret = ctx->api->encoder_encode(ctx->encoder, &nal, &nnal,
-                                   pic ? &x265pic : NULL, &x265pic_solo_out);
+                                   pic ? &x265pic : NULL, &x265pic_out);
 #endif
 
     for (i = 0; i < sei->numPayloads; i++)
         av_free(sei->payloads[i].payload);
+#if X265_BUILD >= 210
+    av_freep(&x265pic[0].quantOffsets);
+#else
     av_freep(&x265pic.quantOffsets);
+#endif
 
     if (ret < 0)
         return AVERROR_EXTERNAL;
@@ -845,54 +946,66 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
 #if X265_BUILD >= 210
-    x265pic_out = x265pic_lyrptr_out[0];
+    //for (i = 0; i < MAX_LAYERS; i++) {
+        pkt->pts = x265pic_out[0]->pts;
+        pkt->dts = x265pic_out[0]->dts;
+
+        switch (x265pic_out[0]->sliceType) {
 #else
-    x265pic_out = &x265pic_solo_out;
+    pkt->pts = x265pic_out.pts;
+    pkt->dts = x265pic_out.dts;
+
+    switch (x265pic_out.sliceType) {
 #endif
-
-    pkt->pts = x265pic_out->pts;
-    pkt->dts = x265pic_out->dts;
-
-    switch (x265pic_out->sliceType) {
-    case X265_TYPE_IDR:
-    case X265_TYPE_I:
-        pict_type = AV_PICTURE_TYPE_I;
-        break;
-    case X265_TYPE_P:
-        pict_type = AV_PICTURE_TYPE_P;
-        break;
-    case X265_TYPE_B:
-    case X265_TYPE_BREF:
-        pict_type = AV_PICTURE_TYPE_B;
-        break;
-    default:
-        av_log(avctx, AV_LOG_ERROR, "Unknown picture type encountered.\n");
-        return AVERROR_EXTERNAL;
-    }
-
-#if X265_BUILD >= 130
-    if (x265pic_out->sliceType == X265_TYPE_B)
-#else
-    if (x265pic_out->frameData.sliceType == 'b')
-#endif
-        pkt->flags |= AV_PKT_FLAG_DISPOSABLE;
-
-    ff_side_data_set_encoder_stats(pkt, x265pic_out->frameData.qp * FF_QP2LAMBDA, NULL, 0, pict_type);
-
-    if (x265pic_out->userData) {
-        int idx = (int)(intptr_t)x265pic_out->userData - 1;
-        ReorderedData *rd = &ctx->rd[idx];
-
-        pkt->duration           = rd->duration;
-
-        if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
-            pkt->opaque          = rd->frame_opaque;
-            pkt->opaque_ref      = rd->frame_opaque_ref;
-            rd->frame_opaque_ref = NULL;
+        case X265_TYPE_IDR:
+        case X265_TYPE_I:
+            pict_type = AV_PICTURE_TYPE_I;
+            break;
+        case X265_TYPE_P:
+            pict_type = AV_PICTURE_TYPE_P;
+            break;
+        case X265_TYPE_B:
+        case X265_TYPE_BREF:
+            pict_type = AV_PICTURE_TYPE_B;
+            break;
+        default:
+            av_log(avctx, AV_LOG_ERROR, "Unknown picture type encountered.\n");
+            return AVERROR_EXTERNAL;
         }
 
-        rd_release(ctx, idx);
-    }
+#if X265_BUILD >= 210
+        if (x265pic_out[0]->sliceType == X265_TYPE_B)
+#elif X265_BUILD >= 130
+    if (x265pic_out.sliceType == X265_TYPE_B)
+#else
+    if (x265pic_out.frameData.sliceType == 'b')
+#endif
+            pkt->flags |= AV_PKT_FLAG_DISPOSABLE;
+
+#if X265_BUILD >= 210
+        ff_side_data_set_encoder_stats(pkt, x265pic_out[0]->frameData.qp * FF_QP2LAMBDA, NULL, 0, pict_type);
+
+        if (x265pic_out[0]->userData) {
+            int idx = (int)(intptr_t)x265pic_out[0]->userData - 1;
+#else
+    ff_side_data_set_encoder_stats(pkt, x265pic_out.frameData.qp * FF_QP2LAMBDA, NULL, 0, pict_type);
+
+    if (x265pic_out.userData) {
+        int idx = (int)(intptr_t)x265pic_out.userData - 1;
+#endif
+            ReorderedData *rd = &ctx->rd[idx];
+
+            pkt->duration           = rd->duration;
+
+            if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
+                pkt->opaque          = rd->frame_opaque;
+                pkt->opaque_ref      = rd->frame_opaque_ref;
+                rd->frame_opaque_ref = NULL;
+            }
+
+            rd_release(ctx, idx);
+        }
+    //}
 
     *got_packet = 1;
     return 0;
@@ -905,6 +1018,14 @@ static const enum AVPixelFormat x265_csp_eight[] = {
     AV_PIX_FMT_YUVJ422P,
     AV_PIX_FMT_YUV444P,
     AV_PIX_FMT_YUVJ444P,
+#if X265_BUILD >= 210
+    AV_PIX_FMT_RGB24,
+    AV_PIX_FMT_BGR24,
+    AV_PIX_FMT_BGRA,
+    AV_PIX_FMT_YUVA420P,
+    AV_PIX_FMT_YUVA422P,
+    AV_PIX_FMT_YUVA444P,
+#endif
     AV_PIX_FMT_GBRP,
     AV_PIX_FMT_GRAY8,
     AV_PIX_FMT_NONE
@@ -917,6 +1038,17 @@ static const enum AVPixelFormat x265_csp_ten[] = {
     AV_PIX_FMT_YUVJ422P,
     AV_PIX_FMT_YUV444P,
     AV_PIX_FMT_YUVJ444P,
+#if X265_BUILD >= 210
+    AV_PIX_FMT_RGB24,
+    AV_PIX_FMT_BGR24,
+    AV_PIX_FMT_BGRA,
+    AV_PIX_FMT_YUVA420P,
+    AV_PIX_FMT_YUVA422P,
+    AV_PIX_FMT_YUVA444P,
+    AV_PIX_FMT_YUVA420P10LE,
+    AV_PIX_FMT_YUVA422P10LE,
+    AV_PIX_FMT_YUVA444P10LE,
+#endif
     AV_PIX_FMT_GBRP,
     AV_PIX_FMT_YUV420P10,
     AV_PIX_FMT_YUV422P10,
@@ -934,6 +1066,20 @@ static const enum AVPixelFormat x265_csp_twelve[] = {
     AV_PIX_FMT_YUVJ422P,
     AV_PIX_FMT_YUV444P,
     AV_PIX_FMT_YUVJ444P,
+#if X265_BUILD >= 210
+    AV_PIX_FMT_RGB24,
+    AV_PIX_FMT_BGR24,
+    AV_PIX_FMT_BGRA,
+    AV_PIX_FMT_YUVA420P,
+    AV_PIX_FMT_YUVA422P,
+    AV_PIX_FMT_YUVA444P,
+    AV_PIX_FMT_YUVA420P10LE,
+    AV_PIX_FMT_YUVA422P10LE,
+    AV_PIX_FMT_YUVA444P10LE,
+    //AV_PIX_FMT_YUVA420P12LE,
+    AV_PIX_FMT_YUVA422P12LE,
+    AV_PIX_FMT_YUVA444P12LE,
+#endif
     AV_PIX_FMT_GBRP,
     AV_PIX_FMT_YUV420P10,
     AV_PIX_FMT_YUV422P10,

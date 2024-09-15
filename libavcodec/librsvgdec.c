@@ -19,11 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "avcodec.h"
-#include "codec_internal.h"
-#include "decode.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/decode.h"
 #include "libavutil/opt.h"
-#include "librsvg-2.0/librsvg/rsvg.h"
+#include "librsvg/config.h"
+#include "librsvg/rsvg.h"
 
 typedef struct LibRSVGContext {
     AVClass *class;
@@ -90,8 +91,10 @@ static int librsvg_decode_frame(AVCodecContext *avctx, AVFrame *frame,
         goto end;
 
     avctx->pix_fmt = AV_PIX_FMT_RGB32;
+#if LIBRSVG_MAJOR_VERSION > 2 || LIBRSVG_MAJOR_VERSION == 2 && LIBRSVG_MINOR_VERSION >= 52
     viewport.width = dimensions.width;
     viewport.height = dimensions.height;
+#endif
 
     ret = ff_get_buffer(avctx, frame, 0);
     if (ret < 0)

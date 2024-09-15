@@ -24,7 +24,7 @@
 #include <float.h>
 #include <stdlib.h>
 
-#include <xeve.h>
+#include "libxeve/xeve.h"
 
 #include "libavutil/internal.h"
 #include "libavutil/common.h"
@@ -36,12 +36,12 @@
 #include "libavutil/cpu.h"
 #include "libavutil/avstring.h"
 
-#include "avcodec.h"
-#include "internal.h"
-#include "packet_internal.h"
-#include "codec_internal.h"
-#include "profiles.h"
-#include "encode.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/internal.h"
+#include "libavcodec/packet_internal.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/profiles.h"
+#include "libavcodec/encode.h"
 
 #define MAX_BS_BUF (16*1024*1024)
 
@@ -88,6 +88,11 @@ typedef struct XeveContext {
     int hash;           // embed picture signature (HASH) for conformance checking in decoding
     int sei_info;       // embed Supplemental enhancement information while encoding
 
+    int aq_mode;        // embed adaptive Quantization method
+    int cutree;         // embed cutree for Adaptive Quantization
+
+    int threads;        // force to use a specific number of threads
+
     int color_format;   // input data color format: currently only XEVE_CF_YCBCR420 is supported
 
     AVDictionary *xeve_params;
@@ -104,12 +109,22 @@ typedef struct XeveContext {
 static int libxeve_color_fmt(enum AVPixelFormat av_pix_fmt, int *xeve_col_fmt)
 {
     switch (av_pix_fmt) {
-    case AV_PIX_FMT_YUV420P:
-        *xeve_col_fmt = XEVE_CF_YCBCR420;
+    //case AV_PIX_FMT_GRAY8:
+    case AV_PIX_FMT_GRAY10LE:
+        *xeve_col_fmt = XEVE_CF_YCBCR400;
         break;
+    //case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUV420P10:
         *xeve_col_fmt = XEVE_CF_YCBCR420;
         break;
+    //case AV_PIX_FMT_YUV422P:
+    /*case AV_PIX_FMT_YUV422P10:
+        *xeve_col_fmt = XEVE_CF_YCBCR422;
+        break;*/
+    //case AV_PIX_FMT_YUV444P:
+    /*case AV_PIX_FMT_YUV444P10:
+        *xeve_col_fmt = XEVE_CF_YCBCR444;
+        break;*/
     default:
         *xeve_col_fmt = XEVE_CF_UNKNOWN;
         return AVERROR_INVALIDDATA;
@@ -220,6 +235,12 @@ static int get_conf(AVCodecContext *avctx, XEVE_CDSC *cdsc)
 
     cdsc->param.rc_type = xectx->rc_mode;
 
+    if (xectx->aq_mode >= 0)
+        cdsc->param.aq_mode = xectx->aq_mode;
+
+    if (xectx->cutree >= 0)
+        cdsc->param.cutree = xectx->cutree;
+
     if (xectx->rc_mode == XEVE_RC_CQP)
         cdsc->param.qp = xectx->qp;
     else if (xectx->rc_mode == XEVE_RC_ABR) {
@@ -243,6 +264,7 @@ static int get_conf(AVCodecContext *avctx, XEVE_CDSC *cdsc)
     else
         cdsc->param.threads = avctx->thread_count;
 
+    cdsc->param.codec_bit_depth = av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth;
 
     libxeve_color_fmt(avctx->pix_fmt, &xectx->color_format);
 
@@ -547,8 +569,11 @@ static av_cold int libxeve_close(AVCodecContext *avctx)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 
 static const enum AVPixelFormat supported_pixel_formats[] = {
-    AV_PIX_FMT_YUV420P,
+    //AV_PIX_FMT_YUV420P,
+    AV_PIX_FMT_GRAY10LE,
     AV_PIX_FMT_YUV420P10,
+    //AV_PIX_FMT_YUV422P10,
+    //AV_PIX_FMT_YUV444P10,
     AV_PIX_FMT_NONE
 };
 
@@ -568,14 +593,18 @@ static const AVOption libxeve_options[] = {
     { "profile", "Encoding profile", OFFSET(profile_id), AV_OPT_TYPE_INT, { .i64 = XEVE_PROFILE_BASELINE }, XEVE_PROFILE_BASELINE,  XEVE_PROFILE_MAIN, VE, .unit = "profile" },
     { "baseline", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_PROFILE_BASELINE }, INT_MIN, INT_MAX, VE, .unit = "profile" },
     { "main",     NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_PROFILE_MAIN },     INT_MIN, INT_MAX, VE, .unit = "profile" },
-    { "rc_mode", "Rate control mode", OFFSET(rc_mode), AV_OPT_TYPE_INT, { .i64 = XEVE_RC_CQP }, XEVE_RC_CQP,  XEVE_RC_CRF, VE, .unit = "rc_mode" },
-    { "CQP", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_RC_CQP }, INT_MIN, INT_MAX, VE, .unit = "rc_mode" },
-    { "ABR", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_RC_ABR }, INT_MIN, INT_MAX, VE, .unit = "rc_mode" },
-    { "CRF", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_RC_CRF }, INT_MIN, INT_MAX, VE, .unit = "rc_mode" },
+    { "rc-type", "Rate control mode", OFFSET(rc_mode), AV_OPT_TYPE_INT, { .i64 = XEVE_RC_ABR }, XEVE_RC_CQP,  XEVE_RC_CRF, VE, .unit = "rc-type" },
+    { "CQP", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_RC_CQP }, INT_MIN, INT_MAX, VE, .unit = "rc-type" },
+    { "ABR", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_RC_ABR }, INT_MIN, INT_MAX, VE, .unit = "rc-type" },
+    { "CRF", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = XEVE_RC_CRF }, INT_MIN, INT_MAX, VE, .unit = "rc-type" },
     { "qp", "Quantization parameter value for CQP rate control mode", OFFSET(qp), AV_OPT_TYPE_INT, { .i64 = 32 }, 0, 51, VE },
     { "crf", "Constant rate factor value for CRF rate control mode", OFFSET(crf), AV_OPT_TYPE_INT, { .i64 = 32 }, 10, 49, VE },
     { "hash", "Embed picture signature (HASH) for conformance checking in decoding", OFFSET(hash), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE },
-    { "sei_info", "Embed SEI messages identifying encoder parameters and command line arguments", OFFSET(sei_info), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE },
+    { "info", "Embed SEI messages identifying encoder parameters and command line arguments", OFFSET(sei_info), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, VE },
+    //{ "level-idc", "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str=NULL}, 0, 0, VE},
+    { "aq-mode", "Embed Adaptive Quantization method", OFFSET(aq_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE },
+    { "cu-tree", "Embed cu-tree for Adaptive Quantization", OFFSET(cutree), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE },
+    { "threads", "Force to use a specific number of threads", OFFSET(threads), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 8, VE },
     { "xeve-params",  "Override the xeve configuration using a :-separated list of key=value parameters", OFFSET(xeve_params), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { NULL }
 };
@@ -595,13 +624,13 @@ static const FFCodecDefault libxeve_defaults[] = {
     { "b", "0" },       // bitrate in terms of kilo-bits per second
     { "g", "0" },       // gop_size (key-frame interval 0: only one I-frame at the first time; 1: every frame is coded in I-frame)
     { "bf", "15"},      // maximum number of B frames (0: no B-frames, 1,3,7,15)
-    { "threads", "0"},  // number of threads to be used (0: automatically select the number of threads to set)
+    //{ "threads", "0"},  // number of threads to be used (0: automatically select the number of threads to set)
     { NULL },
 };
 
 const FFCodec ff_libxeve_encoder = {
     .p.name             = "libxeve",
-    .p.long_name        = NULL_IF_CONFIG_SMALL("libxeve MPEG-5 EVC"),
+    CODEC_LONG_NAME("libxeve MPEG-5 EVC"),
     .p.type             = AVMEDIA_TYPE_VIDEO,
     .p.id               = AV_CODEC_ID_EVC,
     .init               = libxeve_init,
@@ -610,10 +639,12 @@ const FFCodec ff_libxeve_encoder = {
     .priv_data_size     = sizeof(XeveContext),
     .p.priv_class       = &libxeve_class,
     .defaults           = libxeve_defaults,
-    .p.capabilities     = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_OTHER_THREADS | AV_CODEC_CAP_DR1,
+    .p.capabilities     = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
+                          AV_CODEC_CAP_OTHER_THREADS,
     .p.profiles         = NULL_IF_CONFIG_SMALL(ff_evc_profiles),
     .p.wrapper_name     = "libxeve",
     .p.pix_fmts         = supported_pixel_formats,
     .color_ranges       = AVCOL_RANGE_MPEG, /* FIXME: implement tagging */
     .caps_internal      = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_NOT_INIT_THREADSAFE,
+
 };
