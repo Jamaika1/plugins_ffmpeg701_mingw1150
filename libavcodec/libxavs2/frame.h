@@ -66,7 +66,7 @@ void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame);
 #define xavs2_frame_expand_border_lcurow FPFX(frame_expand_border_lcurow)
 void xavs2_frame_expand_border_lcurow(xavs2_t *h, xavs2_frame_t *frame, int i_lcu_y);
 
-#define xavs2_frame_expand_border_mod8 FPFX(frame_expand_border_mod8)
-void xavs2_frame_expand_border_mod8(xavs2_t *h, xavs2_frame_t *frame);
+#define xavs2_frame_expand_border_mod FPFX(frame_expand_border_mod)
+void xavs2_frame_expand_border_mod(xavs2_t *h, xavs2_frame_t *frame);
 
 #endif  /* XAVS2_FRAME_H */

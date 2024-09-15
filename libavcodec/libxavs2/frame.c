@@ -522,21 +522,21 @@ fail8:
     mem_ptr         += (size_l + size_c * 2) * sizeof(pel10_t);
 
     if (alloc_type == FT_DEC || alloc_type == FT_TEMP) {
-        uint8_t *p_align;
+        uint16_t *p_align;
         /* point to plane data area */
         frame->planes10[0] += frame->i_stride[0] * (XAVS2_PAD    ) + (XAVS2_PAD    );
         frame->planes10[1] += frame->i_stride[1] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
         frame->planes10[2] += frame->i_stride[2] * (XAVS2_PAD / 2) + (XAVS2_PAD / 2);
 
         /* make sure the pointers are aligned */
-        p_align = (uint8_t *)frame->planes10[0];
-        ALIGN_POINTER(p_align);
+        p_align = (uint16_t *)frame->planes10[0];
+        ALIGN_POINTER16(p_align);
         frame->planes10[0] = (pel10_t *)p_align;
-        p_align = (uint8_t *)frame->planes10[1];
-        ALIGN_POINTER(p_align);
+        p_align = (uint16_t *)frame->planes10[1];
+        ALIGN_POINTER16(p_align);
         frame->planes10[1] = (pel10_t *)p_align;
-        p_align = (uint8_t *)frame->planes10[2];
-        ALIGN_POINTER(p_align);
+        p_align = (uint16_t *)frame->planes10[2];
+        ALIGN_POINTER16(p_align);
         frame->planes10[2] = (pel10_t *)p_align;
     }
 
@@ -763,8 +763,6 @@ void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame)
     int b_frame_start = 1;
     int b_frame_end   = 1;
     int i;
-    if (h->param->input_sample_bit_depth == 8) {
-    pel8_t *pix;
 
     //UNUSED_PARAMETER(h);
 
@@ -776,27 +774,15 @@ void xavs2_frame_expand_border_frame(xavs2_t *h, xavs2_frame_t *frame)
         int pad_h  = XAVS2_PAD >> chroma;
         int pad_v  = XAVS2_PAD >> chroma;
 
-        pix = frame->planes8[i] + (slice_start_y >> chroma) * stride;
-
-        plane_expand_border8(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
-    }
-    } else {
-    pel10_t *pix;
-
-    //UNUSED_PARAMETER(h);
-
-    for (i = 0; i < frame->i_plane; i++) {
-        int chroma = !!i;
-        int stride = frame->i_stride[i];
-        int width  = frame->i_width[i];
-        int height = slice_height >> chroma;
-        int pad_h  = XAVS2_PAD >> chroma;
-        int pad_v  = XAVS2_PAD >> chroma;
-
-        pix = frame->planes10[i] + (slice_start_y >> chroma) * stride;
-
-        plane_expand_border10(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
-    }
+        if (h->param->input_sample_bit_depth == 8) {
+            pel8_t *pix;
+            pix = frame->planes8[i] + (slice_start_y >> chroma) * stride;
+            plane_expand_border8(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
+        } else {
+            pel10_t *pix;
+            pix = frame->planes10[i] + (slice_start_y >> chroma) * stride;
+            plane_expand_border10(pix, stride, width, height, pad_h, pad_v, b_frame_start, b_frame_end);
+        }
     }
 }
 
@@ -867,7 +853,7 @@ void xavs2_frame_expand_border_lcurow(xavs2_t *h, xavs2_frame_t *frame, int i_lc
 
 /* ---------------------------------------------------------------------------
  */
-void xavs2_frame_expand_border_mod8(xavs2_t *h, xavs2_frame_t *frame)
+void xavs2_frame_expand_border_mod(xavs2_t *h, xavs2_frame_t *frame)
 {
     int i, y;
 
