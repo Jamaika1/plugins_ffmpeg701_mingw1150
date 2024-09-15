@@ -1,5 +1,5 @@
 /*
- * libkvazaar encoder
+ * libuvg266 encoder
  *
  * Copyright (c) 2015 Tampere University of Technology
  *
@@ -20,7 +20,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libkvazaar/kvazaar.h"
+#include "libuvg266/uvg266.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -35,29 +35,29 @@
 #include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
 
-#include "libavcodec/avcodec.h"
-#include "libavcodec/codec_internal.h"
-#include "libavcodec/encode.h"
-#include "libavcodec/packet_internal.h"
+#include "avcodec.h"
+#include "codec_internal.h"
+#include "encode.h"
+#include "packet_internal.h"
 
-typedef struct LibkvazaarContext {
+typedef struct Libuvg266Context {
     const AVClass *class;
 
-    const kvz_api *api;
-    kvz_encoder *encoder;
-    kvz_config *config;
+    const uvg_api *api;
+    uvg_encoder *encoder;
+    uvg_config *config;
 
-    char *kvz_params;
-} LibkvazaarContext;
+    char *uvg_params;
+} Libuvg266Context;
 
-static av_cold int libkvazaar_init(AVCodecContext *avctx)
+static av_cold int libuvg266_init(AVCodecContext *avctx)
 {
-    LibkvazaarContext *const ctx = avctx->priv_data;
-    const kvz_api *const api = ctx->api = kvz_api_get(8);
-    kvz_config *cfg = NULL;
-    kvz_encoder *enc = NULL;
+    Libuvg266Context *const ctx = avctx->priv_data;
+    const uvg_api *const api = ctx->api = uvg_api_get(av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth);
+    uvg_config *cfg = NULL;
+    uvg_encoder *enc = NULL;
 
-    /* Kvazaar requires width and height to be multiples of eight. */
+    /* UVG266 requires width and height to be multiples of eight. */
     if (avctx->width % 8 || avctx->height % 8) {
         av_log(avctx, AV_LOG_ERROR,
                "Video dimensions are not a multiple of 8 (%dx%d).\n",
@@ -68,37 +68,57 @@ static av_cold int libkvazaar_init(AVCodecContext *avctx)
     ctx->config = cfg = api->config_alloc();
     if (!cfg) {
         av_log(avctx, AV_LOG_ERROR,
-               "Could not allocate kvazaar config structure.\n");
+               "Could not allocate uvg266 config structure.\n");
         return AVERROR(ENOMEM);
     }
 
     if (!api->config_init(cfg)) {
         av_log(avctx, AV_LOG_ERROR,
-               "Could not initialize kvazaar config structure.\n");
+               "Could not initialize uvg266 config structure.\n");
         return AVERROR_BUG;
     }
 
-    cfg->width  = avctx->width;
-    cfg->height = avctx->height;
+    cfg->width  = (int32_t)avctx->width;
+    cfg->height = (int32_t)avctx->height;
+    cfg->input_bitdepth = (int32_t)av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth;
 
     if (avctx->framerate.num > 0 && avctx->framerate.den > 0) {
-        cfg->framerate_num   = avctx->framerate.num;
-        cfg->framerate_denom = avctx->framerate.den;
+        cfg->framerate_num   = (int32_t)avctx->framerate.num;
+        cfg->framerate_denom = (int32_t)avctx->framerate.den;
     } else {
-        cfg->framerate_num   = avctx->time_base.den;
+        cfg->framerate_num   = (int32_t)avctx->time_base.den;
 FF_DISABLE_DEPRECATION_WARNINGS
-        cfg->framerate_denom = avctx->time_base.num
+        cfg->framerate_denom = (int32_t)(avctx->time_base.num
 #if FF_API_TICKS_PER_FRAME
-            * avctx->ticks_per_frame
+            * avctx->ticks_per_frame)
 #endif
             ;
 FF_ENABLE_DEPRECATION_WARNINGS
     }
-    cfg->target_bitrate = avctx->bit_rate;
-    cfg->vui.sar_width  = avctx->sample_aspect_ratio.num;
-    cfg->vui.sar_height = avctx->sample_aspect_ratio.den;
+    cfg->target_bitrate = (int32_t)avctx->bit_rate;
+    if (avctx->pix_fmt == AV_PIX_FMT_GRAY8 ||
+        avctx->pix_fmt == AV_PIX_FMT_GRAY10LE ||
+        avctx->pix_fmt == AV_PIX_FMT_GRAY12LE) {
+        cfg->input_format   = UVG_FORMAT_P400;
+    } else if (avctx->pix_fmt == AV_PIX_FMT_YUV420P ||
+               avctx->pix_fmt == AV_PIX_FMT_YUV420P10LE ||
+               avctx->pix_fmt == AV_PIX_FMT_YUV420P12LE) {
+        cfg->input_format   = UVG_FORMAT_P420;
+    } else if (avctx->pix_fmt == AV_PIX_FMT_YUV422P ||
+               avctx->pix_fmt == AV_PIX_FMT_YUV422P10LE ||
+               avctx->pix_fmt == AV_PIX_FMT_YUV422P12LE) {
+        cfg->input_format   = UVG_FORMAT_P422;
+    } else if (avctx->pix_fmt == AV_PIX_FMT_YUV444P ||
+               avctx->pix_fmt == AV_PIX_FMT_YUV444P10LE ||
+               avctx->pix_fmt == AV_PIX_FMT_YUV444P12LE) {
+        cfg->input_format   = UVG_FORMAT_P444;
+    } else {
+        return -1;
+    }
+    cfg->vui.sar_width  = (int32_t)avctx->sample_aspect_ratio.num;
+    cfg->vui.sar_height = (int32_t)avctx->sample_aspect_ratio.den;
     if (avctx->bit_rate) {
-        cfg->rc_algorithm = KVZ_LAMBDA;
+        cfg->rc_algorithm = UVG_LAMBDA;
     }
 
     cfg->vui.fullrange   = avctx->color_range == AVCOL_RANGE_JPEG;
@@ -108,9 +128,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
     if (avctx->chroma_sample_location != AVCHROMA_LOC_UNSPECIFIED)
         cfg->vui.chroma_loc = avctx->chroma_sample_location - 1;
 
-    if (ctx->kvz_params) {
+    if (ctx->uvg_params) {
         AVDictionary *dict = NULL;
-        if (!av_dict_parse_string(&dict, ctx->kvz_params, "=", ",", 0)) {
+        if (!av_dict_parse_string(&dict, ctx->uvg_params, "=", ",", 0)) {
             const AVDictionaryEntry *entry = NULL;
             while ((entry = av_dict_iterate(dict, entry))) {
                 if (!api->config_parse(cfg, entry->key, entry->value)) {
@@ -124,13 +144,13 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     ctx->encoder = enc = api->encoder_open(cfg);
     if (!enc) {
-        av_log(avctx, AV_LOG_ERROR, "Could not open kvazaar encoder.\n");
+        av_log(avctx, AV_LOG_ERROR, "Could not open uvg266 encoder.\n");
         return AVERROR_BUG;
     }
 
     if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) {
-        kvz_data_chunk *data_out = NULL;
-        kvz_data_chunk *chunk = NULL;
+        uvg_data_chunk *data_out = NULL;
+        uvg_data_chunk *chunk = NULL;
         uint32_t len_out;
         uint8_t *p;
 
@@ -156,9 +176,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
     return 0;
 }
 
-static av_cold int libkvazaar_close(AVCodecContext *avctx)
+static av_cold int libuvg266_close(AVCodecContext *avctx)
 {
-    LibkvazaarContext *ctx = avctx->priv_data;
+    Libuvg266Context *ctx = avctx->priv_data;
 
     if (ctx->api) {
         ctx->api->encoder_close(ctx->encoder);
@@ -168,16 +188,16 @@ static av_cold int libkvazaar_close(AVCodecContext *avctx)
     return 0;
 }
 
-static int libkvazaar_encode(AVCodecContext *avctx,
+static int libuvg266_encode(AVCodecContext *avctx,
                              AVPacket *avpkt,
                              const AVFrame *frame,
                              int *got_packet_ptr)
 {
-    LibkvazaarContext *ctx = avctx->priv_data;
-    kvz_picture *input_pic = NULL;
-    kvz_picture *recon_pic = NULL;
-    kvz_frame_info frame_info;
-    kvz_data_chunk *data_out = NULL;
+    Libuvg266Context *ctx = avctx->priv_data;
+    uvg_picture *input_pic = NULL;
+    uvg_picture *recon_pic = NULL;
+    uvg_frame_info frame_info;
+    uvg_data_chunk *data_out = NULL;
     uint32_t len_out = 0;
     int retval = 0;
     int pict_type;
@@ -206,7 +226,7 @@ static int libkvazaar_encode(AVCodecContext *avctx,
             goto done;
         }
 
-        // Allocate input picture for kvazaar.
+        // Allocate input picture for uvg266.
         input_pic = ctx->api->picture_alloc(frame->width, frame->height);
         if (!input_pic) {
             av_log(avctx, AV_LOG_ERROR, "Failed to allocate picture.\n");
@@ -215,8 +235,9 @@ static int libkvazaar_encode(AVCodecContext *avctx,
         }
 
         // Copy pixels from frame to input_pic.
+#if !defined(UVG_BIT_DEPTH) || UVG_BIT_DEPTH == 8
         {
-            uint8_t *dst[4] = {
+            uvg_pixel *dst[4] = {
                 input_pic->data[0],
                 input_pic->data[1],
                 input_pic->data[2],
@@ -232,6 +253,7 @@ static int libkvazaar_encode(AVCodecContext *avctx,
                            frame->data, frame->linesize,
                            frame->format, frame->width, frame->height);
         }
+#endif
 
         input_pic->pts = frame->pts;
     }
@@ -246,10 +268,10 @@ static int libkvazaar_encode(AVCodecContext *avctx,
         retval = AVERROR_INVALIDDATA;
         goto done;
     } else
-        retval = 0; /* kvazaar returns 1 on success */
+        retval = 0; /* uvg266 returns 1 on success */
 
     if (data_out) {
-        kvz_data_chunk *chunk = NULL;
+        uvg_data_chunk *chunk = NULL;
         uint64_t written = 0;
 
         retval = ff_get_encode_buffer(avctx, avpkt, len_out, 0);
@@ -269,19 +291,19 @@ static int libkvazaar_encode(AVCodecContext *avctx,
         avpkt->flags = 0;
         // IRAP VCL NAL unit types span the range
         // [BLA_W_LP (16), RSV_IRAP_VCL23 (23)].
-        if (frame_info.nal_unit_type >= KVZ_NAL_BLA_W_LP &&
-            frame_info.nal_unit_type <= KVZ_NAL_RSV_IRAP_VCL23) {
+        if (frame_info.nal_unit_type >= UVG_NAL_IDR_W_RADL &&
+            frame_info.nal_unit_type <= UVG_NAL_GDR_NUT) {
             avpkt->flags |= AV_PKT_FLAG_KEY;
         }
 
         switch (frame_info.slice_type) {
-        case KVZ_SLICE_I:
+        case UVG_SLICE_I:
             pict_type = AV_PICTURE_TYPE_I;
             break;
-        case KVZ_SLICE_P:
+        case UVG_SLICE_P:
             pict_type = AV_PICTURE_TYPE_P;
             break;
-        case KVZ_SLICE_B:
+        case UVG_SLICE_B:
             pict_type = AV_PICTURE_TYPE_B;
             break;
         default:
@@ -302,20 +324,28 @@ done:
 }
 
 static const enum AVPixelFormat pix_fmts[] = {
+#if !defined(UVG_BIT_DEPTH) || UVG_BIT_DEPTH == 8
+    AV_PIX_FMT_GRAY8,
     AV_PIX_FMT_YUV420P,
+#endif
+    //AV_PIX_FMT_YUV422P,
+    //AV_PIX_FMT_YUV444P,
+#if UVG_BIT_DEPTH == 10
+    AV_PIX_FMT_YUV420P10,
+#endif
     AV_PIX_FMT_NONE
 };
 
-#define OFFSET(x) offsetof(LibkvazaarContext, x)
+#define OFFSET(x) offsetof(Libuvg266Context, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
-    { "kvazaar-params", "Set kvazaar parameters as a comma-separated list of key=value pairs.",
-        OFFSET(kvz_params), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, VE },
+    { "uvg266-params", "Set uvg266 parameters as a comma-separated list of key=value pairs.",
+        OFFSET(uvg_params), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, VE },
     { NULL },
 };
 
 static const AVClass class = {
-    .class_name = "libkvazaar",
+    .class_name = "libuvg266",
     .item_name  = av_default_item_name,
     .option     = options,
     .version    = LIBAVUTIL_VERSION_INT,
@@ -326,26 +356,26 @@ static const FFCodecDefault defaults[] = {
     { NULL },
 };
 
-const FFCodec ff_libkvazaar_encoder = {
-    .p.name           = "libkvazaar",
-    CODEC_LONG_NAME("libkvazaar H.265 / HEVC"),
+const FFCodec ff_libuvg266_encoder = {
+    .p.name           = "libuvg266",
+    CODEC_LONG_NAME("libuvg266 H.266 / VVC"),
     .p.type           = AVMEDIA_TYPE_VIDEO,
-    .p.id             = AV_CODEC_ID_HEVC,
+    .p.id             = AV_CODEC_ID_VVC,
     .p.capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
                         AV_CODEC_CAP_OTHER_THREADS,
     .p.pix_fmts       = pix_fmts,
     .color_ranges     = AVCOL_RANGE_MPEG | AVCOL_RANGE_JPEG,
 
     .p.priv_class     = &class,
-    .priv_data_size   = sizeof(LibkvazaarContext),
+    .priv_data_size   = sizeof(Libuvg266Context),
     .defaults         = defaults,
 
-    .init             = libkvazaar_init,
-    FF_CODEC_ENCODE_CB(libkvazaar_encode),
-    .close            = libkvazaar_close,
+    .init             = libuvg266_init,
+    FF_CODEC_ENCODE_CB(libuvg266_encode),
+    .close            = libuvg266_close,
 
     .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_NOT_INIT_THREADSAFE |
                       FF_CODEC_CAP_AUTO_THREADS,
 
-    .p.wrapper_name   = "libkvazaar",
+    .p.wrapper_name   = "libuvg266",
 };

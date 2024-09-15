@@ -20,9 +20,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <vvenc/vvenc.h>
-#include <vvenc/vvencCfg.h>
-#include <vvenc/version.h>
+#include "libvvenc/vvenc/vvenc.h"
+#include "libvvenc/vvenc/vvencCfg.h"
+#include "libvvenc/vvenc/version.h"
 
 #include "libavutil/avstring.h"
 #include "libavutil/avutil.h"
@@ -34,12 +34,12 @@
 #include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
 
-#include "avcodec.h"
-#include "codec_internal.h"
-#include "encode.h"
-#include "internal.h"
-#include "packet_internal.h"
-#include "profiles.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/encode.h"
+#include "libavcodec/internal.h"
+#include "libavcodec/packet_internal.h"
+#include "libavcodec/profiles.h"
 
 #define VVENC_VERSION_INT  AV_VERSION_INT(VVENC_VERSION_MAJOR, \
                                           VVENC_VERSION_MINOR, \
@@ -483,9 +483,11 @@ const FFCodec ff_libvvenc_encoder = {
     .p.wrapper_name = "libvvenc",
     .priv_data_size = sizeof(VVenCContext),
     .p.pix_fmts     = pix_fmts_vvenc,
+    .color_ranges   = AVCOL_RANGE_MPEG,
     .init           = vvenc_init,
     FF_CODEC_ENCODE_CB(vvenc_frame),
     .close          = vvenc_close,
     .defaults       = vvenc_defaults,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_AUTO_THREADS
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_NOT_INIT_THREADSAFE |
+                      FF_CODEC_CAP_AUTO_THREADS
 };

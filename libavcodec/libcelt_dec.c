@@ -1,6 +1,6 @@
 /*
- * Xiph CELT decoder using libcelt
- * Copyright (c) 2011 Nicolas George
+ * Xiph OPUS decoder using libcelt
+ * Copyright (c) 2023 Nicolas George
  *
  * This file is part of FFmpeg.
  *
@@ -19,11 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <celt/celt.h>
-#include <celt/celt_header.h>
-#include "avcodec.h"
-#include "codec_internal.h"
-#include "decode.h"
+#include "libopus/libcelt/celt.h"
+#include "libopus/libcelt/celt_header.h"
+#include "libopus/opus_custom.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/decode.h"
 #include "libavutil/intreadwrite.h"
 
 struct libcelt_context {
@@ -35,17 +36,17 @@ struct libcelt_context {
 static int ff_celt_error_to_averror(int err)
 {
     switch (err) {
-        case CELT_BAD_ARG:          return AVERROR(EINVAL);
+        case OPUS_BAD_ARG:          return AVERROR(EINVAL);
 #ifdef CELT_BUFFER_TOO_SMALL
-        case CELT_BUFFER_TOO_SMALL: return AVERROR(ENOBUFS);
+        case OPUS_BUFFER_TOO_SMALL: return AVERROR(ENOBUFS);
 #endif
-        case CELT_INTERNAL_ERROR:   return AVERROR(EFAULT);
-        case CELT_CORRUPTED_DATA:   return AVERROR_INVALIDDATA;
-        case CELT_UNIMPLEMENTED:    return AVERROR(ENOSYS);
+        case OPUS_INTERNAL_ERROR:   return AVERROR(EFAULT);
+        //case OPUS_CORRUPTED_DATA:   return AVERROR_INVALIDDATA;
+        case OPUS_UNIMPLEMENTED:    return AVERROR(ENOSYS);
 #ifdef ENOTRECOVERABLE
-        case CELT_INVALID_STATE:    return AVERROR(ENOTRECOVERABLE);
+        case OPUS_INVALID_STATE:    return AVERROR(ENOTRECOVERABLE);
 #endif
-        case CELT_ALLOC_FAIL:       return AVERROR(ENOMEM);
+        case OPUS_ALLOC_FAIL:       return AVERROR(ENOMEM);
         default:                    return AVERROR(EINVAL);
     }
 }
@@ -65,12 +66,12 @@ static av_cold int libcelt_dec_init(AVCodecContext *c)
     if (!c->ch_layout.nb_channels || !c->frame_size ||
         c->frame_size > INT_MAX / sizeof(int16_t) / c->ch_layout.nb_channels)
         return AVERROR(EINVAL);
-    celt->mode = celt_mode_create(c->sample_rate, c->frame_size, &err);
+    celt->mode = opus_custom_mode_create(c->sample_rate, c->frame_size, &err);
     if (!celt->mode)
         return ff_celt_error_to_averror(err);
-    celt->dec = celt_decoder_create_custom(celt->mode, c->ch_layout.nb_channels, &err);
+    celt->dec = opus_custom_decoder_create(celt->mode, c->ch_layout.nb_channels, &err);
     if (!celt->dec) {
-        celt_mode_destroy(celt->mode);
+        opus_custom_mode_destroy(celt->mode);
         return ff_celt_error_to_averror(err);
     }
     if (c->extradata_size >= 4) {
@@ -98,8 +99,8 @@ static av_cold int libcelt_dec_close(AVCodecContext *c)
 {
     struct libcelt_context *celt = c->priv_data;
 
-    celt_decoder_destroy(celt->dec);
-    celt_mode_destroy(celt->mode);
+    opus_custom_decoder_destroy(celt->dec);
+    opus_custom_mode_destroy(celt->mode);
     return 0;
 }
 
@@ -114,7 +115,7 @@ static int libcelt_dec_decode(AVCodecContext *c, AVFrame *frame,
     if ((err = ff_get_buffer(c, frame, 0)) < 0)
         return err;
     pcm = (int16_t *)frame->data[0];
-    err = celt_decode(celt->dec, pkt->data, pkt->size, pcm, c->frame_size);
+    err = opus_custom_decode(celt->dec, pkt->data, pkt->size, pcm, c->frame_size);
     if (err < 0)
         return ff_celt_error_to_averror(err);
     if (celt->discard) {

@@ -27,11 +27,12 @@
 #include "libavutil/imgutils.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/opt.h"
-#include "avcodec.h"
-#include "avs3.h"
-#include "codec_internal.h"
-#include "decode.h"
-#include "uavs3d.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/avs3.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/decode.h"
+#include "libuavs3d/uavs3d.h"
+#include "libuavs3d/version.h"
 
 typedef struct uavs3d_context {
     AVCodecContext  *avctx;
@@ -115,6 +116,8 @@ static av_cold int libuavs3d_init(AVCodecContext *avctx)
     cdsc.check_md5 = 0;
     h->dec_handle = uavs3d_create(&cdsc, uavs3d_output_callback, NULL);
     h->got_seqhdr = 0;
+    //printf("libuavs3d(%2d): %s-%s\n", BIT_DEPTH, VERSION_STR, VERSION_TYPE);
+    av_log(NULL, AV_LOG_INFO, "libuavs3d(8/10bit): %s-%s\n", VERSION_STR, VERSION_TYPE);
 
     if (!h->dec_handle) {
         return AVERROR(ENOMEM);

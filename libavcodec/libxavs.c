@@ -25,11 +25,11 @@
 #include <math.h>
 #include <stdint.h>
 #include <float.h>
-#include <xavs.h>
-#include "avcodec.h"
-#include "codec_internal.h"
-#include "encode.h"
-#include "packet_internal.h"
+#include "libxavs/xavs.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/encode.h"
+#include "libavcodec/packet_internal.h"
 #include "libavutil/internal.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
@@ -432,8 +432,7 @@ const FFCodec ff_libxavs_encoder = {
     .init           = XAVS_init,
     FF_CODEC_ENCODE_CB(XAVS_frame),
     .close          = XAVS_close,
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
-                      FF_CODEC_CAP_AUTO_THREADS,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_NOT_INIT_THREADSAFE,
     .p.pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE },
     .color_ranges   = AVCOL_RANGE_MPEG,
     .p.priv_class   = &xavs_class,

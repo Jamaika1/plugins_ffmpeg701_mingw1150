@@ -22,11 +22,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "xavs2.h"
-#include "codec_internal.h"
-#include "encode.h"
-#include "mpeg12.h"
+#include "libxavs2/xavs2.h"
+#include "libavcodec/codec_internal.h"
+#include "libavcodec/encode.h"
+#include "libavcodec/mpeg12.h"
 #include "libavutil/avstring.h"
+#include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
 
 #define xavs2_opt_set2(name, format, ...) do{ \
@@ -63,9 +64,10 @@ typedef struct XAVS2EContext {
 static av_cold int xavs2_init(AVCodecContext *avctx)
 {
     XAVS2EContext *cae = avctx->priv_data;
-    int bit_depth, code;
+    int bit_depth; //code;
 
-    bit_depth = avctx->pix_fmt == AV_PIX_FMT_YUV420P ? 8 : 10;
+    bit_depth = av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth;
+    //avctx->pix_fmt == AV_PIX_FMT_YUV420P ? 8 : 10;
 
     /* get API handler */
     cae->api = xavs2_api_get(bit_depth);
@@ -82,10 +84,15 @@ static av_cold int xavs2_init(AVCodecContext *avctx)
 
     xavs2_opt_set2("Width",     "%d", avctx->width);
     xavs2_opt_set2("Height",    "%d", avctx->height);
-    xavs2_opt_set2("BFrames",   "%d", avctx->max_b_frames);
-    xavs2_opt_set2("BitDepth",  "%d", bit_depth);
+    xavs2_opt_set2("NumberBFrames",   "%d", avctx->max_b_frames);
+    xavs2_opt_set2("InputSampleBitDepth",  "%d", bit_depth);
+    xavs2_opt_set2("SampleBitDepth",  "%d", bit_depth);
     xavs2_opt_set2("Log",       "%d", cae->log_level);
     xavs2_opt_set2("Preset",    "%d", cae->preset_level);
+    xavs2_opt_set2("ProfileID",    "%d", ((avctx->pix_fmt == AV_PIX_FMT_YUV420P10) ? 34 : 32));
+    xavs2_opt_set2("ChromaFormat", "%d", ((avctx->pix_fmt == AV_PIX_FMT_GRAY8 || avctx->pix_fmt == AV_PIX_FMT_GRAY10) ? 0 :
+                                         ((avctx->pix_fmt == AV_PIX_FMT_YUV420P || avctx->pix_fmt == AV_PIX_FMT_YUV420P10) ? 1 :
+                                         ((avctx->pix_fmt == AV_PIX_FMT_YUV422P || avctx->pix_fmt == AV_PIX_FMT_YUV422P10) ? 2 : 1))));
 
     xavs2_opt_set2("IntraPeriodMax",    "%d", avctx->gop_size);
     xavs2_opt_set2("IntraPeriodMin",    "%d", avctx->gop_size);
@@ -112,8 +119,7 @@ static av_cold int xavs2_init(AVCodecContext *avctx)
         xavs2_opt_set2("InitialQP",     "%d", cae->qp);
     }
 
-    ff_mpeg12_find_best_frame_rate(avctx->framerate, &code, NULL, NULL, 0);
-    xavs2_opt_set2("FrameRate",   "%d", code);
+    xavs2_opt_set2("fps",   "%.3f", av_q2d(avctx->framerate));
 
     cae->encoder = cae->api->encoder_create(cae->param);
 
@@ -125,16 +131,16 @@ static av_cold int xavs2_init(AVCodecContext *avctx)
     return 0;
 }
 
-static void xavs2_copy_frame_with_shift(xavs2_picture_t *pic, const AVFrame *frame, const int shift_in)
+static void xavs2_copy_frame_with_shift8(xavs2_picture_t *pic, const AVFrame *frame, const int shift_in)
 {
-    uint16_t *p_plane;
+    uint8_t *p_plane;
     uint8_t *p_buffer;
     int plane;
     int hIdx;
     int wIdx;
 
     for (plane = 0; plane < 3; plane++) {
-        p_plane = (uint16_t *)pic->img.img_planes[plane];
+        p_plane = pic->img.img8_planes[plane];
         p_buffer = frame->data[plane];
         for (hIdx = 0; hIdx < pic->img.i_lines[plane]; hIdx++) {
             memset(p_plane, 0, pic->img.i_stride[plane]);
@@ -147,7 +153,29 @@ static void xavs2_copy_frame_with_shift(xavs2_picture_t *pic, const AVFrame *fra
     }
 }
 
-static void xavs2_copy_frame(xavs2_picture_t *pic, const AVFrame *frame)
+static void xavs2_copy_frame_with_shift10(xavs2_picture_t *pic, const AVFrame *frame, const int shift_in)
+{
+    uint16_t *p_plane;
+    uint8_t *p_buffer;
+    int plane;
+    int hIdx;
+    int wIdx;
+
+    for (plane = 0; plane < 3; plane++) {
+        p_plane = pic->img.img10_planes[plane];
+        p_buffer = (uint8_t*)frame->data[plane];
+        for (hIdx = 0; hIdx < pic->img.i_lines[plane]; hIdx++) {
+            memset(p_plane, 0, pic->img.i_stride[plane]);
+            for (wIdx = 0; wIdx < pic->img.i_width[plane]; wIdx++) {
+                p_plane[wIdx] = (uint16_t)(p_buffer[wIdx] << shift_in);
+            }
+            p_plane += pic->img.i_stride[plane];
+            p_buffer += frame->linesize[plane];
+        }
+    }
+}
+
+static void xavs2_copy_frame8(xavs2_picture_t *pic, const AVFrame *frame)
 {
     uint8_t *p_plane;
     uint8_t *p_buffer;
@@ -156,8 +184,28 @@ static void xavs2_copy_frame(xavs2_picture_t *pic, const AVFrame *frame)
     int stride;
 
     for (plane = 0; plane < 3; plane++) {
-        p_plane = pic->img.img_planes[plane];
+        p_plane = pic->img.img8_planes[plane];
         p_buffer = frame->data[plane];
+        stride = pic->img.i_width[plane] * pic->img.in_sample_size;
+        for (hIdx = 0; hIdx < pic->img.i_lines[plane]; hIdx++) {
+            memcpy(p_plane, p_buffer, stride);
+            p_plane += pic->img.i_stride[plane];
+            p_buffer += frame->linesize[plane];
+        }
+    }
+}
+
+static void xavs2_copy_frame10(xavs2_picture_t *pic, const AVFrame *frame)
+{
+    uint16_t *p_plane;
+    uint8_t *p_buffer;
+    int plane;
+    int hIdx;
+    int stride;
+
+    for (plane = 0; plane < 3; plane++) {
+        p_plane = (uint16_t*)pic->img.img8_planes[plane];
+        p_buffer = (uint8_t*)frame->data[plane];
         stride = pic->img.i_width[plane] * pic->img.in_sample_size;
         for (hIdx = 0; hIdx < pic->img.i_lines[plane]; hIdx++) {
             memcpy(p_plane, p_buffer, stride);
@@ -184,17 +232,20 @@ static int xavs2_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         switch (frame->format) {
         case AV_PIX_FMT_YUV420P:
             if (pic.img.in_sample_size == pic.img.enc_sample_size) {
-                xavs2_copy_frame(&pic, frame);
+                xavs2_copy_frame8(&pic, frame);
             } else {
                 const int shift_in = atoi(cae->api->opt_get(cae->param, "SampleShift"));
-                xavs2_copy_frame_with_shift(&pic, frame, shift_in);
+                xavs2_copy_frame_with_shift8(&pic, frame, shift_in);
             }
             break;
         case AV_PIX_FMT_YUV420P10:
             if (pic.img.in_sample_size == pic.img.enc_sample_size) {
-                xavs2_copy_frame(&pic, frame);
-                break;
+                xavs2_copy_frame8(&pic, frame);
+            } else {
+                const int shift_in = atoi(cae->api->opt_get(cae->param, "SampleShift"));
+                xavs2_copy_frame_with_shift8(&pic, frame, shift_in);
             }
+            break;
         default:
             av_log(avctx, AV_LOG_ERROR, "Unsupported pixel format\n");
             return AVERROR(EINVAL);
@@ -231,7 +282,11 @@ static int xavs2_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             pkt->flags |= AV_PKT_FLAG_KEY;
         }
 
-        memcpy(pkt->data, cae->packet.stream, cae->packet.len);
+        //if (av_pix_fmt_desc_get(avctx->pix_fmt)->comp[0].depth == 8) {
+            memcpy(pkt->data, cae->packet.stream, cae->packet.len);
+        /*} else {
+            memcpy(pkt->data, cae->packet.stream16, cae->packet.len);
+        }*/
 
         cae->api->encoder_packet_unref(cae->encoder, &cae->packet);
 
@@ -297,9 +352,13 @@ const FFCodec ff_libxavs2_encoder = {
     .init           = xavs2_init,
     FF_CODEC_ENCODE_CB(xavs2_encode_frame),
     .close          = xavs2_close,
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
-                      FF_CODEC_CAP_AUTO_THREADS,
-    .p.pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV420P,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_NOT_INIT_THREADSAFE,
+    .p.pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV422P10,
+                                                     AV_PIX_FMT_YUV420P10,
+                                                     AV_PIX_FMT_GRAY10,
+                                                     AV_PIX_FMT_YUV422P,
+                                                     AV_PIX_FMT_YUV420P,
+                                                     AV_PIX_FMT_GRAY8,
                                                      AV_PIX_FMT_NONE },
     .color_ranges   = AVCOL_RANGE_MPEG,
     .p.priv_class   = &libxavs2,
