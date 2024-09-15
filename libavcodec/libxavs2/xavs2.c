@@ -597,9 +597,15 @@ int xavs2_encoder_get_buffer(void *coder, xavs2_picture_t *pic)
     pic->img.i_stride[0]     = param->input_sample_bit_depth == 8 ? frame->i_stride[0] * sizeof(pel8_t) : frame->i_stride[0] * sizeof(pel10_t);
     pic->img.i_stride[1]     = param->input_sample_bit_depth == 8 ? frame->i_stride[1] * sizeof(pel8_t) : frame->i_stride[1] * sizeof(pel10_t);
     pic->img.i_stride[2]     = param->input_sample_bit_depth == 8 ? frame->i_stride[2] * sizeof(pel8_t) : frame->i_stride[2] * sizeof(pel10_t);
-    pic->img.img8_planes[0]   = param->input_sample_bit_depth == 8 ? (uint8_t *)frame->planes8[0] : (uint8_t *)frame->planes10[0];;
-    pic->img.img8_planes[1]   = param->input_sample_bit_depth == 8 ? (uint8_t *)frame->planes8[1] : (uint8_t *)frame->planes10[1];;
-    pic->img.img8_planes[2]   = param->input_sample_bit_depth == 8 ? (uint8_t *)frame->planes8[2] : (uint8_t *)frame->planes10[2];;
+    if (param->input_sample_bit_depth == 8) {
+        pic->img.img8_planes[0]   = (uint8_t *)frame->planes8[0];
+        pic->img.img8_planes[1]   = (uint8_t *)frame->planes8[1];
+        pic->img.img8_planes[2]   = (uint8_t *)frame->planes8[2];
+    } else {
+        pic->img.img8_planes[0]   = (uint8_t *)frame->planes10[0];
+        pic->img.img8_planes[1]   = (uint8_t *)frame->planes10[1];
+        pic->img.img8_planes[2]   = (uint8_t *)frame->planes10[2];
+    }
     /*} else {
     pic->img.in_sample_size  = param->input_sample_bit_depth == 8 ? 1 : 2;
     pic->img.enc_sample_size = param->input_sample_bit_depth == 8 ? sizeof(pel8_t) : sizeof(pel10_t);
@@ -689,7 +695,7 @@ int xavs2_encoder_encode(void *coder, xavs2_picture_t *pic, xavs2_outpacket_t *p
 
             /* expand border if need */
             if (h->param->org_width != h->i_width || h->param->org_height != h->i_height) {
-                xavs2_frame_expand_border_mod8(h, frame);
+                xavs2_frame_expand_border_mod(h, frame);
             }
 
             /* set frame number here */

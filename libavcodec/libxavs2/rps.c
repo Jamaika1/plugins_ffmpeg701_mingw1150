@@ -220,7 +220,7 @@ int xavs2e_get_frame_rps(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
                 for (j = 0; j < frm_buf->num_frames; j++) {
                     if ((frame = frm_buf->frames[j]) != NULL && cur_frm->i_frame != frame->i_frame) {
                         xavs2_thread_mutex_lock(&frame->mutex);      /* lock */
-                        assert(p_rps->num_to_rm < sizeof(p_rps->rm_pic) / sizeof(p_rps->rm_pic[0]));
+                        assert(p_rps->num_to_rm < (int)(sizeof(p_rps->rm_pic) / sizeof(p_rps->rm_pic[0])));
                         if (frame->rps.referd_by_others == 1 && frame->cnt_refered > 0) {
                             if (cur_frm->i_frm_coi - frame->i_frm_coi < 64) {
                                 /* only 6 bits for delta coi */
@@ -258,7 +258,7 @@ int xavs2e_get_frame_rps(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
             for (j = 0; j < frm_buf->num_frames; j++) {
                 if ((frame = frm_buf->frames[j]) != NULL) {
                     xavs2_thread_mutex_lock(&frame->mutex);      /* lock */
-                    assert(p_rps->num_to_rm < sizeof(p_rps->rm_pic) / sizeof(p_rps->rm_pic[0]));
+                    assert(p_rps->num_to_rm < (int)(sizeof(p_rps->rm_pic) / sizeof(p_rps->rm_pic[0])));
                     if (frame->rps.referd_by_others == 1 && frame->cnt_refered > 0) {
                         /* only 6 bits for delta coi */
                         if (frame->i_frame < frm_buf->POC_IDR && cur_frm->i_frm_coi - frame->i_frm_coi < 64) {
@@ -388,7 +388,7 @@ int rps_fix_reference_list_b(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
                 if (max_fwd_idx != -1) {
                     xavs2_thread_mutex_lock(&DPB[max_fwd_idx]->mutex);   /* lock */
                     DPB[max_fwd_idx]->cnt_refered--;
-                    assert(DPB[max_fwd_idx]->cnt_refered >= 0);
+                    assert(DPB[max_fwd_idx]->cnt_refered > 0);
                     xavs2_thread_mutex_unlock(&DPB[max_fwd_idx]->mutex); /* unlock */
                 }
 
@@ -407,7 +407,7 @@ int rps_fix_reference_list_b(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
 
     xavs2_thread_mutex_lock(&frefs[1]->mutex);     /* lock */
     frefs[1]->cnt_refered--;
-    assert(frefs[1]->cnt_refered >= 0);
+    assert(frefs[1]->cnt_refered > 0);
     xavs2_thread_mutex_unlock(&frefs[1]->mutex);   /* unlock */
 
     frefs[1] = DPB[max_fwd_idx];
@@ -421,7 +421,7 @@ int rps_fix_reference_list_b(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
                 if (min_bwd_idx != -1) {
                     xavs2_thread_mutex_lock(&DPB[min_bwd_idx]->mutex);   /* lock */
                     DPB[min_bwd_idx]->cnt_refered--;
-                    assert(DPB[min_bwd_idx]->cnt_refered >= 0);
+                    assert(DPB[min_bwd_idx]->cnt_refered > 0);
                     xavs2_thread_mutex_unlock(&DPB[min_bwd_idx]->mutex); /* unlock */
                 }
 
@@ -440,7 +440,7 @@ int rps_fix_reference_list_b(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
 
     xavs2_thread_mutex_lock(&frefs[0]->mutex);     /* lock */
     frefs[0]->cnt_refered--;
-    assert(frefs[0]->cnt_refered >= 0);
+    assert(frefs[0]->cnt_refered > 0);
     xavs2_thread_mutex_unlock(&frefs[0]->mutex);   /* unlock */
 
     frefs[0] = DPB[min_bwd_idx];
@@ -493,7 +493,7 @@ int rps_fix_reference_list_pf(const xavs2_t *h, xavs2_frame_buffer_t *frm_buf,
                     if (max_fwd_idx != -1) {
                         xavs2_thread_mutex_lock(&DPB[max_fwd_idx]->mutex);   /* lock */
                         DPB[max_fwd_idx]->cnt_refered--;
-                        assert(DPB[max_fwd_idx]->cnt_refered >= 0);
+                        assert(DPB[max_fwd_idx]->cnt_refered > 0);
                         xavs2_thread_mutex_unlock(&DPB[max_fwd_idx]->mutex); /* unlock */
                     }
 

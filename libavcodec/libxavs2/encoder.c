@@ -2163,7 +2163,7 @@ static void init_decoding_frame(xavs2_t *h)
     }
 
     /* set ref_dpoc */
-    for (i = 0; i < sizeof(h->fdec->ref_dpoc) / sizeof(h->fdec->ref_dpoc[0]); i++) {
+    for (i = 0; i < (int)(sizeof(h->fdec->ref_dpoc) / sizeof(h->fdec->ref_dpoc[0])); i++) {
         h->fdec->ref_dpoc[i] = MULTIx2;
         h->fdec->ref_dpoc_multi[i] = 1;
     }
