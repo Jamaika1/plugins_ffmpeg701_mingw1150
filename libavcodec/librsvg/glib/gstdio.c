@@ -139,7 +139,7 @@ w32_error_to_errno (DWORD error_code)
     }
 }
 
-#include "gstdio-private.c"
+#include "extra/gstdio-private.c"
 
 /* Windows implementation of fopen() does not accept modes such as
  * "wb+". The 'b' needs to be appended to "w+", i.e. "w+b". Note
@@ -933,7 +933,7 @@ g_win32_readlink_utf8 (const gchar  *filename,
  * Returns: zero if the pathname refers to an existing file system
  *     object that has all the tested permissions, or -1 otherwise
  *     or on error.
- * 
+ *
  * Since: 2.8
  */
 int
@@ -944,7 +944,7 @@ g_access (const gchar *filename,
   wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
   int retval;
   int save_errno;
-    
+
   if (wfilename == NULL)
     {
       errno = EINVAL;
@@ -975,7 +975,7 @@ g_access (const gchar *filename,
  *
  * A wrapper for the POSIX chmod() function. The chmod() function is
  * used to set the permissions of a file system object.
- * 
+ *
  * On Windows the file protection mechanism is not at all POSIX-like,
  * and the underlying chmod() function in the C library just sets or
  * clears the FAT-style READONLY attribute. It does not touch any
@@ -985,7 +985,7 @@ g_access (const gchar *filename,
  * See your C library manual for more details about chmod().
  *
  * Returns: 0 if the operation succeeded, -1 on error
- * 
+ *
  * Since: 2.8
  */
 int
@@ -996,7 +996,7 @@ g_chmod (const gchar *filename,
   wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
   int retval;
   int save_errno;
-    
+
   if (wfilename == NULL)
     {
       errno = EINVAL;
@@ -1043,7 +1043,7 @@ g_chmod (const gchar *filename,
  * Returns: a new file descriptor, or -1 if an error occurred.
  *     The return value can be used exactly like the return value
  *     from open().
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1055,7 +1055,7 @@ g_open (const gchar *filename,
   wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
   int retval;
   int save_errno;
-    
+
   if (wfilename == NULL)
     {
       errno = EINVAL;
@@ -1107,7 +1107,7 @@ g_open (const gchar *filename,
  * Returns: a new file descriptor, or -1 if an error occurred.
  *     The return value can be used exactly like the return value
  *     from creat().
- * 
+ *
  * Since: 2.8
  */
 int
@@ -1118,7 +1118,7 @@ g_creat (const gchar *filename,
   wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
   int retval;
   int save_errno;
-    
+
   if (wfilename == NULL)
     {
       errno = EINVAL;
@@ -1143,15 +1143,15 @@ g_creat (const gchar *filename,
  *     (UTF-8 on Windows)
  * @newfilename: (type filename): a pathname in the GLib file name encoding
  *
- * A wrapper for the POSIX rename() function. The rename() function 
+ * A wrapper for the POSIX rename() function. The rename() function
  * renames a file, moving it between directories if required.
- * 
+ *
  * See your C library manual for more details about how rename() works
  * on your system. It is not possible in general on Windows to rename
  * a file that is open to some process.
  *
  * Returns: 0 if the renaming succeeded, -1 if an error occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1189,7 +1189,7 @@ g_rename (const gchar *oldfilename,
 
   g_free (woldfilename);
   g_free (wnewfilename);
-    
+
   errno = save_errno;
   return retval;
 #else
@@ -1198,20 +1198,20 @@ g_rename (const gchar *oldfilename,
 }
 
 /**
- * g_mkdir: 
+ * g_mkdir:
  * @filename: (type filename): a pathname in the GLib file name encoding
  *     (UTF-8 on Windows)
  * @mode: permissions to use for the newly created directory
  *
- * A wrapper for the POSIX mkdir() function. The mkdir() function 
+ * A wrapper for the POSIX mkdir() function. The mkdir() function
  * attempts to create a directory with the given name and permissions.
  * The mode argument is ignored on Windows.
- * 
+ *
  * See your C library manual for more details about mkdir().
  *
- * Returns: 0 if the directory was successfully created, -1 if an error 
+ * Returns: 0 if the directory was successfully created, -1 if an error
  *    occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1233,7 +1233,7 @@ g_mkdir (const gchar *filename,
   save_errno = errno;
 
   g_free (wfilename);
-    
+
   errno = save_errno;
   return retval;
 #else
@@ -1242,17 +1242,17 @@ g_mkdir (const gchar *filename,
 }
 
 /**
- * g_chdir: 
+ * g_chdir:
  * @path: (type filename): a pathname in the GLib file name encoding
  *     (UTF-8 on Windows)
  *
  * A wrapper for the POSIX chdir() function. The function changes the
  * current directory of the process to @path.
- * 
+ *
  * See your C library manual for more details about chdir().
  *
  * Returns: 0 on success, -1 if an error occurred.
- * 
+ *
  * Since: 2.8
  */
 int
@@ -1273,7 +1273,7 @@ g_chdir (const gchar *path)
   save_errno = errno;
 
   g_free (wpath);
-    
+
   errno = save_errno;
   return retval;
 #else
@@ -1290,7 +1290,7 @@ g_chdir (const gchar *path)
  * See g_stat() for more information.
  */
 /**
- * g_stat: 
+ * g_stat:
  * @filename: (type filename): a pathname in the GLib file name encoding
  *     (UTF-8 on Windows)
  * @buf: a pointer to a stat struct, which will be filled with the file
@@ -1301,7 +1301,7 @@ g_chdir (const gchar *path)
  * the C library checks only the FAT-style READONLY attribute and does
  * not look at the ACL at all. Thus on Windows the protection bits in
  * the @st_mode field are a fabrication of little use.
- * 
+ *
  * On Windows the Microsoft C libraries have several variants of the
  * stat struct and stat() function with names like _stat(), _stat32(),
  * _stat32i64() and _stat64i32(). The one used here is for 32-bit code
@@ -1319,7 +1319,7 @@ g_chdir (const gchar *path)
  *
  * Returns: 0 if the information was successfully retrieved,
  *     -1 if an error occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1349,7 +1349,7 @@ g_stat (const gchar *filename,
 }
 
 /**
- * g_lstat: 
+ * g_lstat:
  * @filename: (type filename): a pathname in the GLib file name encoding
  *     (UTF-8 on Windows)
  * @buf: a pointer to a stat struct, which will be filled with the file
@@ -1360,12 +1360,12 @@ g_stat (const gchar *filename,
  * information about the symbolic link itself and not the file that it
  * refers to. If the system does not support symbolic links g_lstat()
  * is identical to g_stat().
- * 
+ *
  * See your C library manual for more details about lstat().
  *
  * Returns: 0 if the information was successfully retrieved,
  *     -1 if an error occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1402,18 +1402,18 @@ g_lstat (const gchar *filename,
  * @filename: (type filename): a pathname in the GLib file name encoding
  *     (UTF-8 on Windows)
  *
- * A wrapper for the POSIX unlink() function. The unlink() function 
- * deletes a name from the filesystem. If this was the last link to the 
+ * A wrapper for the POSIX unlink() function. The unlink() function
+ * deletes a name from the filesystem. If this was the last link to the
  * file and no processes have it opened, the diskspace occupied by the
  * file is freed.
- * 
+ *
  * See your C library manual for more details about unlink(). Note
  * that on Windows, it is in general not possible to delete files that
  * are open to some process, or mapped into memory.
  *
- * Returns: 0 if the name was successfully deleted, -1 if an error 
+ * Returns: 0 if the name was successfully deleted, -1 if an error
  *    occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1449,7 +1449,7 @@ g_unlink (const gchar *filename)
  *
  * A wrapper for the POSIX remove() function. The remove() function
  * deletes a name from the filesystem.
- * 
+ *
  * See your C library manual for more details about how remove() works
  * on your system. On Unix, remove() removes also directories, as it
  * calls unlink() for files and rmdir() for directories. On Windows,
@@ -1464,9 +1464,9 @@ g_unlink (const gchar *filename)
  * fail. Any errno value set by remove() will be overwritten by that
  * set by rmdir().
  *
- * Returns: 0 if the file was successfully removed, -1 if an error 
+ * Returns: 0 if the file was successfully removed, -1 if an error
  *    occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1504,13 +1504,13 @@ g_remove (const gchar *filename)
  *
  * A wrapper for the POSIX rmdir() function. The rmdir() function
  * deletes a directory from the filesystem.
- * 
+ *
  * See your C library manual for more details about how rmdir() works
  * on your system.
  *
- * Returns: 0 if the directory was successfully removed, -1 if an error 
+ * Returns: 0 if the directory was successfully removed, -1 if an error
  *    occurred
- * 
+ *
  * Since: 2.6
  */
 int
@@ -1526,7 +1526,7 @@ g_rmdir (const gchar *filename)
       errno = EINVAL;
       return -1;
     }
-  
+
   retval = _wrmdir (wfilename);
   save_errno = errno;
 
@@ -1547,7 +1547,7 @@ g_rmdir (const gchar *filename)
  *
  * A wrapper for the stdio `fopen()` function. The `fopen()` function
  * opens a file and associates a new stream with it.
- * 
+ *
  * Because file descriptors are specific to the C library on Windows,
  * and a file descriptor is part of the `FILE` struct, the `FILE*` returned
  * by this function makes sense only to functions in the same C library.
@@ -1564,7 +1564,7 @@ g_rmdir (const gchar *filename)
  *
  * Returns: A `FILE*` if the file was successfully opened, or %NULL if
  *     an error occurred
- * 
+ *
  * Since: 2.6
  */
 FILE *
@@ -1615,12 +1615,12 @@ g_fopen (const gchar *filename,
  *
  * A wrapper for the POSIX freopen() function. The freopen() function
  * opens a file and associates it with an existing stream.
- * 
+ *
  * See your C library manual for more details about freopen().
  *
  * Returns: A FILE* if the file was successfully opened, or %NULL if
  *     an error occurred.
- * 
+ *
  * Since: 2.6
  */
 FILE *
@@ -1709,12 +1709,12 @@ g_fsync (gint fd)
  *
  * A wrapper for the POSIX utime() function. The utime() function
  * sets the access and modification timestamps of a file.
- * 
+ *
  * See your C library manual for more details about how utime() works
  * on your system.
  *
  * Returns: 0 if the operation was successful, -1 if an error occurred
- * 
+ *
  * Since: 2.18
  */
 int
@@ -1731,7 +1731,7 @@ g_utime (const gchar    *filename,
       errno = EINVAL;
       return -1;
     }
-  
+
   retval = _wutime (wfilename, (struct _utimbuf*) utb);
   save_errno = errno;
 
@@ -1840,68 +1840,6 @@ g_close (gint       fd,
 
   return TRUE;
 }
-
-/**
- * g_clear_fd: (skip)
- * @fd_ptr: (not optional) (inout) (transfer full): a pointer to a file descriptor
- * @error: Used to return an error on failure
- *
- * If @fd_ptr points to a file descriptor, close it and return
- * whether closing it was successful, like g_close().
- * If @fd_ptr points to a negative number, return %TRUE without closing
- * anything.
- * In both cases, set @fd_ptr to `-1` before returning.
- *
- * Like g_close(), if closing the file descriptor fails, the error is
- * stored in both %errno and @error. If this function succeeds,
- * %errno is undefined.
- *
- * On POSIX platforms, this function is async-signal safe
- * if @error is %NULL and @fd_ptr points to either a negative number or a
- * valid open file descriptor.
- * This makes it safe to call from a signal handler or a #GSpawnChildSetupFunc
- * under those conditions.
- * See [`signal(7)`](man:signal(7)) and
- * [`signal-safety(7)`](man:signal-safety(7)) for more details.
- *
- * It is a programming error for @fd_ptr to point to a non-negative
- * number that is not a valid file descriptor.
- *
- * A typical use of this function is to clean up a file descriptor at
- * the end of its scope, whether it has been set successfully or not:
- *
- * |[
- * gboolean
- * operate_on_fd (GError **error)
- * {
- *   gboolean ret = FALSE;
- *   int fd = -1;
- *
- *   fd = open_a_fd (error);
- *
- *   if (fd < 0)
- *     goto out;
- *
- *   if (!do_something (fd, error))
- *     goto out;
- *
- *   if (!g_clear_fd (&fd, error))
- *     goto out;
- *
- *   ret = TRUE;
- *
- * out:
- *   // OK to call even if fd was never opened or was already closed
- *   g_clear_fd (&fd, NULL);
- *   return ret;
- * }
- * ]|
- *
- * This function is also useful in conjunction with #g_autofd.
- *
- * Returns: %TRUE on success
- * Since: 2.76
- */
 
 /**
  * g_autofd: (skip)

@@ -8,14 +8,14 @@
 #include "config_win32.h"
 
 #define XDG_PREFIX _gio_xdg
-#define GLIB_RUNSTATEDIR "/usr/local/glib/var/run"
-#define GLIB_LOCALE_DIR "/usr/local/glib/share/locale"
-#define GDK_PIXBUF_LIBDIR "/usr/local/gdk_pixbuf/lib"
-#define GDK_PIXBUF_LOCALEDIR "/usr/local/gdk_pixbuf/share/locale"
+#define GLIB_RUNSTATEDIR "/usr64/local/glib/var/run"
+#define GLIB_LOCALE_DIR "/usr64/local/glib/share/locale"
+#define GDK_PIXBUF_LIBDIR "/usr64/local/gdk_pixbuf/lib"
+#define GDK_PIXBUF_LOCALEDIR "/usr64/local/gdk_pixbuf/share/locale"
 //#define G_LOG_DOMAIN "GLib-GIO"
-#define GIO_LAUNCH_DESKTOP "/usr/local/gio/share/applications"
+#define GIO_LAUNCH_DESKTOP "/usr64/local/gio/share/applications"
 #define GIO_MODULE_DIR ""
-#define LOCALSTATEDIR "/usr/local/gio/var"
+#define LOCALSTATEDIR "/usr64/local/gio/var"
 #define GDK_PIXBUF_BINARY_VERSION "2.10"
 #define HAVE_ROUND 1
 #define HAVE_LRINT 1
@@ -246,11 +246,11 @@
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "glib"
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "glib 2.83.0-2c7624f"
+#define PACKAGE_STRING "glib 2.83.0-e53659d"
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "glib"
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.83.0-2c7624f"
+#define PACKAGE_VERSION "2.83.0-e53659d"
 /* Maximum POSIX RT priority */
 /* #undef POSIX_MAX_PRIORITY */
 /* Minimum POSIX RT priority */
