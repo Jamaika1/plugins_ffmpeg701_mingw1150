@@ -53,7 +53,7 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif /* HAVE_SYS_SELECT_H */
-#include <glib/gstdio.h>
+#include "gstdio.h"
 
 #include "gmain.h"
 #include "gpattern.h"
@@ -403,7 +403,7 @@
  * The advantage of this macro is that it can produce a message that
  * includes the actual values of @s1 and @s2.
  *
- * |[<!-- language="C" --> 
+ * |[<!-- language="C" -->
  *   g_assert_cmpstr (mystring, ==, "fubar");
  * ]|
  *
@@ -745,9 +745,9 @@ static GPrintFunc g_default_print_func = NULL;
 
 enum
 {
-  G_TEST_CASE_LARGS_RESULT = 0,
-  G_TEST_CASE_LARGS_RUN_FORKS = 1,
-  G_TEST_CASE_LARGS_EXECUTION_TIME = 2,
+  G_TEST_CASE_LARGS_RESULT = 0,  /* a GTestResult */
+  G_TEST_CASE_LARGS_RUN_FORKS = 1,  /* a gint */
+  G_TEST_CASE_LARGS_EXECUTION_TIME = 2,  /* a gdouble */
 
   G_TEST_CASE_LARGS_MAX
 };
@@ -972,7 +972,7 @@ g_test_log (GTestLogType lbit,
       break;
     case G_TEST_LOG_STOP_CASE:
       result = largs[G_TEST_CASE_LARGS_RESULT];
-      timing = largs[G_TEST_CASE_LARGS_EXECUTION_TIME];
+      timing = (gdouble) largs[G_TEST_CASE_LARGS_EXECUTION_TIME];
       fail = result == G_TEST_RUN_FAILURE;
       if (test_tap_log)
         {
@@ -1941,7 +1941,7 @@ g_test_rand_int (void)
  * see g_test_rand_int() for details on test case random numbers.
  *
  * Returns: a number with @begin <= number < @end.
- * 
+ *
  * Since: 2.16
  */
 gint32
@@ -2523,7 +2523,7 @@ g_test_add_vtable (const char       *testpath,
  * Indicates that a test failed. This function can be called
  * multiple times from the same test. You can use this function
  * if your test failed in a recoverable way.
- * 
+ *
  * Do not use this function if the failure of a test could cause
  * other tests to malfunction.
  *
@@ -3823,7 +3823,7 @@ wait_for_child (GPid pid,
  * The forking parent process then asserts successful child program
  * termination and validates child program outputs.
  *
- * |[<!-- language="C" --> 
+ * |[<!-- language="C" -->
  *   static void
  *   test_fork_patterns (void)
  *   {
@@ -3979,7 +3979,7 @@ g_test_trap_subprocess (const char           *test_path,
  * check the results of the subprocess. (But note that
  * g_test_trap_assert_stdout() and g_test_trap_assert_stderr()
  * cannot be used if @test_flags specifies that the child should
- * inherit the parent stdout/stderr.) 
+ * inherit the parent stdout/stderr.)
  *
  * If your `main ()` needs to behave differently in
  * the subprocess, you can call g_test_subprocess() (after calling
@@ -3994,7 +3994,7 @@ g_test_trap_subprocess (const char           *test_path,
  * `my_object_new(1000000)` will abort with an error
  * message.
  *
- * |[<!-- language="C" --> 
+ * |[<!-- language="C" -->
  *   static void
  *   test_create_large_object (void)
  *   {
@@ -4371,7 +4371,7 @@ g_test_log_dump (GTestLogMsg *msg,
       g_string_append_len (gstring, msg->strings[ui], l);
     }
   for (ui = 0; ui < msg->n_nums; ui++)
-    gstring_append_double (gstring, msg->nums[ui]);
+    gstring_append_double (gstring, (gdouble) msg->nums[ui]);
   *len = gstring->len;
   gstring_overwrite_int (gstring, 0, *len);     /* message length */
   return (guint8*) g_string_free (gstring, FALSE);

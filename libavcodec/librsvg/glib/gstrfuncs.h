@@ -34,10 +34,10 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include <glib/gmacros.h>
-#include <glib/gtypes.h>
-#include <glib/gerror.h>
-#include <glib/gmem.h>
+#include "gmacros.h"
+#include "gtypes.h"
+#include "gerror.h"
+#include "gmem.h"
 
 G_BEGIN_DECLS
 
@@ -290,9 +290,9 @@ gchar*	              g_strdup_vprintf (const gchar *format,
 					va_list      args) G_GNUC_PRINTF(1, 0) G_GNUC_MALLOC;
 GLIB_AVAILABLE_IN_ALL
 gchar*	              g_strndup	       (const gchar *str,
-					gsize        n) G_GNUC_MALLOC;  
+					gsize        n) G_GNUC_MALLOC;
 GLIB_AVAILABLE_IN_ALL
-gchar*	              g_strnfill       (gsize        length,  
+gchar*	              g_strnfill       (gsize        length,
 					gchar        fill_char) G_GNUC_MALLOC;
 GLIB_AVAILABLE_IN_ALL
 gchar*	              g_strconcat      (const gchar *string1,
@@ -475,6 +475,10 @@ gboolean              g_ascii_string_to_unsigned   (const gchar  *str,
  *
  * Since: 2.76
  */
+GLIB_AVAILABLE_STATIC_INLINE_IN_2_76
+static inline gboolean g_set_str (char       **str_pointer,
+                                  const char  *new_str);
+
 GLIB_AVAILABLE_STATIC_INLINE_IN_2_76
 static inline gboolean
 g_set_str (char       **str_pointer,

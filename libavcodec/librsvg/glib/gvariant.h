@@ -27,9 +27,9 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include <glib/gvarianttype.h>
-#include <glib/gstring.h>
-#include <glib/gbytes.h>
+#include "gvarianttype.h"
+#include "gstring.h"
+#include "gbytes.h"
 
 G_BEGIN_DECLS
 
@@ -381,6 +381,9 @@ GLIB_AVAILABLE_IN_ALL
 GVariantBuilder *               g_variant_builder_ref                   (GVariantBuilder      *builder);
 GLIB_AVAILABLE_IN_ALL
 void                            g_variant_builder_init                  (GVariantBuilder      *builder,
+                                                                         const GVariantType   *type);
+GLIB_AVAILABLE_IN_2_84
+void                            g_variant_builder_init_static           (GVariantBuilder      *builder,
                                                                          const GVariantType   *type);
 GLIB_AVAILABLE_IN_ALL
 GVariant *                      g_variant_builder_end                   (GVariantBuilder      *builder);

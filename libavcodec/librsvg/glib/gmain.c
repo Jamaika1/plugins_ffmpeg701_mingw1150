@@ -48,6 +48,15 @@
 #define G_MAIN_POLL_DEBUG
 #endif
 
+/* We need to include this as early as possible, because on some
+ * platforms like AIX, <poll.h> redefines the names we use for
+ * GPollFD struct members.
+ * See https://gitlab.gnome.org/GNOME/glib/-/issues/3500 */
+
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+
 #ifdef G_OS_UNIX
 #include "glib-unix.h"
 #include <pthread.h>
@@ -68,10 +77,6 @@
 #endif /* G_OS_UNIX */
 #include <errno.h>
 #include <string.h>
-
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
 
 #ifdef HAVE_PIDFD
 #include <sys/syscall.h>
@@ -96,9 +101,8 @@
 #endif  /* HAVE_PIDFD */
 
 #ifdef G_OS_WIN32
-#define STRICT
 #include <windows.h>
-#endif /* G_OS_WIN32 */
+#endif
 
 #ifdef HAVE_MACH_MACH_TIME_H
 #include <mach/mach_time.h>
@@ -6571,24 +6575,3 @@ g_get_worker_context (void)
   return glib_worker_context;
 }
 
-/**
- * g_steal_fd:
- * @fd_ptr: (not optional) (inout): A pointer to a file descriptor
- *
- * Sets @fd_ptr to `-1`, returning the value that was there before.
- *
- * Conceptually, this transfers the ownership of the file descriptor
- * from the referenced variable to the caller of the function (i.e.
- * ‘steals’ the reference). This is very similar to [func@GLib.steal_pointer],
- * but for file descriptors.
- *
- * On POSIX platforms, this function is async-signal safe
- * (see [`signal(7)`](man:signal(7)) and
- * [`signal-safety(7)`](man:signal-safety(7))), making it safe to call from a
- * signal handler or a #GSpawnChildSetupFunc.
- *
- * This function preserves the value of `errno`.
- *
- * Returns: the value that @fd_ptr previously had
- * Since: 2.70
- */

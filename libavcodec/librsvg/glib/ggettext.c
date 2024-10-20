@@ -21,7 +21,7 @@
  * Modified by the GLib Team and others 1997-2000.  See the AUTHORS
  * file for a list of people on the GLib Team.  See the ChangeLog
  * files for a list of changes.  These files are distributed with
- * GLib at ftp://ftp.gtk.org/pub/gtk/. 
+ * GLib at ftp://ftp.gtk.org/pub/gtk/.
  */
 
 #include "config.h"
@@ -239,6 +239,10 @@ g_dpgettext (const gchar *domain,
 
           translation = g_dgettext (domain, tmp);
 
+          /* g_dgettext() may return the value we pass to it, which will be on
+           * this stack frame since we allocated it with g_alloca(). If so, we
+           * return a pointer into our original input instead.
+           */
           if (translation == tmp)
             return sep + 1;
         }
@@ -296,6 +300,10 @@ g_dpgettext2 (const gchar *domain,
       msg_ctxt_id[msgctxt_len - 1] = '|';
       translation = g_dgettext (domain, msg_ctxt_id);
 
+      /* g_dgettext() may return the value we pass to it, which will be on this
+       * stack frame since we allocated it with g_alloca(). If so, we return our
+       * original input instead.
+       */
       if (translation == msg_ctxt_id)
         return msgid;
     }
@@ -374,7 +382,7 @@ _g_dgettext_should_translate (void)
  *
  * This function disables translations if and only if upon its first
  * call all the following conditions hold:
- * 
+ *
  * - @domain is not %NULL
  *
  * - textdomain() has been called to set a default text domain

@@ -31,8 +31,8 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include <glib/gutils.h>
-#include <glib/glib-typeof.h>
+#include "gutils.h"
+#include "glib-typeof.h"
 
 G_BEGIN_DECLS
 
@@ -44,7 +44,7 @@ G_BEGIN_DECLS
  * @calloc: function to use for allocating zero-filled memory.
  * @try_malloc: function to use for allocating memory without a default error handler.
  * @try_realloc: function to use for reallocating memory without a default error handler.
- * 
+ *
  * A set of functions used to perform memory allocation. The same #GMemVTable must
  * be used for all allocations in the same program; a call to g_mem_set_vtable(),
  * if it exists, should be prior to any use of GLib.
@@ -230,6 +230,9 @@ void     g_aligned_free_sized (gpointer  mem,
  * Since: 2.44
  */
 GLIB_AVAILABLE_STATIC_INLINE_IN_2_44
+static inline gpointer g_steal_pointer (gpointer pp);
+
+GLIB_AVAILABLE_STATIC_INLINE_IN_2_44
 static inline gpointer
 g_steal_pointer (gpointer pp)
 {
@@ -300,16 +303,16 @@ g_steal_pointer (gpointer pp)
  * g_new:
  * @struct_type: the type of the elements to allocate
  * @n_structs: the number of elements to allocate
- * 
+ *
  * Allocates @n_structs elements of type @struct_type.
  * The returned pointer is cast to a pointer to the given type.
  * If @n_structs is 0 it returns %NULL.
  * Care is taken to avoid overflow when calculating the size of the allocated block.
- * 
+ *
  * Since the returned pointer is already casted to the right type,
  * it is normally unnecessary to cast it explicitly, and doing
  * so might hide memory allocation errors.
- * 
+ *
  * Returns: a pointer to the allocated memory, cast to a pointer to @struct_type
  */
 #define g_new(struct_type, n_structs)			_G_NEW (struct_type, n_structs, malloc)
@@ -317,16 +320,16 @@ g_steal_pointer (gpointer pp)
  * g_new0:
  * @struct_type: the type of the elements to allocate.
  * @n_structs: the number of elements to allocate.
- * 
+ *
  * Allocates @n_structs elements of type @struct_type, initialized to 0's.
  * The returned pointer is cast to a pointer to the given type.
  * If @n_structs is 0 it returns %NULL.
  * Care is taken to avoid overflow when calculating the size of the allocated block.
- * 
+ *
  * Since the returned pointer is already casted to the right type,
  * it is normally unnecessary to cast it explicitly, and doing
  * so might hide memory allocation errors.
- * 
+ *
  * Returns: a pointer to the allocated memory, cast to a pointer to @struct_type.
  */
 #define g_new0(struct_type, n_structs)			_G_NEW (struct_type, n_structs, malloc0)
@@ -335,12 +338,12 @@ g_steal_pointer (gpointer pp)
  * @struct_type: the type of the elements to allocate
  * @mem: the currently allocated memory
  * @n_structs: the number of elements to allocate
- * 
+ *
  * Reallocates the memory pointed to by @mem, so that it now has space for
  * @n_structs elements of type @struct_type. It returns the new address of
  * the memory, which may have been moved.
  * Care is taken to avoid overflow when calculating the size of the allocated block.
- * 
+ *
  * Returns: a pointer to the new allocated memory, cast to a pointer to @struct_type
  */
 #define g_renew(struct_type, mem, n_structs)		_G_RENEW (struct_type, mem, n_structs, realloc)
@@ -348,12 +351,12 @@ g_steal_pointer (gpointer pp)
  * g_try_new:
  * @struct_type: the type of the elements to allocate
  * @n_structs: the number of elements to allocate
- * 
+ *
  * Attempts to allocate @n_structs elements of type @struct_type, and returns
  * %NULL on failure. Contrast with g_new(), which aborts the program on failure.
  * The returned pointer is cast to a pointer to the given type.
  * The function returns %NULL when @n_structs is 0 of if an overflow occurs.
- * 
+ *
  * Since: 2.8
  * Returns: a pointer to the allocated memory, cast to a pointer to @struct_type
  */
@@ -362,13 +365,13 @@ g_steal_pointer (gpointer pp)
  * g_try_new0:
  * @struct_type: the type of the elements to allocate
  * @n_structs: the number of elements to allocate
- * 
+ *
  * Attempts to allocate @n_structs elements of type @struct_type, initialized
  * to 0's, and returns %NULL on failure. Contrast with g_new0(), which aborts
  * the program on failure.
  * The returned pointer is cast to a pointer to the given type.
  * The function returns %NULL when @n_structs is 0 or if an overflow occurs.
- * 
+ *
  * Since: 2.8
  * Returns: a pointer to the allocated memory, cast to a pointer to @struct_type
  */
@@ -378,13 +381,13 @@ g_steal_pointer (gpointer pp)
  * @struct_type: the type of the elements to allocate
  * @mem: the currently allocated memory
  * @n_structs: the number of elements to allocate
- * 
+ *
  * Attempts to reallocate the memory pointed to by @mem, so that it now has
  * space for @n_structs elements of type @struct_type, and returns %NULL on
  * failure. Contrast with g_renew(), which aborts the program on failure.
  * It returns the new address of the memory, which may have been moved.
  * The function returns %NULL if an overflow occurs.
- * 
+ *
  * Since: 2.8
  * Returns: a pointer to the new allocated memory, cast to a pointer to @struct_type
  */

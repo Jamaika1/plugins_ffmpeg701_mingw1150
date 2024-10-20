@@ -37,7 +37,7 @@
 #include <string.h>
 #include <locale.h>
 #include <errno.h>
-#include <garray.h>
+#include "garray.h"
 #include <ctype.h>              /* For tolower() */
 
 #ifdef HAVE_XLOCALE_H
@@ -1602,29 +1602,6 @@ g_ascii_strup (const gchar *str,
     *s = g_ascii_toupper (*s);
 
   return result;
-}
-
-/**
- * g_str_is_ascii:
- * @str: a string
- *
- * Determines if a string is pure ASCII. A string is pure ASCII if it
- * contains no bytes with the high bit set.
- *
- * Returns: true if @str is ASCII
- *
- * Since: 2.40
- */
-gboolean
-g_str_is_ascii (const gchar *str)
-{
-  gsize i;
-
-  for (i = 0; str[i]; i++)
-    if (str[i] & 0x80)
-      return FALSE;
-
-  return TRUE;
 }
 
 /**

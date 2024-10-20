@@ -22,10 +22,10 @@
  * Modified by the GLib Team and others 1997-2000.  See the AUTHORS
  * file for a list of people on the GLib Team.  See the ChangeLog
  * files for a list of changes.  These files are distributed with
- * GLib at ftp://ftp.gtk.org/pub/gtk/. 
+ * GLib at ftp://ftp.gtk.org/pub/gtk/.
  */
 
-/* 
+/*
  * MT safe for the unix part, FIXME: make the win32 part MT safe as well.
  */
 
@@ -33,7 +33,7 @@
 
 #include "glibconfig.h"
 
-#include <glib/gstdio.h>
+#include "gstdio.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -41,10 +41,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define STRICT			/* Strict typing, please */
 #include <winsock2.h>
 #include <windows.h>
-#undef STRICT
 #ifndef G_WITH_CYGWIN
 #include <direct.h>
 #endif
@@ -137,7 +135,7 @@ g_win32_getlocale (void)
   if (!GetLocaleInfoW (lcid, LOCALE_SISO639LANGNAME, iso639, sizeof (iso639)) ||
       !GetLocaleInfoW (lcid, LOCALE_SISO3166CTRYNAME, iso3166, sizeof (iso3166)))
     return g_strdup ("C");
-  
+
   /* Strip off the sorting rules, keep only the language part.  */
   langid = LANGIDFROMLCID (lcid);
 
@@ -337,9 +335,9 @@ get_package_directory_from_module (const gchar *module_name)
 
   if (module_dirs == NULL)
     module_dirs = g_hash_table_new (g_str_hash, g_str_equal);
-  
+
   fn = g_hash_table_lookup (module_dirs, module_name ? module_name : "");
-      
+
   if (fn)
     {
       G_UNLOCK (module_dirs);
@@ -366,7 +364,7 @@ get_package_directory_from_module (const gchar *module_name)
       G_UNLOCK (module_dirs);
       return NULL;
     }
-  
+
   g_hash_table_insert (module_dirs, module_name ? g_strdup (module_name) : "", fn);
 
   G_UNLOCK (module_dirs);
@@ -1067,7 +1065,7 @@ static DWORD       *exceptions_to_catch = NULL;
 static HANDLE       debugger_wakeup_event = 0;
 static DWORD        debugger_spawn_flags = 0;
 
-#include "gwin32-private.c"
+#include "extra/gwin32-private.c"
 
 static char *
 copy_chars (char       *buffer,
