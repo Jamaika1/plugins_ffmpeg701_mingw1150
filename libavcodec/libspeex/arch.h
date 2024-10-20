@@ -39,8 +39,8 @@
 #define SPEEX_MAJOR_VERSION 1         /**< Major Speex version. */
 #define SPEEX_MINOR_VERSION 2         /**< Minor Speex version. */
 #define SPEEX_MICRO_VERSION 1         /**< Micro Speex version. */
-#define SPEEX_EXTRA_VERSION "1de1260"        /**< Extra Speex version. */
-#define SPEEX_VERSION "1.2.1-1de1260"   /**< Speex version string. */
+#define SPEEX_EXTRA_VERSION "aca6801"        /**< Extra Speex version. */
+#define SPEEX_VERSION "1.2.1-aca6801"   /**< Speex version string. */
 #endif
 
 /* A couple test to catch stupid option combinations */
