@@ -906,7 +906,7 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     //for (i = 0; i < MAX_LAYERS; i++) {
         x265pic_out[0] = &x265pic[0];
         ret = ctx->api->encoder_encode(ctx->encoder, &nal, &nnal,
-                                   pic ? &x265pic[0] : NULL, &x265pic_out[0]);
+                                   pic ? &x265pic[0] : NULL, x265pic_out[0]);
     //}
 #else
     ret = ctx->api->encoder_encode(ctx->encoder, &nal, &nnal,

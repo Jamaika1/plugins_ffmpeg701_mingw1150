@@ -52,11 +52,11 @@ typedef struct VVenCContext {
     bool             encode_done;
     int   preset;
     int   qp;
-    int   qpa;
-    int   intra_refresh_sec;
-    char *level;
+    bool  qpa;
+    int   refreshsec;
+    char* level;
     int   tier;
-    char *stats;
+    char* stats;
     AVDictionary *vvenc_opts;
 } VVenCContext;
 
@@ -276,8 +276,10 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (avctx->gop_size == 1) {
         params.m_GOPSize = 1;
         params.m_IntraPeriod = 1;
-    } else
-        params.m_IntraPeriodSec = s->intra_refresh_sec;
+    } else {
+        //params.m_IntraPeriodSec = s->refreshsec;
+        params.m_IntraPeriod = 256;
+    }
 
     params.m_AccessUnitDelimiter = true;
     params.m_usePerceptQPA = s->qpa;
@@ -439,22 +441,24 @@ static const enum AVPixelFormat pix_fmts_vvenc[] = {
 #define OFFSET(x) offsetof(VVenCContext, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
-    { "preset",       "set encoding preset", OFFSET(preset), AV_OPT_TYPE_INT, {.i64 = 2}, 0, 4, VE, "preset"},
-    { "faster",       "0", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_FASTER}, INT_MIN, INT_MAX, VE, "preset" },
-    { "fast",         "1", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_FAST},   INT_MIN, INT_MAX, VE, "preset" },
-    { "medium",       "2", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_MEDIUM}, INT_MIN, INT_MAX, VE, "preset" },
-    { "slow",         "3", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_SLOW},   INT_MIN, INT_MAX, VE, "preset" },
-    { "slower",       "4", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_SLOWER}, INT_MIN, INT_MAX, VE, "preset" },
+    { "preset",       "set encoding preset", OFFSET(preset), AV_OPT_TYPE_INT, {.i64 = 2}, 0, 4, VE, .unit = "preset"},
+    { "faster",       "0", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_FASTER}, INT_MIN, INT_MAX, VE, .unit = "preset" },
+    { "fast",         "1", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_FAST},   INT_MIN, INT_MAX, VE, .unit = "preset" },
+    { "medium",       "2", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_MEDIUM}, INT_MIN, INT_MAX, VE, .unit = "preset" },
+    { "slow",         "3", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_SLOW},   INT_MIN, INT_MAX, VE, .unit = "preset" },
+    { "slower",       "4", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_SLOWER}, INT_MIN, INT_MAX, VE, .unit = "preset" },
+
     { "qp",           "set quantization",          OFFSET(qp), AV_OPT_TYPE_INT,  {.i64 = 32}, -1, 63, VE },
     { "qpa",          "set subjective (perceptually motivated) optimization", OFFSET(qpa), AV_OPT_TYPE_BOOL, {.i64 = 1},  0, 1, VE},
-    { "passlogfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
-    { "stats",        "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
-    { "period",       "set (intra) refresh period in seconds", OFFSET(intra_refresh_sec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
+    //{ "passlogfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
+    { "rcstatsfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
+    { "refreshsec",   "set (intra) refresh period in seconds", OFFSET(refreshsec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
-    { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
-    { "tier",         "set vvc tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = 0},  0, 1, VE, "tier"},
-    { "main",         "main", 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, "tier"},
-    { "high",         "high", 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, "tier"},
+    { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = "auto"}, 0, 0, VE},
+
+    { "tier",         "set vvc tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = 0},  0, 1, VE,  .unit = "tier"},
+    { "main",         "main", 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE,  .unit = "tier"},
+    { "high",         "high", 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE,  .unit = "tier"},
     {NULL}
 };
 
