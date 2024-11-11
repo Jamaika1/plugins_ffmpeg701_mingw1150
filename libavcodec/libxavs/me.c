@@ -71,41 +71,41 @@ static void refine_subpel (xavs_t * h, xavs_me_t * m, int hpel_iters, int qpel_i
 {\
     uint8_t *pix_base = p_fref + bmx + bmy*m->i_stride[0];\
     h->pixf.sad_x3[i_pixel]( m->p_fenc[0],\
-        pix_base + (m0x) + (m0y)*m->i_stride[0],\
-        pix_base + (m1x) + (m1y)*m->i_stride[0],\
-        pix_base + (m2x) + (m2y)*m->i_stride[0],\
+        (pix_base + (m0x) + (m0y)*m->i_stride[0]),\
+        (pix_base + (m1x) + (m1y)*m->i_stride[0]),\
+        (pix_base + (m2x) + (m2y)*m->i_stride[0]),\
         m->i_stride[0], costs );\
-    (costs)[0] += BITS_MVD( bmx+(m0x), bmy+(m0y) );\
-    (costs)[1] += BITS_MVD( bmx+(m1x), bmy+(m1y) );\
-    (costs)[2] += BITS_MVD( bmx+(m2x), bmy+(m2y) );\
+    (costs)[0] += BITS_MVD( (bmx + (m0x)), (bmy + (m0y)) );\
+    (costs)[1] += BITS_MVD( (bmx + (m1x)), (bmy + (m1y)) );\
+    (costs)[2] += BITS_MVD( (bmx + (m2x)), (bmy + (m2y)) );\
 }
 
 #define COST_MV_X4( m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y )\
 {\
     uint8_t *pix_base = p_fref + omx + omy*m->i_stride[0];\
     h->pixf.sad_x4[i_pixel]( m->p_fenc[0],\
-        pix_base + (m0x) + (m0y)*m->i_stride[0],\
-        pix_base + (m1x) + (m1y)*m->i_stride[0],\
-        pix_base + (m2x) + (m2y)*m->i_stride[0],\
-        pix_base + (m3x) + (m3y)*m->i_stride[0],\
+        (pix_base + (m0x) + (m0y)*m->i_stride[0]),\
+        (pix_base + (m1x) + (m1y)*m->i_stride[0]),\
+        (pix_base + (m2x) + (m2y)*m->i_stride[0]),\
+        (pix_base + (m3x) + (m3y)*m->i_stride[0]),\
         m->i_stride[0], costs );\
-    costs[0] += BITS_MVD( omx+(m0x), omy+(m0y) );\
-    costs[1] += BITS_MVD( omx+(m1x), omy+(m1y) );\
-    costs[2] += BITS_MVD( omx+(m2x), omy+(m2y) );\
-    costs[3] += BITS_MVD( omx+(m3x), omy+(m3y) );\
-    COPY3_IF_LT( bcost, costs[0], bmx, omx+(m0x), bmy, omy+(m0y) );\
-    COPY3_IF_LT( bcost, costs[1], bmx, omx+(m1x), bmy, omy+(m1y) );\
-    COPY3_IF_LT( bcost, costs[2], bmx, omx+(m2x), bmy, omy+(m2y) );\
-    COPY3_IF_LT( bcost, costs[3], bmx, omx+(m3x), bmy, omy+(m3y) );\
+    costs[0] += BITS_MVD( (omx + (m0x)), (omy + (m0y)) );\
+    costs[1] += BITS_MVD( (omx + (m1x)), (omy + (m1y)) );\
+    costs[2] += BITS_MVD( (omx + (m2x)), (omy + (m2y)) );\
+    costs[3] += BITS_MVD( (omx + (m3x)), (omy + (m3y)) );\
+    COPY3_IF_LT( bcost, costs[0], bmx, (omx + (m0x)), bmy, (omy + (m0y)) );\
+    COPY3_IF_LT( bcost, costs[1], bmx, (omx + (m1x)), bmy, (omy + (m1y)) );\
+    COPY3_IF_LT( bcost, costs[2], bmx, (omx + (m2x)), bmy, (omy + (m2y)) );\
+    COPY3_IF_LT( bcost, costs[3], bmx, (omx + (m3x)), bmy, (omy + (m3y)) );\
 }
 
 #define COST_MV_X4_ABS( m0x, m0y, m1x, m1y, m2x, m2y, m3x, m3y )\
 {\
     h->pixf.sad_x4[i_pixel]( m->p_fenc[0],\
-        p_fref + (m0x) + (m0y)*m->i_stride[0],\
-        p_fref + (m1x) + (m1y)*m->i_stride[0],\
-        p_fref + (m2x) + (m2y)*m->i_stride[0],\
-        p_fref + (m3x) + (m3y)*m->i_stride[0],\
+        (p_fref + (m0x) + (m0y)*m->i_stride[0]),\
+        (p_fref + (m1x) + (m1y)*m->i_stride[0]),\
+        (p_fref + (m2x) + (m2y)*m->i_stride[0]),\
+        (p_fref + (m3x) + (m3y)*m->i_stride[0]),\
         m->i_stride[0], costs );\
     costs[0] += BITS_MVD( m0x, m0y );\
     costs[1] += BITS_MVD( m1x, m1y );\
@@ -123,32 +123,32 @@ static void refine_subpel (xavs_t * h, xavs_me_t * m, int hpel_iters, int qpel_i
 #define DIA1_ITER( mx, my )\
 {\
     omx = mx; omy = my;\
-    COST_MV_X4( 0,-1, 0,1, -1,0, 1,0 );\
+    COST_MV_X4( 0, -1, 0, 1, -1, 0, 1, 0 );\
 }
 
 #define CROSS( start, x_max, y_max )\
 {\
     i = start;\
-    if( x_max <= XAVS_MIN(mv_x_max-omx, omx-mv_x_min) )\
-        for( ; i < x_max-2; i+=4 )\
-            COST_MV_X4( i,0, -i,0, i+2,0, -i-2,0 );\
+    if( x_max <= XAVS_MIN((mv_x_max - omx), (omx - mv_x_min)) )\
+        for( ; i < (x_max - 2); i+=4 )\
+            COST_MV_X4( i, 0, -i, 0, (i + 2), 0, (-i - 2),0 );\
     for( ; i < x_max; i+=2 )\
     {\
         if( omx+i <= mv_x_max )\
-            COST_MV( omx+i, omy );\
+            COST_MV( (omx + i), omy );\
         if( omx-i >= mv_x_min )\
-            COST_MV( omx-i, omy );\
+            COST_MV( (omx - i), omy );\
     }\
     i = start;\
-    if( y_max <= XAVS_MIN(mv_y_max-omy, omy-mv_y_min) )\
-        for( ; i < y_max-2; i+=4 )\
-            COST_MV_X4( 0,i, 0,-i, 0,i+2, 0,-i-2 );\
+    if( y_max <= XAVS_MIN((mv_y_max - omy), (omy - mv_y_min)) )\
+        for( ; i < (y_max - 2); i+=4 )\
+            COST_MV_X4( 0, i, 0, -i, 0, (i + 2), 0, (-i - 2) );\
     for( ; i < y_max; i+=2 )\
     {\
         if( omy+i <= mv_y_max )\
-            COST_MV( omx, omy+i );\
+            COST_MV( omx, (omy + i) );\
         if( omy-i >= mv_y_min )\
-            COST_MV( omx, omy-i );\
+            COST_MV( omx, (omy - i) );\
     }\
 }
 
@@ -175,7 +175,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
 
   if (h->mb.i_me_method == XAVS_ME_UMH)
   {
-    // clamp mvp to inside frame+padding, so that we don't have to check it each iteration 
+    // clamp mvp to inside frame+padding, so that we don't have to check it each iteration
     p_cost_mvx = m->p_cost_mv - xavs_clip3 (m->mvp[0], h->mb.mv_min_spel[0], h->mb.mv_max_spel[0]);
     p_cost_mvy = m->p_cost_mv - xavs_clip3 (m->mvp[1], h->mb.mv_min_spel[1], h->mb.mv_max_spel[1]);
   }
@@ -184,10 +184,10 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
   bmy = pmy = xavs_clip3 ((m->mvp[1] + 2) >> 2, mv_y_min, mv_y_max);
   bcost = COST_MAX;
   COST_MV (pmx, pmy);
-  // I don't know why this helps 
+  // I don't know why this helps
   bcost -= BITS_MVD (bmx, bmy);
 
-  // try extra predictors if provided 
+  // try extra predictors if provided
   for (i = 0; i < i_mvc; i++)
   {
     const int mx = xavs_clip3 ((mvc[i][0] + 2) >> 2, mv_x_min, mv_x_max);
@@ -206,7 +206,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
   switch (h->mb.i_me_method)
   {
   case XAVS_ME_DIA:
-    // diamond search, radius 1 
+    // diamond search, radius 1
     for (i = 0; i < i_me_range; i++)
     {
       DIA1_ITER (bmx, bmy);
@@ -217,7 +217,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
 
   case XAVS_ME_HEX:
   me_hex2:
-    // hexagon search, radius 2 
+    // hexagon search, radius 2
 #if 0
     for (i = 0; i < i_me_range / 2; i++)
     {
@@ -233,10 +233,10 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
         break;
     }
 #else
-    // equivalent to the above, but eliminates duplicate candidates 
+    // equivalent to the above, but eliminates duplicate candidates
     dir = -2;
 
-    // hexagon 
+    // hexagon
     COST_MV_X3_DIR (-2, 0, -1, 2, 1, 2, costs);
     COST_MV_X3_DIR (2, 0, 1, -2, -1, -2, costs + 3);
     COPY2_IF_LT (bcost, costs[0], dir, 0);
@@ -251,7 +251,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
       static const int hex2[8][2] = { {-1, -2}, {-2, 0}, {-1, 2}, {1, 2}, {2, 0}, {1, -2}, {-1, -2}, {-2, 0} };
       bmx += hex2[dir + 1][0];
       bmy += hex2[dir + 1][1];
-      // half hexagon, not overlapping the previous iteration 
+      // half hexagon, not overlapping the previous iteration
       for (i = 1; i < i_me_range / 2; i++)
       {
         static const int mod6[8] = { 5, 0, 1, 2, 3, 4, 5, 0 };
@@ -268,7 +268,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
       }
     }
 #endif
-    // square refine 
+    // square refine
     omx = bmx;
     omy = bmy;
     COST_MV_X4 (0, -1, 0, 1, -1, 0, 1, 0);
@@ -278,14 +278,14 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
   case XAVS_ME_UMH:
     {
       // Uneven-cross Multi-Hexagon-grid Search
-      // as in JM, except with different early termination 
+      // as in JM, except with different early termination
 
       static const int xavs_pixel_size_shift[7] = { 0, 1, 1, 2, 3, 3, 4 };
 
       int ucost1, ucost2;
       int cross_start = 1;
 
-      // refine predictors 
+      // refine predictors
       ucost1 = bcost;
       DIA1_ITER (pmx, pmy);
       if (pmx || pmy)
@@ -302,7 +302,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
       omx = bmx;
       omy = bmy;
 
-      // early termination 
+      // early termination
 #define SAD_THRESH(v) ( bcost < ( v >> xavs_pixel_size_shift[i_pixel] ) )
       if (bcost == ucost2 && SAD_THRESH (2000))
       {
@@ -322,12 +322,12 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
         }
       }
 
-      // adaptive search range 
+      // adaptive search range
       if (i_mvc)
       {
         // range multipliers based on casual inspection of some statistics of
         // average distance between current predictor and final mv found by ESA.
-        // these have not been tuned much by actual encoding. 
+        // these have not been tuned much by actual encoding.
         static const int range_mul[4][4] = {
           {3, 3, 4, 4},
           {3, 4, 4, 4},
@@ -341,16 +341,16 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
         {
           if (i_pixel == PIXEL_16x16)
             // mvc is probably the same as mvp, so the difference isn't meaningful.
-            // but prediction usually isn't too bad, so just use medium range 
+            // but prediction usually isn't too bad, so just use medium range
             mvd = 25;
           else
             mvd = abs (m->mvp[0] - mvc[0][0]) + abs (m->mvp[1] - mvc[0][1]);
         }
         else
         {
-          // calculate the degree of agreement between predictors. 
+          // calculate the degree of agreement between predictors.
           //in 16x16, mvc includes all the neighbors used to make mvp,
-          //so don't count mvp separately. 
+          //so don't count mvp separately.
           int i_denom = i_mvc - 1;
           mvd = 0;
           if (i_pixel != PIXEL_16x16)
@@ -370,10 +370,10 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
       }
 
       // FIXME if the above DIA2/OCT2/CROSS found a new mv, it has not updated omx/omy.
-      // we are still centered on the same place as the DIA2. is this desirable? 
+      // we are still centered on the same place as the DIA2. is this desirable?
       CROSS (cross_start, i_me_range, i_me_range / 2);
 
-      // 5x5 ESA 
+      // 5x5 ESA
       omx = bmx;
       omy = bmy;
       if (bcost != ucost2)
@@ -384,7 +384,7 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
       COST_MV_X4 (-2, 1, -2, 0, -2, -1, -2, -2);
       COST_MV_X4 (-1, -2, 0, -2, 1, -2, 2, -2);
 
-      // hexagon grid 
+      // hexagon grid
       omx = bmx;
       omy = bmy;
       for (i = 1; i <= i_me_range / 4; i++)
@@ -425,13 +425,13 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
       const int max_y = XAVS_MIN (bmy + i_me_range, mv_y_max);
       int mx, my;
 #if 0
-      // plain old exhaustive search 
+      // plain old exhaustive search
       for (my = min_y; my <= max_y; my++)
         for (mx = min_x; mx <= max_x; mx++)
           COST_MV (mx, my);
 #else
       // successive elimination by comparing DC before a full SAD,
-      // because sum(abs(diff)) >= abs(diff(sum)). 
+      // because sum(abs(diff)) >= abs(diff(sum)).
       const int stride = m->i_stride[0];
       const int dw = xavs_pixel_size[i_pixel].w;
       const int dh = xavs_pixel_size[i_pixel].h * stride;
@@ -466,17 +466,17 @@ xavs_me_search_ref (xavs_t * h, xavs_me_t * m, int (*mvc)[2], int i_mvc, int *p_
     break;
   }
 
-  // -> qpel mv 
+  // -> qpel mv
   m->mv[0] = bmx << 2;
   m->mv[1] = bmy << 2;
 
-  // compute the real cost 
+  // compute the real cost
   m->cost_mv = p_cost_mvx[m->mv[0]] + p_cost_mvy[m->mv[1]];
   m->cost = bcost;
   if (bmx == pmx && bmy == pmy)
     m->cost += m->cost_mv;
 
-  // subpel refine 
+  // subpel refine
   if (h->mb.i_subpel_refine >= 2)
   {
     int hpel = subpel_iterations[h->mb.i_subpel_refine][2];
@@ -767,7 +767,7 @@ xavs_me_refine_bidir (xavs_t * h, xavs_me_t * m0, xavs_me_t * m1, int i_weight)
 }
 #define COST_MV_RD( mx, my, satd, do_dir, mdir ) \
 { \
-    if( satd < bsatd * SATD_THRESH ) \
+    if( (satd < (bsatd * SATD_THRESH)) /*&& (satd == 0)*/) \
     { \
         int cost; \
         cache_mv[0] = cache_mv2[0] = mx; \
@@ -810,13 +810,13 @@ xavs_me_refine_qpel_rd (xavs_t * h, xavs_me_t * m, int i_lambda2, int i4, int i_
   COST_MV_SATD (bmx, bmy, bsatd, 0);
   COST_MV_RD (bmx, bmy, 0, 0, 0);
 
-  // check the predicted mv 
+  // check the predicted mv
   if ((bmx != pmx || bmy != pmy) && pmx >= h->mb.mv_min_spel[0] && pmx <= h->mb.mv_max_spel[0] && pmy >= h->mb.mv_min_spel[1] && pmy <= h->mb.mv_max_spel[1])
   {
     COST_MV_SATD (pmx, pmy, satd, 0);
     COST_MV_RD (pmx, pmy, satd, 0, 0);
     // The hex motion search is guaranteed to not repeat the center candidate,
-    //so if pmv is chosen, set the "MV to avoid checking" to bmv instead. 
+    //so if pmv is chosen, set the "MV to avoid checking" to bmv instead.
     if (bmx == pmx && bmy == pmy)
     {
       pmx = m->mv[0];
@@ -838,7 +838,7 @@ xavs_me_refine_qpel_rd (xavs_t * h, xavs_me_t * m, int i_lambda2, int i4, int i_
 
   if (dir != -2)
   {
-    // half hexagon, not overlapping the previous iteration 
+    // half hexagon, not overlapping the previous iteration
     for (i = 1; i < 10; i++)
     {
       const int odir = mod6m1[dir + 1];
@@ -856,7 +856,7 @@ xavs_me_refine_qpel_rd (xavs_t * h, xavs_me_t * m, int i_lambda2, int i4, int i_
     }
   }
 
-  //square refine, same as pattern as ME HEX. 
+  //square refine, same as pattern as ME HEX.
   omx = bmx;
   omy = bmy;
   for (i = 0; i < 8; i++)
