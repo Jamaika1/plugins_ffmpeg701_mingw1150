@@ -181,52 +181,11 @@ logfontw_nosize_equal (const LOGFONTW *lfp1,
           lfp1->lfWeight == lfp2->lfWeight);
 }
 
-static int CALLBACK
-pango_win32_inner_enum_proc (LOGFONTW    *lfp,
-                             TEXTMETRICW *metrics,
-                             DWORD        fontType,
-                             LPARAM       lParam)
-{
-  PangoWin32FontMap *win32fontmap = (PangoWin32FontMap *)lParam;
-
-  /* Windows generates synthetic vertical writing versions of East
-   * Asian fonts with @ prepended to their name, ignore them.
-   */
-  if (lfp->lfFaceName[0] != '@')
-    pango_win32_insert_font (win32fontmap, lfp, NULL, FALSE);
-
-  return 1;
-}
-
 struct EnumProcData
 {
   HDC hdc;
   PangoWin32FontMap *font_map;
 };
-
-static int CALLBACK
-pango_win32_enum_proc (LOGFONTW       *lfp,
-                       NEWTEXTMETRICW *metrics,
-                       DWORD           fontType,
-                       LPARAM          lParam)
-{
-  LOGFONTW lf;
-  struct EnumProcData *data = (struct EnumProcData *) lParam;
-
-  PING (("%S: %lu %lx", lfp->lfFaceName, fontType, metrics->ntmFlags));
-
-  /* Do not enum Type-1 fonts */
-  if (fontType == TRUETYPE_FONTTYPE || metrics->ntmFlags & NTM_PS_OPENTYPE)
-    {
-      lf = *lfp;
-
-      EnumFontFamiliesExW (data->hdc, &lf,
-                           (FONTENUMPROCW) pango_win32_inner_enum_proc,
-                           (LPARAM) data->font_map, 0);
-    }
-
-  return 1;
-}
 
 static void
 synthesize_foreach (gpointer key,
@@ -277,7 +236,7 @@ synthesize_foreach (gpointer key,
     {
       lf = variant[NORMAL]->logfontw;
       lf.lfWeight = FW_BOLD;
-      
+
       pango_win32_insert_font (win32fontmap, &lf, NULL, TRUE);
     }
 
@@ -285,7 +244,7 @@ synthesize_foreach (gpointer key,
     {
       lf = variant[NORMAL]->logfontw;
       lf.lfItalic = 255;
-      
+
       pango_win32_insert_font (win32fontmap, &lf, NULL, TRUE);
     }
 
@@ -439,13 +398,13 @@ handle_alias_line (GString    *line_buffer,
       for (i = 0; i < alias->n_families; i++)
         g_free (alias->families[i]);
       g_free (alias->families);
-      
+
       alias->families = new_families;
       alias->n_families = n_new;
     }
 
  error:
-  
+
   g_string_free (tmp_buffer1, TRUE);
   g_string_free (tmp_buffer2, TRUE);
 }
@@ -816,6 +775,7 @@ pango_win32_font_map_class_init (PangoWin32FontMapClass *class)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (class);
   PangoFontMapClass *fontmap_class = PANGO_FONT_MAP_CLASS (class);
+  PangoFontMapClassPrivate *pclass;
 
   class->find_font = pango_win32_font_map_real_find_font;
   object_class->finalize = pango_win32_font_map_finalize;
@@ -831,6 +791,10 @@ pango_win32_font_map_class_init (PangoWin32FontMapClass *class)
                                           (GEqualFunc)alias_equal,
                                           (GDestroyNotify)alias_free,
                                           NULL);
+
+  pclass = g_type_class_get_private ((GTypeClass *) class, PANGO_TYPE_FONT_MAP);
+
+  pclass->add_font_file = pango_win32_font_map_add_font_file;
 
 #ifdef HAVE_CAIRO_WIN32
   read_windows_fallbacks (class->aliases);
@@ -1136,7 +1100,7 @@ pango_win32_font_map_load_font (PangoFontMap               *fontmap,
             pango_font_description_free (best_desc);
         }
     }
-  
+
   g_strfreev (families);
 
   if (best_match)
@@ -1673,7 +1637,7 @@ charset_name (int charset, char* num)
 {
   switch (charset)
     {
-#define CASE(x) case x##_CHARSET: return #x
+#define CASE(x) case x##_CHARSET: return (char *) #x
       CASE (ANSI);
       CASE (DEFAULT);
       CASE (SYMBOL);
@@ -1705,7 +1669,7 @@ ff_name (int ff, char* num)
 {
   switch (ff)
     {
-#define CASE(x) case FF_##x: return #x
+#define CASE(x) case FF_##x: return (char *) #x
       CASE (DECORATIVE);
       CASE (DONTCARE);
       CASE (MODERN);
@@ -2154,11 +2118,12 @@ pango_win32_font_map_cache_clear (PangoFontMap *font_map)
  *   otherwise FALSE.
  *
  * Since: 1.52
+ * Deprecated: 1.56: Use pango_font_map_add_font_file instead
  */
 gboolean
-pango_win32_font_map_add_font_file (PangoFontMap *font_map,
-                                    const char   *font_file_path,
-                                    GError      **error)
+pango_win32_font_map_add_font_file (PangoFontMap  *font_map,
+                                    const char    *font_file_path,
+                                    GError       **error)
 {
   g_return_val_if_fail (PANGO_WIN32_IS_FONT_MAP (font_map), FALSE);
 
