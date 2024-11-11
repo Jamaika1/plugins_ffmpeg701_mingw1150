@@ -31,7 +31,7 @@
 #error "Only <glib.h> can be included directly."
 #endif
 
-#include <glib/gtypes.h>
+#include "gtypes.h"
 
 G_BEGIN_DECLS
 
@@ -143,8 +143,8 @@ void    g_array_set_clear_func    (GArray           *array,
                                    GDestroyNotify    clear_func);
 
 /* Resizable pointer array.  This interface is much less complicated
- * than the above.  Add appends a pointer.  Remove fills any cleared 
- * spot and shortens the array. remove_fast will again distort order.  
+ * than the above.  Add appends a pointer.  Remove fills any cleared
+ * spot and shortens the array. remove_fast will again distort order.
  */
 #define    g_ptr_array_index(array,index_) ((array)->pdata)[index_]
 GLIB_AVAILABLE_IN_ALL
@@ -187,7 +187,7 @@ GPtrArray* g_ptr_array_new_from_null_terminated_array (gpointer       *data,
                                                        GDestroyNotify  element_free_func);
 GLIB_AVAILABLE_IN_ALL
 gpointer*  g_ptr_array_free               (GPtrArray        *array,
-					   gboolean          free_seg);
+					   gboolean          free_segment);
 GLIB_AVAILABLE_IN_ALL
 GPtrArray* g_ptr_array_ref                (GPtrArray        *array);
 GLIB_AVAILABLE_IN_ALL

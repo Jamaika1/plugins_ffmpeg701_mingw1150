@@ -246,11 +246,11 @@
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "glib"
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "glib 2.83.0-e53659d"
+#define PACKAGE_STRING "glib 2.83.0-6faed43"
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "glib"
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.83.0-e53659d"
+#define PACKAGE_VERSION "2.83.0-6faed43"
 /* Maximum POSIX RT priority */
 /* #undef POSIX_MAX_PRIORITY */
 /* Minimum POSIX RT priority */
