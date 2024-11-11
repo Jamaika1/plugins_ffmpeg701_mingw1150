@@ -39,17 +39,17 @@
  * more freedom -- they can do as they please.
  */
 
-#include "config.h"
+#include "../config.h"
 
-#include "gthread.h"
+#include "../gthread.h"
 
-#include "gmain.h"
-#include "gmessages.h"
-#include "gslice.h"
-#include "gstrfuncs.h"
-#include "gtestutils.h"
-#include "gthreadprivate.h"
-#include "gutils.h"
+#include "../gmain.h"
+#include "../gmessages.h"
+#include "../gslice.h"
+#include "../gstrfuncs.h"
+#include "../gtestutils.h"
+#include "../gthreadprivate.h"
+#include "../gutils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -770,7 +770,7 @@ g_system_thread_new (GThreadFunc proxy,
 
   if (ret == EAGAIN)
     {
-      g_set_error (error, G_THREAD_ERROR, G_THREAD_ERROR_AGAIN, 
+      g_set_error (error, G_THREAD_ERROR, G_THREAD_ERROR_AGAIN,
                    "Error creating thread: %s", g_strerror (ret));
       g_free (thread->thread.name);
       g_slice_free (GThreadPosix, thread);
@@ -818,7 +818,14 @@ g_system_thread_set_name (const gchar *name)
 #if defined(HAVE_PTHREAD_SETNAME_NP_WITHOUT_TID)
   pthread_setname_np (name); /* on OS X and iOS */
 #elif defined(HAVE_PTHREAD_SETNAME_NP_WITH_TID)
-  pthread_setname_np (pthread_self (), name); /* on Linux and Solaris */
+#ifdef __LINUX__
+#define MAX_THREADNAME_LEN 16
+#else
+#define MAX_THREADNAME_LEN 32
+#endif
+  char name_[MAX_THREADNAME_LEN];
+  g_strlcpy (name_, name, MAX_THREADNAME_LEN);
+  pthread_setname_np (pthread_self (), name_); /* on Linux and Solaris */
 #elif defined(HAVE_PTHREAD_SETNAME_NP_WITH_TID_AND_ARG)
   pthread_setname_np (pthread_self (), "%s", (gchar *) name); /* on NetBSD */
 #elif defined(HAVE_PTHREAD_SET_NAME_NP)
