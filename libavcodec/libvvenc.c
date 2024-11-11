@@ -161,21 +161,21 @@ static void vvenc_set_framerate(AVCodecContext *avctx, vvenc_config *params)
         params->m_FrameScale = avctx->time_base.num;
     }
 
-//FF_DISABLE_DEPRECATION_WARNINGS
+FF_DISABLE_DEPRECATION_WARNINGS
 
-//#if FF_API_TICKS_PER_FRAME
-    //if (avctx->ticks_per_frame == 1) {
-        //params->m_TicksPerSecond = -1;   /* auto mode for ticks per frame = 1 */
-    //} else {
-//#endif
+#if FF_API_TICKS_PER_FRAME
+    if (avctx->ticks_per_frame == 1) {
+        params->m_TicksPerSecond = -1;   /* auto mode for ticks per frame = 1 */
+    } else {
+#endif
         params->m_TicksPerSecond =
             ceil(((double)avctx->time_base.den / (double) avctx->time_base.num)
 #if FF_API_TICKS_PER_FRAME
                  * (double) avctx->ticks_per_frame)
 #endif
         ;
-    //}
-//FF_ENABLE_DEPRECATION_WARNINGS
+    }
+FF_ENABLE_DEPRECATION_WARNINGS
 }
 
 static int vvenc_parse_vvenc_params(AVCodecContext *avctx, vvenc_config *params)
@@ -314,7 +314,7 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
         params.m_IntraPeriod = 1;
     } else {
         //params.m_IntraPeriodSec = s->refreshsec;
-        params.m_IntraPeriod = 256;
+        //params.m_IntraPeriod = 256;
     }
 
     params.m_AccessUnitDelimiter = true;
@@ -498,7 +498,7 @@ static const AVOption options[] = {
     //{ "passlogfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "rcstatsfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "refreshsec",   "set (intra) refresh period in seconds", OFFSET(refreshsec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
-    { "intraperiod"   "intra period in frames (0: specify intra period in seconds instead, see 'refreshsec')", OFFSET(intraperiod), AV_OPT_TYPE_INT, {.str = 256}, 0, 512, VE},
+    { "intraperiod",  "intra period in frames (0: specify intra period in seconds instead, see 'refreshsec')", OFFSET(intraperiod), AV_OPT_TYPE_INT, {.i64 = 256}, 0, 512, VE},
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = "auto"}, 0, 0, VE},
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
 
