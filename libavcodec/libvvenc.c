@@ -54,6 +54,7 @@ typedef struct VVenCContext {
     int   qp;
     bool  qpa;
     int   refreshsec;
+    int   intraperiod;
     char* level;
     int   tier;
     char* stats;
@@ -87,12 +88,35 @@ static void vvenc_set_verbository(vvenc_config *params)
 
 static void vvenc_set_pic_format(AVCodecContext *avctx, vvenc_config *params)
 {
-    params->m_internChromaFormat = VVENC_CHROMA_420;
-    params->m_inputBitDepth[0]   = 10;
+    switch (avctx->pix_fmt) {
+        case AV_PIX_FMT_GRAY10:
+            params->m_internChromaFormat = VVENC_CHROMA_400;
+            //params->m_useIdentityTableForNon420Chroma = false;
+            break;
+        case AV_PIX_FMT_YUV420P10:
+            params->m_internChromaFormat = VVENC_CHROMA_420;
+            //params->m_useIdentityTableForNon420Chroma = false;
+            break;
+        case AV_PIX_FMT_YUV422P10:
+            params->m_internChromaFormat = VVENC_CHROMA_422;
+            //params->m_useIdentityTableForNon420Chroma = true;
+            //params->m_hrdParametersPresent = false;
+            break;
+        case AV_PIX_FMT_YUV444P10:
+            params->m_internChromaFormat = VVENC_CHROMA_444;
+            //params->m_useIdentityTableForNon420Chroma = true;
+            //params->m_hrdParametersPresent = false;
+            break;
+    };
+    //params->m_internChromaFormat = VVENC_CHROMA_420;
+    params->m_inputBitDepth[0] = params->m_inputBitDepth[1] = params->m_inputBitDepth[2] = 10;
+    params->m_internalBitDepth[0] = params->m_internalBitDepth[1] = params->m_internalBitDepth[2] = 10;
 }
 
 static void vvenc_set_color_format(AVCodecContext *avctx, vvenc_config *params)
 {
+    //const AVFrame *frame;
+    params->m_HdrMode = VVENC_HDR_OFF;
     if (avctx->color_primaries != AVCOL_PRI_UNSPECIFIED)
         params->m_colourPrimaries = (int) avctx->color_primaries;
     if (avctx->colorspace != AVCOL_SPC_UNSPECIFIED)
@@ -100,21 +124,30 @@ static void vvenc_set_color_format(AVCodecContext *avctx, vvenc_config *params)
     if (avctx->color_trc != AVCOL_TRC_UNSPECIFIED) {
         params->m_transferCharacteristics = (int) avctx->color_trc;
 
-        if (avctx->color_trc == AVCOL_TRC_SMPTE2084)
-            params->m_HdrMode = (avctx->color_primaries == AVCOL_PRI_BT2020) ?
-                                VVENC_HDR_PQ_BT2020 : VVENC_HDR_PQ;
-        else if (avctx->color_trc == AVCOL_TRC_BT2020_10 || avctx->color_trc == AVCOL_TRC_ARIB_STD_B67)
-            params->m_HdrMode = (avctx->color_trc == AVCOL_TRC_BT2020_10 ||
-                                 avctx->color_primaries == AVCOL_PRI_BT2020 ||
-                                 avctx->colorspace == AVCOL_SPC_BT2020_NCL ||
-                                 avctx->colorspace == AVCOL_SPC_BT2020_CL) ?
-                                VVENC_HDR_HLG_BT2020 : VVENC_HDR_HLG;
+        if (avctx->color_primaries == AVCOL_PRI_BT2020) {
+            if (avctx->color_trc == AVCOL_TRC_SMPTE2084)
+                params->m_HdrMode = ((avctx->color_primaries == AVCOL_PRI_BT2020) ? VVENC_HDR_PQ_BT2020 : VVENC_HDR_PQ);
+            else if (avctx->color_trc == AVCOL_TRC_BT2020_10 ||
+                     avctx->colorspace == AVCOL_SPC_BT2020_NCL || avctx->colorspace == AVCOL_SPC_BT2020_CL)
+                params->m_HdrMode = VVENC_SDR_BT2020;
+            else if (avctx->color_trc == AVCOL_TRC_ARIB_STD_B67)
+                params->m_HdrMode = ((avctx->color_primaries == AVCOL_PRI_BT2020) ? VVENC_HDR_HLG_BT2020 : VVENC_HDR_HLG);
+        }
     }
+
+    if (avctx->colorspace == AVCOL_SPC_BT709)
+        params->m_HdrMode = VVENC_SDR_BT709;
 
     if (params->m_HdrMode == VVENC_HDR_OFF &&
         (avctx->color_primaries != AVCOL_PRI_UNSPECIFIED || avctx->colorspace != AVCOL_SPC_UNSPECIFIED)) {
         params->m_vuiParametersPresent = 1;
         params->m_colourDescriptionPresent = true;
+    }
+
+    if (avctx->color_range == AVCOL_RANGE_JPEG) //|| frame->color_range == AVCOL_RANGE_JPEG)
+        params->m_videoFullRangeFlag = true;
+    else {
+        params->m_videoFullRangeFlag = false;
     }
 }
 
@@ -128,20 +161,21 @@ static void vvenc_set_framerate(AVCodecContext *avctx, vvenc_config *params)
         params->m_FrameScale = avctx->time_base.num;
     }
 
-FF_DISABLE_DEPRECATION_WARNINGS
+//FF_DISABLE_DEPRECATION_WARNINGS
 
-#if FF_API_TICKS_PER_FRAME
-    if (avctx->ticks_per_frame == 1) {
-#endif
-        params->m_TicksPerSecond = -1;   /* auto mode for ticks per frame = 1 */
-#if FF_API_TICKS_PER_FRAME
-    } else {
+//#if FF_API_TICKS_PER_FRAME
+    //if (avctx->ticks_per_frame == 1) {
+        //params->m_TicksPerSecond = -1;   /* auto mode for ticks per frame = 1 */
+    //} else {
+//#endif
         params->m_TicksPerSecond =
-            ceil((avctx->time_base.den / (double) avctx->time_base.num) *
-                 (double) avctx->ticks_per_frame);
-    }
+            ceil(((double)avctx->time_base.den / (double) avctx->time_base.num)
+#if FF_API_TICKS_PER_FRAME
+                 * (double) avctx->ticks_per_frame)
 #endif
-FF_ENABLE_DEPRECATION_WARNINGS
+        ;
+    //}
+//FF_ENABLE_DEPRECATION_WARNINGS
 }
 
 static int vvenc_parse_vvenc_params(AVCodecContext *avctx, vvenc_config *params)
@@ -266,7 +300,9 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
 
     vvenc_set_verbository(&params);
 
-    if (avctx->thread_count > 0)
+    //if (avctx->thread_count == 0)
+        //params.m_numThreads = -1;
+    //else
         params.m_numThreads = avctx->thread_count;
 
     /* GOP settings (IDR/CRA) */
@@ -380,6 +416,7 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 {
     VVenCContext *s = avctx->priv_data;
     vvencYUVBuffer *pyuvbuf;
+    vvenc_config params;
     vvencYUVBuffer yuvbuf;
     int ret;
 
@@ -405,6 +442,12 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
         yuvbuf.cts = frame->pts;
         yuvbuf.ctsValid = true;
         pyuvbuf = &yuvbuf;
+    }
+
+    if (frame->color_range == AVCOL_RANGE_JPEG)
+        params.m_videoFullRangeFlag = true;
+    else {
+        params.m_videoFullRangeFlag = false;
     }
 
     if (!s->encode_done) {
@@ -435,6 +478,8 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 
 static const enum AVPixelFormat pix_fmts_vvenc[] = {
     AV_PIX_FMT_YUV420P10,
+    AV_PIX_FMT_YUV422P10,
+    AV_PIX_FMT_YUV444P10,
     AV_PIX_FMT_NONE
 };
 
@@ -453,26 +498,27 @@ static const AVOption options[] = {
     //{ "passlogfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "rcstatsfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "refreshsec",   "set (intra) refresh period in seconds", OFFSET(refreshsec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
-    { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
+    { "intraperiod"   "intra period in frames (0: specify intra period in seconds instead, see 'refreshsec')", OFFSET(intraperiod), AV_OPT_TYPE_INT, {.str = 256}, 0, 512, VE},
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = "auto"}, 0, 0, VE},
+    { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
 
     { "tier",         "set vvc tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = 0},  0, 1, VE,  .unit = "tier"},
     { "main",         "main", 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE,  .unit = "tier"},
     { "high",         "high", 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE,  .unit = "tier"},
-    {NULL}
+    { NULL }
 };
 
 static const AVClass class = {
     .class_name = "libvvenc",
     .item_name  = av_default_item_name,
     .option     = options,
-    .version    = LIBAVUTIL_VERSION_INT,
+    .version    = LIBAVUTIL_VERSION_INT
 };
 
 static const FFCodecDefault vvenc_defaults[] = {
     { "b", "0" },
     { "g", "-1" },
-    { NULL },
+    { NULL }
 };
 
 const FFCodec ff_libvvenc_encoder = {
@@ -487,7 +533,7 @@ const FFCodec ff_libvvenc_encoder = {
     .p.wrapper_name = "libvvenc",
     .priv_data_size = sizeof(VVenCContext),
     .p.pix_fmts     = pix_fmts_vvenc,
-    .color_ranges   = AVCOL_RANGE_MPEG,
+    .color_ranges   = AVCOL_RANGE_MPEG | AVCOL_RANGE_JPEG,
     .init           = vvenc_init,
     FF_CODEC_ENCODE_CB(vvenc_frame),
     .close          = vvenc_close,
