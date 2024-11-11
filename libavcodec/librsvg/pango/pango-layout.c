@@ -3466,7 +3466,13 @@ static void
 ensure_decimal (PangoLayout *layout)
 {
   if (layout->decimal == 0)
-    layout->decimal = g_utf8_get_char (localeconv ()->decimal_point);
+    {
+#ifndef __BIONIC__
+      layout->decimal = g_utf8_get_char (localeconv ()->decimal_point);
+#else
+      layout->decimal = g_utf8_get_char (".");
+#endif
+    }
 }
 
 struct _LastTabState {
@@ -6823,7 +6829,7 @@ pango_layout_line_postprocess (PangoLayoutLine *line,
                                gboolean         wrapped)
 {
   gboolean ellipsized = FALSE;
-  
+
   DEBUG1 ("postprocessing line, %s", wrapped ? "wrapped" : "not wrapped");
 
   add_missing_hyphen (line, state, line->runs->data);
@@ -8013,7 +8019,7 @@ pango_layout_iter_get_baseline (PangoLayoutIter *iter)
 /**
  * pango_layout_iter_get_run_baseline:
  * @iter: a `PangoLayoutIter`
- * 
+ *
  * Gets the Y position of the current run's baseline, in layout
  * coordinates.
  *
